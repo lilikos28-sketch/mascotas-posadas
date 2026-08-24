@@ -4,7 +4,7 @@ import {
   Home, Check, X, Camera, ChevronLeft, ChevronRight, Sparkles, Trash2, EyeOff,
   PartyPopper, Copy, Store, Stethoscope, Settings2, Flag, Info, Navigation, Crosshair,
   Clock, Ruler, Ban, Loader2, Send, MapPinned, ListChecks, AlertTriangle, LogOut,
-  LogIn, Pencil, Wallet, Cloud, CloudOff, Mail, KeyRound, CircleUserRound, QrCode
+  LogIn, Pencil, Wallet, Cloud, CloudOff, Mail, KeyRound, CircleUserRound, QrCode, BookOpen
 } from "lucide-react";
 
 /* =========================================================================
@@ -116,7 +116,7 @@ function compressImage(file,maxDim=1280,quality=0.72){
 }
 
 /* ===================== Backend: NUBE (Supabase) o LOCAL ==================== */
-const KEYS = { posts:"mp:posts:v4", reports:"mp:reports:v4", session:"mp:session:v4", lugares:"mp:lugares:v1", mensajes:"mp:mensajes:v1", mascotas:"mp:mascotas:v1", avist:"mp:avist:v1" };
+const KEYS = { posts:"mp:posts:v4", reports:"mp:reports:v4", session:"mp:session:v4", lugares:"mp:lugares:v1", mensajes:"mp:mensajes:v1", mascotas:"mp:mascotas:v1", avist:"mp:avist:v1", blog:"mp:blog:v1" };
 const hasStore = ()=>typeof window!=="undefined"&&window.storage;
 const Local = {
   async get(k,f){ if(!hasStore())return f; try{const r=await window.storage.get(k);return r?JSON.parse(r.value):f;}catch{return f;} },
@@ -266,6 +266,7 @@ export default function App(){
   const [reportFor,setReportFor]=useState(null);
   const [misMascotas,setMisMascotas]=useState([]);
   const [avistamientos,setAvistamientos]=useState([]);
+  const [blog,setBlog]=useState([]);
   const [qrMascota,setQrMascota]=useState(null); // mascota abierta desde un QR
 
   const posts = useMemo(()=>[...realPosts,...demoPosts],[realPosts,demoPosts]);
@@ -291,8 +292,9 @@ export default function App(){
     if(CLOUD){ try{ const c=await getClient(); if(!c)return;
       try{ const {data}=await c.from("mascotas").select("*").order("created_at",{ascending:false}); setMisMascotas(data||[]); }catch{}
       try{ const {data}=await c.from("avistamientos").select("*").order("created_at",{ascending:false}); setAvistamientos(data||[]); }catch{}
+      try{ const {data}=await c.from("blog").select("*").order("created_at",{ascending:false}); setBlog(data||[]); }catch{}
     }catch{} }
-    else { setMisMascotas(await Local.get(KEYS.mascotas,[])); setAvistamientos(await Local.get(KEYS.avist,[])); }
+    else { setMisMascotas(await Local.get(KEYS.mascotas,[])); setAvistamientos(await Local.get(KEYS.avist,[])); setBlog(await Local.get(KEYS.blog,[])); }
   };
 
   const abrirMascotaPorCodigo = async (code)=>{
@@ -389,6 +391,19 @@ export default function App(){
   };
   const borrarAvistamiento=async(id)=>{ if(conn==="cloud"){try{const c=await getClient();await c.from("avistamientos").delete().eq("id",id);}catch{}} const na=avistamientos.filter(x=>x.id!==id); setAvistamientos(na); if(conn!=="cloud")Local.set(KEYS.avist,na); };
 
+  /* ---- Blog (solo la admin carga entradas) ---- */
+  const guardarBlog=async(entrada)=>{
+    const rec={ titulo:clean(entrada.titulo,120), texto:clean(entrada.texto,4000), foto:entrada.foto||null };
+    if(conn==="cloud"){ try{ const c=await getClient(); let foto=rec.foto; if(foto&&foto.startsWith("data:"))foto=await uploadPhoto(c,foto);
+      if(entrada.id){ const {error}=await c.from("blog").update({...rec,foto}).eq("id",entrada.id); if(error)throw error; setBlog(prev=>prev.map(b=>b.id===entrada.id?{...b,...rec,foto}:b)); }
+      else { const {error}=await c.from("blog").insert({...rec,foto}); if(error)throw error; const full={...rec,foto,id:Date.now(),created_at:new Date().toISOString()}; setBlog(prev=>[full,...prev]); }
+      return true; }catch(e){ flash("No se pudo guardar la entrada."); return false; } }
+    if(entrada.id){ const nb=blog.map(b=>b.id===entrada.id?{...b,...rec}:b); setBlog(nb); Local.set(KEYS.blog,nb); }
+    else { const full={...rec,id:Date.now(),created_at:new Date().toISOString()}; const nb=[full,...blog]; setBlog(nb); Local.set(KEYS.blog,nb); }
+    return true;
+  };
+  const borrarBlog=async(id)=>{ if(conn==="cloud"){try{const c=await getClient();await c.from("blog").delete().eq("id",id);}catch{}} const nb=blog.filter(x=>x.id!==id); setBlog(nb); if(conn!=="cloud")Local.set(KEYS.blog,nb); flash("Entrada eliminada."); };
+
   const requireAuthToPublish = CLOUD && !user;
 
   if(!ready) return <div style={{background:C.bg,minHeight:480}} className="flex items-center justify-center"><PawPrint className="animate-pulse" color={C.brand}/></div>;
@@ -426,6 +441,7 @@ export default function App(){
         {view==="help"    && <HelpView go={go} lugares={lugares} />}
         {view==="business"&& <BusinessView go={go} />}
         {view==="contacto"&& <ContactoView go={go} onSend={enviarMensaje} />}
+        {view==="blog"&& <BlogView go={go} entradas={blog} />}
         {view==="registrar_mascota"&& (requireAuthToPublish ? <AuthGate go={go} /> : <RegistrarMascotaView go={go} onSave={async(f)=>{ const m=await registrarMascota(f); if(m){ setQrMascota(m); } return m; }} flash={flash} />)}
         {view==="mis_mascotas"&& <MisMascotasView go={go} mascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} user={user} onDelete={borrarMascota} avistamientos={avistamientos} setQr={setQrMascota} irQr={(m)=>{setQrMascota(m);go("qr_mascota");}} />}
         {view==="qr_mascota"&& (qrMascota ? <QRMascotaView go={go} mascota={qrMascota} flash={flash} /> : <VistaVacia go={go} texto="No se encontró la mascota. Volvé a Mis mascotas." />)}
@@ -433,7 +449,7 @@ export default function App(){
         {view==="auth"    && <AuthView onSignIn={onSignIn} onSignUp={onSignUp} onReset={onReset} onGoogle={Auth.google} go={go} />}
         {view==="costs"   && <CostsView go={go} conn={conn} />}
         {view==="profile" && <ProfileView posts={posts} go={go} user={user} conn={conn} onSignOut={onSignOut} onUpdateName={onUpdateName} />}
-        {view==="admin"   && (isAdmin(user) ? <AdminView posts={posts} reports={reports} approve={approve} removePost={removePost} go={go} clearReport={clearReport} conn={conn} mensajes={mensajes} borrarMensaje={borrarMensaje} lugares={lugares} guardarLugar={guardarLugar} borrarLugar={borrarLugar} avistamientos={avistamientos} borrarAvistamiento={borrarAvistamiento} /> : <AdminLocked go={go} />)}
+        {view==="admin"   && (isAdmin(user) ? <AdminView posts={posts} reports={reports} approve={approve} removePost={removePost} go={go} clearReport={clearReport} conn={conn} mensajes={mensajes} borrarMensaje={borrarMensaje} lugares={lugares} guardarLugar={guardarLugar} borrarLugar={borrarLugar} avistamientos={avistamientos} borrarAvistamiento={borrarAvistamiento} blog={blog} guardarBlog={guardarBlog} borrarBlog={borrarBlog} /> : <AdminLocked go={go} />)}
 
         <BottomNav view={view} go={go} />
 
@@ -508,6 +524,8 @@ function HomeView({ posts, go, conn }){
       <div className="mt-4 grid grid-cols-2 gap-2.5"><QuickCard ico={<Stethoscope size={18}/>} title="Ayuda" sub="Vets y refugios" onClick={()=>go("help")}/><QuickCard ico={<Store size={18}/>} title="Negocios amigos" sub="Comercios locales" onClick={()=>go("business")}/></div>
       */}
       <button onClick={()=>go("contacto")} className="mt-4 w-full rounded-2xl p-3.5 text-left flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{background:C.brandSoft,color:C.brand}}><Mail size={18}/></div><div className="flex-1"><div className="font-bold text-sm">Contacto</div><div className="text-[11px]" style={{color:C.muted}}>Publicitá con nosotros, sumá tu refugio o enviá una sugerencia</div></div><ChevronRight size={16} color={C.muted}/></button>
+
+      <button onClick={()=>go("blog")} className="mt-2.5 w-full rounded-2xl p-3.5 text-left flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{background:C.brandSoft,color:C.brand}}><BookOpen size={18}/></div><div className="flex-1"><div className="font-bold text-sm">Blog 📝</div><div className="text-[11px]" style={{color:C.muted}}>Historias, novedades y consejos de Mascotas Perdidas Misiones</div></div><ChevronRight size={16} color={C.muted}/></button>
       <div className="mt-4 mb-2 rounded-2xl p-3.5 flex gap-2.5 text-[12px]" style={{background:"#FFF7E6",border:"1px solid #F3E1B5",color:"#7A5B14"}}><AlertTriangle size={18} className="shrink-0 mt-0.5"/><p>Cuidado con quienes pidan dinero antes de demostrar que tienen a tu mascota. No compartas datos sensibles sin verificar.</p></div>
     </div>
   );
@@ -962,21 +980,77 @@ function MascotaPublicaView({ go, mascota, onReport, flash }){
 
 /* ------------------------- Mis mascotas registradas ----------------------- */
 function MisMascotasView({ go, mascotas=[], user, onDelete, avistamientos=[], irQr }){
+  const [verAvisos,setVerAvisos]=useState(null); // mascota cuyos avisos se muestran
+  const fmtFecha=(f)=>{ try{ return new Date(f).toLocaleDateString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}); }catch{ return ""; } };
+
+  if(verAvisos){
+    const avisos=avistamientos.filter(a=>a.mascota_codigo===verAvisos.codigo);
+    return (<div className="px-4 pb-6">
+      <Title back={()=>setVerAvisos(null)} title={`Avisos de ${verAvisos.pet_name||verAvisos.petName}`} tag="FUNCIONAL"/>
+      <div className="rounded-2xl p-3 mb-4 text-[12px] flex gap-2" style={{background:C.brandSoft,color:C.ink}}><Bell size={16} className="shrink-0 mt-0.5" style={{color:C.brand}}/><span>Estas personas escanearon el QR de {verAvisos.pet_name||verAvisos.petName} y dejaron un aviso. ¡Contactalas para reencontrarte! 🐾</span></div>
+      {avisos.length===0 ? <Empty text="Todavía no hay avisos para esta mascota."/> :
+      <div className="space-y-2.5">{avisos.map(a=>(
+        <div key={a.id} className="rounded-2xl p-3.5" style={{background:C.surface,border:`1px solid ${C.line}`}}>
+          <div className="flex items-center justify-between"><div className="font-bold text-sm">{a.quien||"Alguien"}</div><div className="text-[10px]" style={{color:C.muted}}>{fmtFecha(a.created_at)}</div></div>
+          {a.zona&&<div className="text-[12px] mt-1 flex items-center gap-1" style={{color:C.ink}}><MapPin size={12}/> La vio en: {a.zona}</div>}
+          {a.nota&&<div className="text-[12px] mt-1" style={{color:C.muted}}>{a.nota}</div>}
+          {a.contacto&&<div className="flex gap-2 mt-2.5"><a href={`https://wa.me/${digits(a.contacto)}`} target="_blank" rel="noreferrer" className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white text-center flex items-center justify-center gap-1" style={{background:C.found}}><Phone size={13}/> Contactar por WhatsApp</a><a href={`tel:${a.contacto}`} className="py-2.5 px-3 rounded-xl text-xs font-bold text-center" style={{background:C.brandSoft,color:C.brandDeep}}>Llamar</a></div>}
+        </div>
+      ))}</div>}
+    </div>);
+  }
+
   return (<div className="px-4 pb-6">
     <Title back={()=>go("home")} title="Mis mascotas" tag="FUNCIONAL"/>
     <button onClick={()=>go("registrar_mascota")} className="w-full py-3 rounded-2xl font-bold text-white flex items-center justify-center gap-2 mb-4" style={{background:C.brand}}><Plus size={18}/> Registrar una mascota</button>
     {mascotas.length===0 ? <Empty text="Todavía no registraste ninguna mascota. Registrala para tener su QR de seguridad."/> :
     <div className="space-y-3">{mascotas.map(m=>{ const avisos=avistamientos.filter(a=>a.mascota_codigo===m.codigo).length; return (
-      <div key={m.id} className="rounded-2xl overflow-hidden" style={{background:C.surface,border:`1px solid ${C.line}`}}>
+      <div key={m.id} className="rounded-2xl overflow-hidden" style={{background:C.surface,border:`1px solid ${avisos>0?C.found:C.line}`}}>
         <div className="flex items-center gap-3 p-3">
           {m.photo? <img src={m.photo} alt="" className="w-14 h-14 rounded-xl object-cover"/> : <div className="w-14 h-14 rounded-xl flex items-center justify-center" style={{background:C.brandSoft}}>🐾</div>}
-          <div className="flex-1 min-w-0"><div className="font-bold text-sm">{m.pet_name||m.petName}</div><div className="text-[11px]" style={{color:C.muted}}>{m.species}{m.color?" · "+m.color:""} · código {m.codigo}</div>{avisos>0&&<div className="text-[11px] font-bold mt-0.5" style={{color:C.found}}>📍 {avisos} aviso{avisos>1?"s":""} de avistamiento</div>}</div>
+          <div className="flex-1 min-w-0"><div className="font-bold text-sm">{m.pet_name||m.petName}</div><div className="text-[11px]" style={{color:C.muted}}>{m.species}{m.color?" · "+m.color:""} · código {m.codigo}</div>{avisos>0&&<div className="text-[11px] font-bold mt-0.5" style={{color:C.found}}>🔔 {avisos} aviso{avisos>1?"s":""} nuevo{avisos>1?"s":""}</div>}</div>
         </div>
+        {avisos>0 && <button onClick={()=>setVerAvisos(m)} className="mx-3 mb-2 py-2.5 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-1 w-[calc(100%-1.5rem)]" style={{background:C.found}}><Bell size={13}/> Ver {avisos} aviso{avisos>1?"s":""} de dónde la vieron</button>}
         <div className="flex gap-2 px-3 pb-3">
           <button onClick={()=>irQr(m)} className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white" style={{background:C.brand}}>Ver / imprimir QR</button>
           <button onClick={()=>onDelete(m.id)} className="py-2.5 px-3 rounded-xl text-xs font-bold" style={{background:"#FBE7E7",color:C.lost}}><Trash2 size={14}/></button>
         </div>
       </div>);})}</div>}
+  </div>);
+}
+
+/* --------------------------------- Blog ---------------------------------- */
+function BlogView({ go, entradas=[] }){
+  const [abierta,setAbierta]=useState(null);
+  const fmtFecha=(f)=>{ try{ return new Date(f).toLocaleDateString("es-AR",{day:"numeric",month:"long",year:"numeric"}); }catch{ return ""; } };
+  if(abierta){
+    return (<div className="px-4 pb-6">
+      <Title back={()=>setAbierta(null)} title="Blog" tag="FUNCIONAL"/>
+      <div className="rounded-2xl overflow-hidden" style={{background:C.surface,border:`1px solid ${C.line}`}}>
+        {abierta.foto && <img src={abierta.foto} alt="" className="w-full object-cover" style={{maxHeight:280}}/>}
+        <div className="p-4">
+          <div className="text-[11px] font-bold" style={{color:C.brand}}>{fmtFecha(abierta.created_at)}</div>
+          <h2 className="text-xl font-extrabold mt-1">{abierta.titulo}</h2>
+          <p className="text-[14px] mt-2 whitespace-pre-wrap leading-relaxed" style={{color:C.ink}}>{abierta.texto}</p>
+        </div>
+      </div>
+    </div>);
+  }
+  return (<div className="px-4 pb-6">
+    <Title back={()=>go("home")} title="Blog" tag="FUNCIONAL"/>
+    <div className="rounded-2xl p-3 mb-4 text-[12px] flex gap-2" style={{background:C.brandSoft,color:C.ink}}><BookOpen size={16} className="shrink-0 mt-0.5" style={{color:C.brand}}/><span>Historias con final feliz, novedades y consejos para cuidar a tus mascotas. 🐾</span></div>
+    {entradas.length===0 ? <Empty text="Todavía no hay entradas en el blog. ¡Pronto vas a encontrar historias y novedades acá!"/> :
+    <div className="space-y-3">{entradas.map(e=>(
+      <button key={e.id} onClick={()=>setAbierta(e)} className="w-full text-left rounded-2xl overflow-hidden" style={{background:C.surface,border:`1px solid ${C.line}`}}>
+        {e.foto && <img src={e.foto} alt="" className="w-full object-cover" style={{maxHeight:180}}/>}
+        <div className="p-3.5">
+          <div className="text-[11px] font-bold" style={{color:C.brand}}>{fmtFecha(e.created_at)}</div>
+          <div className="font-extrabold text-[15px] mt-0.5">{e.titulo}</div>
+          {e.texto && <div className="text-[12px] mt-1 line-clamp-2" style={{color:C.muted}}>{e.texto.slice(0,120)}{e.texto.length>120?"…":""}</div>}
+          <div className="text-[12px] font-bold mt-1.5" style={{color:C.brand}}>Leer más →</div>
+        </div>
+      </button>
+    ))}</div>}
   </div>);
 }
 
@@ -1059,7 +1133,7 @@ function Stat({ n, l }){ return <div className="rounded-2xl py-3 text-center" st
 
 /* ---------------------------- Administración ----------------------------- */
 function AdminLocked({ go }){ return <div className="px-4"><Title back={()=>go("home")} title="Administración" tag="FUNCIONAL"/><div className="rounded-2xl p-6 text-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><Shield size={38} className="mx-auto" color={C.brand}/><p className="font-bold mt-2">Solo administradores</p><p className="text-[13px] mt-1" style={{color:C.muted}}>Ingresá con un email de la lista ADMIN_EMAILS para acceder.</p><button onClick={()=>go("auth")} className="mt-4 w-full py-3 rounded-2xl font-bold text-white" style={{background:C.brand}}>Ingresar</button></div></div>; }
-function AdminView({ posts, reports, approve, removePost, go, clearReport, conn, mensajes=[], borrarMensaje, lugares=[], guardarLugar, borrarLugar, avistamientos=[], borrarAvistamiento }){
+function AdminView({ posts, reports, approve, removePost, go, clearReport, conn, mensajes=[], borrarMensaje, lugares=[], guardarLugar, borrarLugar, avistamientos=[], borrarAvistamiento, blog=[], guardarBlog, borrarBlog }){
   const [tab,setTab]=useState("stats");const [fBarrio,setFBarrio]=useState("all"),[fStatus,setFStatus]=useState("all"),[fSp,setFSp]=useState("all");
   const real=posts;const total=real.length;const lost=real.filter(p=>p.type==="lost").length;const found=real.filter(p=>p.type==="found").length;const seen=real.filter(p=>p.type==="seen").length;const reunited=real.filter(p=>p.status==="reunited").length;const recovered=real.filter(p=>p.status==="reunited"||p.status==="found").length;const pct=total?Math.round(recovered/total*100):0;
   const byBarrio=BARRIO_LIST.map(b=>({b,n:real.filter(p=>p.barrio===b).length})).filter(x=>x.n).sort((a,b)=>b.n-a.n).slice(0,8);const maxB=Math.max(1,...byBarrio.map(x=>x.n));
@@ -1069,7 +1143,7 @@ function AdminView({ posts, reports, approve, removePost, go, clearReport, conn,
     <div className="px-4">
       <Title back={()=>go("home")} title="Panel administrador" tag="FUNCIONAL"/>
       {conn!=="cloud"&&<div className="rounded-2xl p-2.5 mb-2 text-[11px] flex items-center gap-1.5" style={{background:"#FFF7E6",border:"1px solid #F3E1B5",color:"#7A5B14"}}><CloudOff size={13}/> Modo local: la moderación afecta solo este dispositivo.</div>}
-      <div className="flex gap-2 mb-3 overflow-x-auto mp-scroll -mx-4 px-4">{[["stats","Estadísticas"],["mod","Moderación"],["reports",`Reportes${reports.length?` (${reports.length})`:""}`],["mensajes",`Mensajes${mensajes.length?` (${mensajes.length})`:""}`],["avistamientos",`Avistamientos${avistamientos.length?` (${avistamientos.length})`:""}`],["lugares","Lugares"],["estado","Estado"]].map(([k,l])=><button key={k} onClick={()=>setTab(k)} className="shrink-0 px-3 py-2 rounded-xl text-xs font-bold" style={{background:tab===k?C.ink:C.surface,color:tab===k?"#fff":C.muted,border:`1px solid ${tab===k?C.ink:C.line}`}}>{l}</button>)}</div>
+      <div className="flex gap-2 mb-3 overflow-x-auto mp-scroll -mx-4 px-4">{[["stats","Estadísticas"],["mod","Moderación"],["reports",`Reportes${reports.length?` (${reports.length})`:""}`],["mensajes",`Mensajes${mensajes.length?` (${mensajes.length})`:""}`],["avistamientos",`Avistamientos${avistamientos.length?` (${avistamientos.length})`:""}`],["blog",`Blog${blog.length?` (${blog.length})`:""}`],["lugares","Lugares"],["estado","Estado"]].map(([k,l])=><button key={k} onClick={()=>setTab(k)} className="shrink-0 px-3 py-2 rounded-xl text-xs font-bold" style={{background:tab===k?C.ink:C.surface,color:tab===k?"#fff":C.muted,border:`1px solid ${tab===k?C.ink:C.line}`}}>{l}</button>)}</div>
 
       {tab==="stats"&&(<div className="space-y-3 mb-2"><div className="rounded-2xl p-4 text-center" style={{background:`linear-gradient(135deg, ${C.brand}, ${C.brandDeep})`,color:"#fff"}}><div className="text-4xl font-extrabold">{pct}%</div><div className="text-[12px] font-semibold opacity-90">porcentaje de recuperación</div></div><div className="grid grid-cols-2 gap-2.5"><Kpi n={total} l="Total publicaciones" c={C.ink}/><Kpi n={reunited} l="Reunidas con familia" c={C.reunited}/><Kpi n={lost} l="Perdidas" c={C.lost}/><Kpi n={found} l="Encontradas" c={C.found}/><Kpi n={seen} l="Vistas" c={C.seen}/><Kpi n={reports.length} l="Reportes" c={C.muted}/></div><div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Publicaciones por barrio</div><Bars data={byBarrio} max={maxB} color={C.brand}/></div>{repB.length>0&&<div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Barrios con más reportes</div><Bars data={repB} max={Math.max(1,...repB.map(x=>x.n))} color={C.lost}/></div>}</div>)}
 
@@ -1081,6 +1155,8 @@ function AdminView({ posts, reports, approve, removePost, go, clearReport, conn,
 
       {tab==="avistamientos"&&(<div className="space-y-2.5 mb-2">{avistamientos.length===0?<Empty text="No hay avistamientos todavía. Acá vas a ver los avisos de gente que escaneó un QR."/>:avistamientos.map(a=>(<div key={a.id} className="rounded-2xl p-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="flex items-center justify-between"><span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{background:C.brandSoft,color:C.brandDeep}}>🐾 {a.mascota_nombre||a.mascota_codigo}</span><span className="text-[10px]" style={{color:C.muted}}>{timeAgo(a.created_at)}</span></div><div className="text-[13px] mt-1.5"><b>{a.quien}</b> la vio{a.zona?` en ${a.zona}`:""}</div>{a.nota&&<div className="text-[12px] mt-0.5" style={{color:C.muted}}>{a.nota}</div>}<div className="text-[12px] flex items-center gap-1.5 mt-1" style={{color:C.brand}}><Phone size={11}/> {a.contacto}</div><div className="flex gap-2 mt-2">{digits(a.contacto)&&<a href={`https://wa.me/${digits(a.contacto)}`} target="_blank" rel="noreferrer" className="flex-1 py-2 rounded-xl text-xs font-bold text-white text-center" style={{background:C.found}}>Contactar por WhatsApp</a>}<button onClick={()=>borrarAvistamiento(a.id)} className="py-2 px-3 rounded-xl text-xs font-bold" style={{background:"#FBE7E7",color:C.lost}}><Trash2 size={14}/></button></div></div>))}</div>)}
 
+      {tab==="blog"&&<BlogAdmin blog={blog} guardarBlog={guardarBlog} borrarBlog={borrarBlog}/>}
+
       {tab==="lugares"&&<LugaresAdmin lugares={lugares} guardarLugar={guardarLugar} borrarLugar={borrarLugar}/>}
 
       {tab==="estado"&&<AuditPanel conn={conn}/>}
@@ -1088,6 +1164,42 @@ function AdminView({ posts, reports, approve, removePost, go, clearReport, conn,
   );
 }
 function Sel({ value, onChange, options }){ return <select value={value} onChange={e=>onChange(e.target.value)} className="shrink-0 px-3 py-2 rounded-xl text-xs font-semibold" style={{background:C.surface,border:`1px solid ${C.line}`,color:C.ink}}>{options.map(([k,l])=><option key={k} value={k}>{l}</option>)}</select>; }
+
+function BlogAdmin({ blog=[], guardarBlog, borrarBlog }){
+  const [f,setF]=useState({id:null,titulo:"",texto:"",foto:null});
+  const [guardando,setGuardando]=useState(false);
+  const fileRef=useRef(null);
+  const set=(k,v)=>setF(s=>({...s,[k]:v}));
+  const limpiar=()=>setF({id:null,titulo:"",texto:"",foto:null});
+  const onFoto=async(e)=>{ const file=e.target.files&&e.target.files[0]; if(!file)return; try{ const data=await compressImage(file); set("foto",data); }catch{} };
+  const guardar=async()=>{ if(!f.titulo.trim()){return;} setGuardando(true); const ok=await guardarBlog(f); setGuardando(false); if(ok)limpiar(); };
+  const editar=(e)=>{ setF({id:e.id,titulo:e.titulo,texto:e.texto||"",foto:e.foto||null}); if(typeof window!=="undefined")window.scrollTo(0,0); };
+  return (<div className="mb-2">
+    <div className="rounded-2xl p-3.5 mb-3" style={{background:C.surface,border:`1px solid ${C.line}`}}>
+      <div className="font-extrabold text-sm mb-3">{f.id?"Editar entrada":"Nueva entrada del blog"}</div>
+      <button onClick={()=>fileRef.current&&fileRef.current.click()} className="w-full rounded-xl overflow-hidden mb-3 flex items-center justify-center" style={{background:C.bg,border:`1.5px dashed ${C.line}`,height:f.foto?160:80}}>
+        {f.foto? <img src={f.foto} alt="" className="w-full h-full object-cover"/> : <div className="text-center text-[12px]" style={{color:C.muted}}><Camera size={20} className="mx-auto mb-1"/>Foto (opcional)</div>}
+      </button>
+      <input ref={fileRef} type="file" accept="image/*" onChange={onFoto} className="hidden"/>
+      <input value={f.titulo} onChange={e=>set("titulo",e.target.value)} className="inp mb-2" placeholder="Título (ej: Toby volvió a casa 🎉)"/>
+      <textarea value={f.texto} onChange={e=>set("texto",e.target.value)} rows={5} className="inp" placeholder="Escribí la historia o la novedad acá…"/>
+      <div className="flex gap-2 mt-3">
+        <button onClick={guardar} disabled={guardando||!f.titulo.trim()} className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-1" style={{background:f.titulo.trim()?C.brand:C.line}}>{guardando&&<Loader2 size={14} className="animate-spin"/>}{f.id?"Guardar cambios":"Publicar entrada"}</button>
+        {f.id&&<button onClick={limpiar} className="py-2.5 px-3 rounded-xl text-xs font-bold" style={{background:C.bg,border:`1px solid ${C.line}`}}>Cancelar</button>}
+      </div>
+    </div>
+    <div className="space-y-2.5">
+      {blog.length===0?<Empty text="Todavía no publicaste entradas. Creá la primera arriba."/>:blog.map(e=>(
+        <div key={e.id} className="rounded-2xl p-3 flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}>
+          {e.foto? <img src={e.foto} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0"/> : <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{background:C.brandSoft}}>📝</div>}
+          <div className="flex-1 min-w-0"><div className="font-bold text-sm truncate">{e.titulo}</div><div className="text-[11px]" style={{color:C.muted}}>{e.texto?e.texto.slice(0,50):""}{e.texto&&e.texto.length>50?"…":""}</div></div>
+          <button onClick={()=>editar(e)} className="py-2 px-2.5 rounded-xl text-xs font-bold" style={{background:C.brandSoft,color:C.brandDeep}}><Pencil size={13}/></button>
+          <button onClick={()=>borrarBlog(e.id)} className="py-2 px-2.5 rounded-xl text-xs font-bold" style={{background:"#FBE7E7",color:C.lost}}><Trash2 size={13}/></button>
+        </div>
+      ))}
+    </div>
+  </div>);
+}
 
 function LugaresAdmin({ lugares=[], guardarLugar, borrarLugar }){
   const vacio={ id:null, kind:"veterinaria", name:"", barrio:"", address:"", phone:"", whatsapp:"", hours:"", emerg:false };
