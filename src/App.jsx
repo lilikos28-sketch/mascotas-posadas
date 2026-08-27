@@ -435,7 +435,7 @@ export default function App(){
         {view==="home"    && <HomeView posts={visible} go={go} conn={conn} />}
         {view==="map"     && <MapView posts={visible} go={go} />}
         {view==="search"  && <SearchView posts={visible} go={go} />}
-        {view==="new"     && (requireAuthToPublish ? <AuthGate go={go} /> : <NewView type={newType} setType={setNewType} onSubmit={submitPost} go={go} flash={flash} editPost={editPost} />)}
+        {view==="new"     && (requireAuthToPublish ? <AuthGate go={go} /> : <NewView type={newType} setType={setNewType} onSubmit={submitPost} go={go} flash={flash} editPost={editPost} misMascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} />)}
         {view==="detail"  && current && <DetailView post={current} all={visible} go={go} setStatus={setStatus} flash={flash} onReport={()=>setReportFor(current)} user={user} onDelete={removePost} />}
         {view==="share"   && current && <ShareView post={current} go={go} flash={flash} />}
         {view==="help"    && <HelpView go={go} lugares={lugares} />}
@@ -618,12 +618,21 @@ function AuthView({ onSignIn, onSignUp, onReset, onGoogle, go }){
 }
 
 /* ------------------------------ Publicar --------------------------------- */
-function NewView({ type, setType, onSubmit, go, flash, editPost }){
+function NewView({ type, setType, onSubmit, go, flash, editPost, misMascotas=[] }){
   const editing=!!editPost; const t=TYPE[editing?editPost.type:type];
   const init = editing ? { petName:editPost.petName||"", species:editPost.species||"perro", sex:editPost.sex||"", ageApprox:editPost.ageApprox||"", color:editPost.color||"", features:editPost.features||"", date:editPost.date||new Date().toISOString().slice(0,10), time:editPost.time||"", place:editPost.place||"", zona:editPost.zona||"Posadas", barrio:editPost.barrio||"", cp:editPost.cp||"", description:editPost.description||"", phone:editPost.phone||"", whatsapp:editPost.whatsapp||"", reward:editPost.reward||"" }
     : { petName:"", species:"perro", sex:"", ageApprox:"", color:"", features:"", date:new Date().toISOString().slice(0,10), time:"", place:"", zona:"Posadas", barrio:"", cp:"3300", description:"", phone:"", whatsapp:"", reward:"" };
   const [f,setF]=useState(init);const [photo,setPhoto]=useState(editing?editPost.photo:null);const [coords,setCoords]=useState(editing&&editPost.preciseLocation?{lat:editPost.lat,lng:editPost.lng}:null);const [precise,setPrecise]=useState(editing?!!editPost.preciseLocation:false);const [locMode,setLocMode]=useState("barrio");const [busy,setBusy]=useState(false);const [saving,setSaving]=useState(false);const [done,setDone]=useState(null);const fileRef=useRef();
   const curType=editing?editPost.type:type;const set=(k,v)=>setF(s=>({...s,[k]:v}));
+  // Para "Perdí mi mascota": ofrecer elegir una mascota registrada y autocompletar
+  const hayRegistradas = curType==="lost" && !editing && misMascotas.length>0;
+  const [mostrarSelector,setMostrarSelector]=useState(hayRegistradas);
+  const elegirMascota=(m)=>{
+    setF(s=>({...s, petName:m.pet_name||m.petName||"", species:m.species||"perro", sex:m.sex||"", color:m.color||"", features:m.features||"", zona:m.zona||"Posadas", cp:zonaCP(m.zona||"Posadas"), phone:digits(m.phone)||"", whatsapp:digits(m.whatsapp||m.phone)||"" }));
+    if(m.photo)setPhoto(m.photo);
+    setMostrarSelector(false);
+    flash(`Datos de ${m.pet_name||m.petName||"tu mascota"} cargados ✓`);
+  };
   const onFile=async(e)=>{const file=e.target.files&&e.target.files[0];const err=validateImage(file);if(err){flash(err);return;}setBusy(true);try{setPhoto(await compressImage(file));}catch{flash("No se pudo procesar la imagen.");}setBusy(false);};
   const useGps=()=>{ if(!navigator.geolocation){flash("El navegador no permite geolocalización.");return;} setLocMode("gps"); navigator.geolocation.getCurrentPosition(p=>{setCoords({lat:+p.coords.latitude.toFixed(6),lng:+p.coords.longitude.toFixed(6)});setPrecise(true);flash("Ubicación tomada ✓");},()=>flash("No pudimos obtener tu ubicación.")); };
   const barrioCoords=()=>{ if(f.zona==="Posadas"&&f.barrio&&BARRIOS[f.barrio]){const b=BARRIOS[f.barrio];return {lat:b[0],lng:b[1]};} const z=coordDe(f.zona);return {lat:z[0],lng:z[1]}; };
@@ -638,10 +647,27 @@ function NewView({ type, setType, onSubmit, go, flash, editPost }){
     if(editing)go("detail",{post:saved}); else setDone(saved);
   };
   if(done)return <PublishedView post={done} go={go} flash={flash}/>;
+  if(mostrarSelector){
+    return (<div className="px-4 pb-6">
+      <Title back={()=>go("home")} title="¿Cuál se perdió?" tag="FUNCIONAL"/>
+      <div className="rounded-2xl p-3 mb-4 text-[12px] flex gap-2" style={{background:TYPE.lost.soft,color:C.ink}}><Sparkles size={16} className="shrink-0 mt-0.5" style={{color:TYPE.lost.dot}}/><span>Elegí una de tus mascotas registradas y cargamos sus datos solos. Solo vas a agregar dónde y cuándo se perdió.</span></div>
+      <div className="space-y-2.5">
+        {misMascotas.map(m=>(
+          <button key={m.id} onClick={()=>elegirMascota(m)} className="w-full rounded-2xl p-3 flex items-center gap-3 text-left" style={{background:C.surface,border:`1px solid ${C.line}`}}>
+            {m.photo? <img src={m.photo} alt="" className="w-14 h-14 rounded-xl object-cover"/> : <div className="w-14 h-14 rounded-xl flex items-center justify-center" style={{background:C.brandSoft}}>🐾</div>}
+            <div className="flex-1 min-w-0"><div className="font-bold text-sm">{m.pet_name||m.petName}</div><div className="text-[11px]" style={{color:C.muted}}>{m.species}{m.color?" · "+m.color:""}</div></div>
+            <ChevronRight size={18} color={C.muted}/>
+          </button>
+        ))}
+      </div>
+      <button onClick={()=>setMostrarSelector(false)} className="mt-4 w-full py-3 rounded-2xl font-bold" style={{background:C.surface,border:`1px solid ${C.line}`}}>No está registrada / cargar desde cero</button>
+    </div>);
+  }
   return (
     <div className="px-4 pb-6">
       <Title back={()=>go(editing?"detail":"home",editing?{post:editPost}:undefined)} title={editing?"Editar publicación":"Publicar"} tag="FUNCIONAL"/>
       {!editing&&<div className="grid grid-cols-3 gap-2 mb-4">{Object.entries(TYPE).map(([k,v])=><button key={k} onClick={()=>setType(k)} className="py-2.5 rounded-xl text-xs font-bold" style={{background:type===k?v.dot:C.surface,color:type===k?"#fff":C.muted,border:`1px solid ${type===k?v.dot:C.line}`}}>{v.ico} {v.label}</button>)}</div>}
+      {curType==="lost"&&!editing&&misMascotas.length>0&&<button onClick={()=>setMostrarSelector(true)} className="w-full mb-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5" style={{background:C.brandSoft,color:C.brandDeep}}><PawPrint size={14}/> Elegir una de mis mascotas registradas</button>}
       <div className="rounded-2xl p-3 mb-4 text-[12px] flex gap-2" style={{background:t.soft,color:C.ink}}><Sparkles size={16} className="shrink-0 mt-0.5" style={{color:t.dot}}/><span>{curType==="found"?"No publiques datos privados que identifiquen al dueño sin verificar primero su identidad.":"Publicá en menos de 2 minutos. Lo esencial: foto, ubicación y contacto."}</span></div>
       <button onClick={()=>fileRef.current&&fileRef.current.click()} className="w-full rounded-2xl mb-2 overflow-hidden flex items-center justify-center" style={{height:170,background:C.surface,border:`1.5px dashed ${C.line}`}}>{busy?<Loader2 className="animate-spin" color={C.brand}/>:photo?<img src={photo} alt="" className="w-full h-full object-cover"/>:<div className="text-center" style={{color:C.muted}}><Camera size={30} className="mx-auto"/><div className="text-sm font-semibold mt-1">Agregar foto</div><div className="text-[11px]">Se comprime automáticamente</div></div>}</button>
       <input ref={fileRef} type="file" accept="image/*" onChange={onFile} className="hidden"/>
