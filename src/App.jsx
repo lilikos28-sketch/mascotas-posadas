@@ -99,6 +99,10 @@ const unproject = (px,py)=>({ lng:BOUNDS.minLng+(px/1000)*(BOUNDS.maxLng-BOUNDS.
 
 /* ------------------------------ Utilidades ------------------------------- */
 const digits = (s)=>(s||"").replace(/\D/g,"");
+// Compartir una publicación (link + texto según estado) por WhatsApp o Facebook
+const linkPost = (p)=>`https://mascotasposadas.netlify.app/${p&&p.id?`?post=${p.id}`:""}`;
+const textoPost = (p)=>{ const est=p.type==="lost"?"🔴 PERDIDA":p.type==="found"?"🟢 ENCONTRADA":"🟡 VISTA"; const frase=p.type==="lost"?"Si la viste, ayudanos a encontrarla":p.type==="found"?"¿Es tuyo? Ayudalo a volver a casa":"Si sabés de quién es, avisanos"; const ubic=(p.zona==="Posadas"&&p.barrio)?`${p.barrio}, ${p.zona}`:(p.zona||"Misiones"); return `${est}: ${p.petName||p.species} en ${ubic}. ${frase} 🐾 ${linkPost(p)}`; };
+const compartirPost = (p,net)=>{ const text=textoPost(p); const link=linkPost(p); if(net==="wa")window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank"); else if(net==="fb")window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`,"_blank"); else if(net==="native"){ if(navigator.share)navigator.share({title:"Mascotas Perdidas Misiones",text,url:link}).catch(()=>{}); else if(navigator.clipboard){navigator.clipboard.writeText(text);} } };
 const maskPhone = (s)=>{const d=digits(s);return d?`+${d.slice(0,4)} ••• •• ${d.slice(-2)}`:"—";};
 const clean = (s,max=400)=>(s||"").toString().replace(/[\u0000-\u001F\u007F]/g,"").trim().slice(0,max);
 function haversine(a,b){const R=6371,r=(d)=>d*Math.PI/180;const dLat=r(b[0]-a[0]),dLng=r(b[1]-a[1]);const s=Math.sin(dLat/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[0]))*Math.sin(dLng/2)**2;return R*2*Math.atan2(Math.sqrt(s),Math.sqrt(1-s));}
@@ -781,7 +785,12 @@ async function generarAfiche(post){
     x.fillStyle="#159A5A"; x.beginPath(); x.roundRect(90,cy,W-180,110,16); x.fill();
     x.fillStyle="#FFFFFF"; x.textAlign="center"; x.font="600 34px sans-serif";
     x.fillText(contactoTxt,W/2,cy+45);
-    x.font="800 44px sans-serif"; x.fillText("WhatsApp "+(post.whatsapp||post.phone||""),W/2,cy+90);
+    // Número de WhatsApp: ajustar tamaño para que SIEMPRE entre completo
+    const numTxt="WhatsApp "+(post.whatsapp||post.phone||"");
+    let numFont=44; x.font="800 "+numFont+"px sans-serif";
+    const maxAncho=W-220;
+    while(x.measureText(numTxt).width>maxAncho && numFont>22){ numFont-=2; x.font="800 "+numFont+"px sans-serif"; }
+    x.fillText(numTxt,W/2,cy+90);
     // Marca
     x.fillStyle="#0E7C6B"; x.font="800 36px sans-serif"; x.fillText("🐾 MASCOTAS PERDIDAS MISIONES",W/2,H-90);
     x.fillStyle="#5F726B"; x.font="400 26px sans-serif"; x.fillText("mascotasposadas.netlify.app",W/2,H-55);
@@ -1144,8 +1153,22 @@ function ProfileView({ posts, go, user, conn, onSignOut, onUpdateName }){
           <div className="rounded-2xl p-4 flex items-center gap-3" style={{background:`linear-gradient(135deg, ${C.brand}, ${C.brandDeep})`}}><div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-white"><User size={26}/></div><div className="text-white flex-1"><div className="font-extrabold">{user.name}</div><div className="text-[12px] opacity-90">{user.email}</div></div></div>
           {editName?(<div className="mt-2 flex gap-2"><input value={name} onChange={e=>setName(e.target.value)} className="inp" placeholder="Tu nombre"/><button onClick={()=>{onUpdateName(name);setEditName(false);}} className="px-4 rounded-xl font-bold text-white" style={{background:C.brand}}>OK</button></div>):(<button onClick={()=>{setName(user.name);setEditName(true);}} className="mt-2 w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2" style={{background:C.surface,border:`1px solid ${C.line}`}}><Pencil size={14}/> Editar nombre</button>)}
           <div className="grid grid-cols-3 gap-2.5 mt-3"><Stat n={mine.length} l="Publicadas"/><Stat n={found} l="Reunidas"/><Stat n={0} l="Alertas"/></div>
-          <h3 className="font-extrabold text-sm mt-5 mb-2">Mis publicaciones</h3>
-          {mine.length===0?<Empty text="Todavía no publicaste nada. Tocá el botón + para empezar."/>:<div className="grid grid-cols-2 gap-3">{mine.map(p=><GridCard key={p.id} post={p} go={go}/>)}</div>}
+          <h3 className="font-extrabold text-sm mt-5 mb-1">Mis publicaciones</h3>
+          <p className="text-[11px] mb-2" style={{color:C.muted}}>Volvé a compartir tus búsquedas cuando quieras. ¡Cuanto más se comparten, más chances de reencuentro! 🐾</p>
+          {mine.length===0?<Empty text="Todavía no publicaste nada. Tocá el botón + para empezar."/>:
+          <div className="space-y-2.5">{mine.map(p=>{ const est=TYPE[p.type]; const activa=p.status!=="reunited"; return (
+            <div key={p.id} className="rounded-2xl overflow-hidden" style={{background:C.surface,border:`1px solid ${activa&&p.type==="lost"?C.lost:C.line}`}}>
+              <button onClick={()=>go("detail",{post:p})} className="w-full flex items-center gap-3 p-3 text-left">
+                {p.photo? <img src={p.photo} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0"/> : <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0" style={{background:C.brandSoft}}>{EMO[p.species]||"🐾"}</div>}
+                <div className="flex-1 min-w-0"><div className="font-bold text-sm truncate">{p.petName||p.species}</div><div className="text-[11px] flex items-center gap-1" style={{color:C.muted}}><span className="px-1.5 py-0.5 rounded-full text-white text-[9px] font-bold" style={{background:est.dot}}>{est.label}</span> {ubicTxt(p)}</div></div>
+                <ChevronRight size={16} color={C.muted}/>
+              </button>
+              {activa && <div className="flex gap-2 px-3 pb-3">
+                <button onClick={()=>compartirPost(p,"wa")} className="flex-1 py-2 rounded-xl text-[11px] font-bold text-white flex items-center justify-center gap-1" style={{background:"#25D366"}}><Share2 size={13}/> WhatsApp</button>
+                <button onClick={()=>compartirPost(p,"fb")} className="flex-1 py-2 rounded-xl text-[11px] font-bold text-white flex items-center justify-center gap-1" style={{background:"#1877F2"}}>Facebook</button>
+                <button onClick={()=>compartirPost(p,"native")} className="py-2 px-3 rounded-xl text-[11px] font-bold flex items-center justify-center" style={{background:C.brandSoft,color:C.brandDeep}}><Share2 size={13}/></button>
+              </div>}
+            </div>);})}</div>}
           {isAdmin(user) && <button onClick={()=>go("costs")} className="mt-4 w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-2" style={{background:C.surface,border:`1px solid ${C.line}`}}><Wallet size={16} color={C.brand}/> Control de costos</button>}
           <button onClick={onSignOut} className="mt-2 mb-2 w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-2" style={{color:C.lost,border:`1px solid ${C.line}`}}><LogOut size={16}/> Cerrar sesión</button>
         </>
