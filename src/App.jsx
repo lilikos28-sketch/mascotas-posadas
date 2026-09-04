@@ -136,8 +136,8 @@ async function getClient(){
   return _client;
 }
 /* Mapeo fila <-> objeto de la app */
-const toRow = (p)=>({ owner_id:p.owner_id??null, type:p.type, status:p.status, pet_name:p.petName, species:p.species, sex:p.sex, age_approx:p.ageApprox, color:p.color, features:p.features, date:p.date, time:p.time, place:p.place, zona:p.zona, barrio:p.barrio, cp:p.cp, description:p.description, photo:p.photo, contact_name:p.contactName, phone:p.phone, whatsapp:p.whatsapp, reward:p.reward, lat:p.lat, lng:p.lng, precise_location:p.preciseLocation, recovered_at:p.recoveredAt, approved:p.approved, reported:p.reported, city:p.city });
-const fromRow = (r)=>({ id:r.id, legajo:r.legajo, owner_id:r.owner_id, type:r.type, status:r.status, petName:r.pet_name, species:r.species, sex:r.sex, ageApprox:r.age_approx, color:r.color, features:r.features, date:r.date, time:r.time, place:r.place, zona:r.zona, barrio:r.barrio, cp:r.cp, description:r.description, photo:r.photo, contactName:r.contact_name, phone:r.phone, whatsapp:r.whatsapp, reward:r.reward, lat:r.lat, lng:r.lng, preciseLocation:r.precise_location, recoveredAt:r.recovered_at, createdAt:r.created_at, approved:r.approved, reported:r.reported, city:r.city, demo:false, emoji:EMO[r.species]||"🐾" });
+const toRow = (p)=>({ owner_id:p.owner_id??null, type:p.type, status:p.status, pet_name:p.petName, species:p.species, sex:p.sex, age_approx:p.ageApprox, color:p.color, features:p.features, date:p.date, time:p.time, place:p.place, zona:p.zona, barrio:p.barrio, cp:p.cp, description:p.description, photo:p.photo, contact_name:p.contactName, phone:p.phone, whatsapp:p.whatsapp, reward:p.reward, lat:p.lat, lng:p.lng, precise_location:p.preciseLocation, recovered_at:p.recoveredAt, approved:p.approved, reported:p.reported, city:p.city, mascota_codigo:p.mascotaCodigo });
+const fromRow = (r)=>({ id:r.id, legajo:r.legajo, owner_id:r.owner_id, type:r.type, status:r.status, petName:r.pet_name, species:r.species, sex:r.sex, ageApprox:r.age_approx, color:r.color, features:r.features, date:r.date, time:r.time, place:r.place, zona:r.zona, barrio:r.barrio, cp:r.cp, description:r.description, photo:r.photo, contactName:r.contact_name, phone:r.phone, whatsapp:r.whatsapp, reward:r.reward, lat:r.lat, lng:r.lng, preciseLocation:r.precise_location, recoveredAt:r.recovered_at, createdAt:r.created_at, approved:r.approved, reported:r.reported, city:r.city, mascotaCodigo:r.mascota_codigo, demo:false, emoji:EMO[r.species]||"🐾" });
 async function uploadPhoto(client, dataUrl){
   try{ const blob=await(await fetch(dataUrl)).blob(); const name=`pub/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
     const { error }=await client.storage.from("fotos").upload(name,blob,{contentType:"image/jpeg"}); if(error)throw error;
@@ -290,6 +290,8 @@ export default function App(){
     if(CLOUD){ const c=await getClient(); if(c&&c.auth&&c.auth.onAuthStateChange){ c.auth.onAuthStateChange((_e,session)=>setUser(mapUser(session&&session.user))); } }
     // ¿Se abrió desde un QR? La URL trae ?m=CODIGO
     try{ const params=new URLSearchParams(window.location.search); const code=params.get("m"); if(code){ await abrirMascotaPorCodigo(code); } }catch{}
+    // ¿Se abrió el enlace de una publicación compartida? La URL trae ?post=ID
+    try{ const params=new URLSearchParams(window.location.search); const pid=params.get("post"); if(pid){ await abrirPublicacionPorId(pid); } }catch{}
   })(); },[]);
 
   const loadMascotas = async ()=>{
@@ -304,6 +306,13 @@ export default function App(){
   const abrirMascotaPorCodigo = async (code)=>{
     if(CLOUD){ try{ const c=await getClient(); const {data}=await c.from("mascotas").select("*").eq("codigo",code).single(); if(data){ setQrMascota(data); setView("mascota_publica"); return; } }catch{} }
     const locales=await Local.get(KEYS.mascotas,[]); const m=locales.find(x=>x.codigo===code); if(m){ setQrMascota(m); setView("mascota_publica"); }
+  };
+
+  const abrirPublicacionPorId = async (pid)=>{
+    // Buscar primero en las publicaciones ya cargadas
+    let encontrada = realPosts.find(p=>String(p.id)===String(pid));
+    if(!encontrada && CLOUD){ try{ const c=await getClient(); const {data}=await c.from("publicaciones").select("*").eq("id",pid).single(); if(data)encontrada=fromRow(data); }catch{} }
+    if(encontrada){ setCurrent(encontrada); setView("detail"); }
   };
 
   /* ---- Auth handlers ---- */
@@ -427,6 +436,11 @@ export default function App(){
         .mp-huella:nth-child(4){animation-delay:.84s}
         .mp-huella:nth-child(5){animation-delay:1.12s}
         .mp-huella:nth-child(6){animation-delay:1.4s}
+        @keyframes flotaMapa{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+        .mp-mapa{animation:flotaMapa 3s ease-in-out infinite}
+        .mp-mapa:active{transform:scale(.98)}
+        @keyframes aparecer{0%{opacity:0;transform:translateY(16px)}100%{opacity:1;transform:translateY(0)}}
+        .mp-aparece{animation:aparecer .5s ease-out both}
         @keyframes brillo{0%{background-position:-200% 0}100%{background-position:200% 0}}
         .mp-registro{animation:latido 2.4s ease-in-out infinite}
         .mp-registro:active{transform:scale(.97)}
@@ -436,7 +450,7 @@ export default function App(){
       <div className="mx-auto max-w-[480px] relative pb-24" style={{background:C.bg}}>
         <Header go={go} count={visible.filter(p=>p.status==="lost").length} conn={conn} />
 
-        {view==="home"    && <HomeView posts={visible} go={go} conn={conn} />}
+        {view==="home"    && <HomeView posts={visible} go={go} conn={conn} user={user} realPosts={realPosts} />}
         {view==="map"     && <MapView posts={visible} go={go} />}
         {view==="search"  && <SearchView posts={visible} go={go} />}
         {view==="new"     && (requireAuthToPublish ? <AuthGate go={go} /> : <NewView type={newType} setType={setNewType} onSubmit={submitPost} go={go} flash={flash} editPost={editPost} misMascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} />)}
@@ -481,10 +495,12 @@ function Header({ go, count, conn }){
 }
 
 /* -------------------------------- Home ----------------------------------- */
-function HomeView({ posts, go, conn }){
+function HomeView({ posts, go, conn, user, realPosts=[] }){
   const lost=posts.filter(p=>p.type==="lost"&&p.status!=="reunited").slice(0,6);
   const found=posts.filter(p=>p.type==="found").slice(0,6);
   const reunited=posts.filter(p=>p.status==="reunited"||p.status==="found").length;
+  // Mis publicaciones activas (para que el dueño encuentre su anuncio al entrar)
+  const misActivas = (user ? realPosts.filter(p=>p.owner_id===user.id && p.status!=="reunited") : []).slice(0,3);
   return (
     <div className="px-4">
       {conn!=="cloud" && (
@@ -493,6 +509,23 @@ function HomeView({ posts, go, conn }){
         </div>
       )}
       <div className="mt-4 rounded-3xl p-5 text-white relative overflow-hidden" style={{background:`linear-gradient(135deg, ${C.brand}, ${C.brandDeep})`}}><PawPrint size={130} className="absolute -right-6 -bottom-8 opacity-10"/><h1 className="text-[22px] font-extrabold leading-tight">Juntos podemos<br/>ayudarlos a volver a casa.</h1><p className="text-[13px] mt-1.5 opacity-90">Reportá, buscá y reencontrá mascotas en Misiones.</p></div>
+
+      {misActivas.length>0 && <div className="mt-4 rounded-2xl p-3.5" style={{background:"#FFF0F0",border:`1.5px solid ${C.lost}`}}>
+        <div className="flex items-center gap-1.5 mb-2"><Bell size={15} style={{color:C.lost}}/><span className="font-extrabold text-[13px]" style={{color:C.lost}}>Tu búsqueda activa</span></div>
+        <div className="space-y-2">{misActivas.map(p=>(
+          <div key={p.id} className="rounded-xl overflow-hidden" style={{background:"#fff",border:`1px solid ${C.line}`}}>
+            <button onClick={()=>go("detail",{post:p})} className="w-full flex items-center gap-2.5 p-2 text-left">
+              {p.photo? <img src={p.photo} alt="" className="w-11 h-11 rounded-lg object-cover"/> : <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{background:C.brandSoft}}>{EMO[p.species]||"🐾"}</div>}
+              <div className="flex-1 min-w-0"><div className="font-bold text-[13px] truncate">{p.petName||p.species}</div><div className="text-[10px]" style={{color:C.muted}}>{ubicTxt(p)} · {p.date}</div></div>
+              <ChevronRight size={15} color={C.muted}/>
+            </button>
+            <div className="flex gap-1.5 px-2 pb-2">
+              <button onClick={()=>compartirPost(p,"wa")} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold text-white flex items-center justify-center gap-1" style={{background:"#25D366"}}><Share2 size={11}/> Compartir</button>
+              <button onClick={()=>compartirPost(p,"fb")} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold text-white flex items-center justify-center gap-1" style={{background:"#1877F2"}}>Facebook</button>
+            </div>
+          </div>
+        ))}</div>
+      </div>}
 
       {/* Botón PROTAGONISTA: registrar mascota (el fuerte de la app) */}
       <button onClick={()=>go("registrar_mascota")} className="mp-registro mt-4 w-full rounded-3xl p-5 pb-3 text-left text-white relative overflow-hidden shadow-lg" style={{background:`linear-gradient(135deg, #0E7C6B, #0A5C50)`,boxShadow:"0 8px 24px rgba(14,124,107,.35)"}}>
@@ -520,7 +553,12 @@ function HomeView({ posts, go, conn }){
       <div className="mt-5 mb-1 text-[13px] font-bold" style={{color:C.muted}}>¿Perdiste o encontraste una mascota?</div>
       <div className="grid grid-cols-3 gap-2.5 mt-4"><BigBtn color={C.lost} label="Perdí mi mascota" sub="Se escapó o no aparece" ico="🔴" onClick={()=>go("new",{type:"lost",edit:null})}/><BigBtn color={C.found} label="Encontré una" sub="La tengo conmigo" ico="🟢" onClick={()=>go("new",{type:"found",edit:null})}/><BigBtn color={C.seen} label="Vi una mascota" sub="La vi en la calle" ico="🟡" onClick={()=>go("new",{type:"seen",edit:null})}/></div>
       <button onClick={()=>go("search")} className="mt-4 w-full flex items-center gap-2.5 px-4 py-3 rounded-2xl text-left" style={{background:C.surface,border:`1px solid ${C.line}`,color:C.muted}}><Search size={18}/> <span className="text-sm">Buscar por barrio, nombre, color…</span></button>
-      <button onClick={()=>go("map")} className="mt-3 w-full rounded-2xl overflow-hidden text-left relative" style={{border:`1px solid ${C.line}`}}><GeoMap markers={posts.map(p=>({id:p.id,...jit(p),color:TYPE[p.type].dot,post:p}))} height={150}/><div className="absolute bottom-2 left-2 z-[500] bg-white/95 rounded-full px-3 py-1 text-xs font-semibold flex items-center gap-1 pointer-events-none"><MapPin size={13} color={C.brand}/> Ver mapa de Misiones</div></button>
+      <button onClick={()=>go("map")} className="mp-mapa mt-3 w-full rounded-2xl p-3.5 flex items-center gap-3 text-white relative overflow-hidden" style={{background:`linear-gradient(135deg, #2B7A6B, #1E5D52)`}}>
+        <div className="absolute inset-0 pointer-events-none flex items-center gap-6 justify-end pr-4" style={{opacity:.18}}><MapPin size={40}/><MapPin size={28}/></div>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{background:"rgba(255,255,255,.2)"}}><MapPinned size={20}/></div>
+        <div className="flex-1 text-left relative"><div className="font-extrabold text-sm">Ver mapa de Misiones 🗺️</div><div className="text-[11px] opacity-90">Mirá dónde se reportaron mascotas cerca tuyo</div></div>
+        <ChevronRight size={18} className="opacity-90 relative"/>
+      </button>
       <StatStrip reunited={reunited} total={posts.length}/>
       <Row title="🔴 Últimas perdidas" posts={lost} go={go}/>
       <Row title="🟢 Últimas encontradas" posts={found} go={go}/>
@@ -531,14 +569,16 @@ function HomeView({ posts, go, conn }){
 
       <button onClick={()=>go("blog")} className="mt-2.5 w-full rounded-2xl p-3.5 text-left flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{background:C.brandSoft,color:C.brand}}><BookOpen size={18}/></div><div className="flex-1"><div className="font-bold text-sm">Blog 📝</div><div className="text-[11px]" style={{color:C.muted}}>Historias, novedades y consejos de Mascotas Perdidas Misiones</div></div><ChevronRight size={16} color={C.muted}/></button>
       <div className="mt-4 mb-2 rounded-2xl p-3.5 flex gap-2.5 text-[12px]" style={{background:"#FFF7E6",border:"1px solid #F3E1B5",color:"#7A5B14"}}><AlertTriangle size={18} className="shrink-0 mt-0.5"/><p>Cuidado con quienes pidan dinero antes de demostrar que tienen a tu mascota. No compartas datos sensibles sin verificar.</p></div>
+
+      <a href="https://posadas.gov.ar/imusa" target="_blank" rel="noreferrer" className="mb-2 w-full rounded-2xl p-3 flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{background:C.brandSoft,color:C.brand}}><Stethoscope size={17}/></div><div className="flex-1"><div className="font-bold text-[13px]">IMUSA Posadas · Castraciones y vacunas gratis</div><div className="text-[10px]" style={{color:C.muted}}>Instituto Municipal de Sanidad Animal</div></div><ChevronRight size={15} color={C.muted}/></a>
     </div>
   );
 }
 function BigBtn({ color, label, sub, ico, onClick }){ return <button onClick={onClick} className="rounded-2xl p-3 text-white text-left flex flex-col justify-between h-[104px] active:scale-95 transition" style={{background:color}}><span className="text-lg">{ico}</span><span><span className="text-[12px] font-bold leading-tight block">{label}</span>{sub&&<span className="text-[9px] opacity-90 leading-tight block mt-0.5">{sub}</span>}</span></button>; }
 function QuickCard({ ico, title, sub, onClick }){ return <button onClick={onClick} className="rounded-2xl p-3.5 text-left flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{background:C.brandSoft,color:C.brand}}>{ico}</div><div><div className="font-bold text-sm">{title}</div><div className="text-[11px]" style={{color:C.muted}}>{sub}</div></div></button>; }
 function StatStrip({ reunited, total }){ const pct=total?Math.round(reunited/total*100):0; return <div className="mt-3 rounded-2xl p-4 flex items-center justify-between" style={{background:C.brandSoft}}><div><div className="text-2xl font-extrabold" style={{color:C.brandDeep}}>{pct}%</div><div className="text-[11px] font-semibold" style={{color:C.brand}}>mascotas recuperadas</div></div><div className="text-right text-[11px]" style={{color:C.brand}}><div className="font-bold text-base">{total}</div>publicaciones activas</div></div>; }
-function Row({ title, posts, go }){ if(!posts.length)return null; return <div className="mt-5"><h3 className="font-extrabold text-[15px] mb-2.5">{title}</h3><div className="flex gap-3 overflow-x-auto mp-scroll pb-1 -mx-4 px-4">{posts.map(p=><MiniCard key={p.id} post={p} go={go}/>)}</div></div>; }
-function MiniCard({ post, go }){ const t=TYPE[post.type]; return <button onClick={()=>go("detail",{post})} className="shrink-0 w-[140px] rounded-2xl overflow-hidden text-left" style={{background:C.surface,border:`1px solid ${C.line}`}}><Thumb post={post} h={100}/><div className="p-2.5"><div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{background:t.dot}}/><span className="text-[10px] font-bold" style={{color:t.dot}}>{t.label}</span></div><div className="font-bold text-sm truncate mt-0.5">{post.petName||`${post.species} ${post.color}`}</div><div className="text-[11px] flex items-center gap-1 truncate" style={{color:C.muted}}><MapPin size={11}/> {ubicTxt(post)}</div></div></button>; }
+function Row({ title, posts, go }){ if(!posts.length)return null; return <div className="mt-5"><h3 className="font-extrabold text-[15px] mb-2.5">{title}</h3><div className="flex gap-3 overflow-x-auto mp-scroll pb-1 -mx-4 px-4">{posts.map((p,i)=><MiniCard key={p.id} post={p} go={go} idx={i}/>)}</div></div>; }
+function MiniCard({ post, go, idx=0 }){ const t=TYPE[post.type]; return <button onClick={()=>go("detail",{post})} className="mp-aparece shrink-0 w-[140px] rounded-2xl overflow-hidden text-left" style={{background:C.surface,border:`1px solid ${C.line}`,animationDelay:(idx*0.08)+"s"}}><Thumb post={post} h={100}/><div className="p-2.5"><div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{background:t.dot}}/><span className="text-[10px] font-bold" style={{color:t.dot}}>{t.label}</span></div><div className="font-bold text-sm truncate mt-0.5">{post.petName||`${post.species} ${post.color}`}</div><div className="text-[11px] flex items-center gap-1 truncate" style={{color:C.muted}}><MapPin size={11}/> {ubicTxt(post)}</div></div></button>; }
 function Thumb({ post, h=110 }){
   return (<div className="relative w-full">
     {post.photo? <img src={post.photo} alt="" style={{height:h}} className="w-full object-cover"/> : <div style={{height:h,background:TYPE[post.type].soft}} className="w-full flex items-center justify-center text-4xl">{post.emoji}</div>}
@@ -624,15 +664,15 @@ function AuthView({ onSignIn, onSignUp, onReset, onGoogle, go }){
 /* ------------------------------ Publicar --------------------------------- */
 function NewView({ type, setType, onSubmit, go, flash, editPost, misMascotas=[] }){
   const editing=!!editPost; const t=TYPE[editing?editPost.type:type];
-  const init = editing ? { petName:editPost.petName||"", species:editPost.species||"perro", sex:editPost.sex||"", ageApprox:editPost.ageApprox||"", color:editPost.color||"", features:editPost.features||"", date:editPost.date||new Date().toISOString().slice(0,10), time:editPost.time||"", place:editPost.place||"", zona:editPost.zona||"Posadas", barrio:editPost.barrio||"", cp:editPost.cp||"", description:editPost.description||"", phone:editPost.phone||"", whatsapp:editPost.whatsapp||"", reward:editPost.reward||"" }
-    : { petName:"", species:"perro", sex:"", ageApprox:"", color:"", features:"", date:new Date().toISOString().slice(0,10), time:"", place:"", zona:"Posadas", barrio:"", cp:"3300", description:"", phone:"", whatsapp:"", reward:"" };
+  const init = editing ? { petName:editPost.petName||"", species:editPost.species||"perro", sex:editPost.sex||"", ageApprox:editPost.ageApprox||"", color:editPost.color||"", features:editPost.features||"", date:editPost.date||new Date().toISOString().slice(0,10), time:editPost.time||"", place:editPost.place||"", zona:editPost.zona||"Posadas", barrio:editPost.barrio||"", cp:editPost.cp||"", description:editPost.description||"", phone:editPost.phone||"", whatsapp:editPost.whatsapp||"", reward:editPost.reward||"", mascotaCodigo:editPost.mascotaCodigo||"" }
+    : { petName:"", species:"perro", sex:"", ageApprox:"", color:"", features:"", date:new Date().toISOString().slice(0,10), time:"", place:"", zona:"Posadas", barrio:"", cp:"3300", description:"", phone:"", whatsapp:"", reward:"", mascotaCodigo:"" };
   const [f,setF]=useState(init);const [photo,setPhoto]=useState(editing?editPost.photo:null);const [coords,setCoords]=useState(editing&&editPost.preciseLocation?{lat:editPost.lat,lng:editPost.lng}:null);const [precise,setPrecise]=useState(editing?!!editPost.preciseLocation:false);const [locMode,setLocMode]=useState("barrio");const [busy,setBusy]=useState(false);const [saving,setSaving]=useState(false);const [done,setDone]=useState(null);const fileRef=useRef();
   const curType=editing?editPost.type:type;const set=(k,v)=>setF(s=>({...s,[k]:v}));
   // Para "Perdí mi mascota": ofrecer elegir una mascota registrada y autocompletar
   const hayRegistradas = curType==="lost" && !editing && misMascotas.length>0;
   const [mostrarSelector,setMostrarSelector]=useState(hayRegistradas);
   const elegirMascota=(m)=>{
-    setF(s=>({...s, petName:m.pet_name||m.petName||"", species:m.species||"perro", sex:m.sex||"", color:m.color||"", features:m.features||"", zona:m.zona||"Posadas", cp:zonaCP(m.zona||"Posadas"), phone:digits(m.phone)||"", whatsapp:digits(m.whatsapp||m.phone)||"" }));
+    setF(s=>({...s, petName:m.pet_name||m.petName||"", species:m.species||"perro", sex:m.sex||"", color:m.color||"", features:m.features||"", zona:m.zona||"Posadas", cp:zonaCP(m.zona||"Posadas"), phone:digits(m.phone)||"", whatsapp:digits(m.whatsapp||m.phone)||"", mascotaCodigo:m.codigo||"" }));
     if(m.photo)setPhoto(m.photo);
     setMostrarSelector(false);
     flash(`Datos de ${m.pet_name||m.petName||"tu mascota"} cargados ✓`);
@@ -644,7 +684,7 @@ function NewView({ type, setType, onSubmit, go, flash, editPost, misMascotas=[] 
   const submit=async()=>{
     if(!canSubmit){flash("Completá foto, ubicación y contacto.");return;}
     setSaving(true);const c=coords||barrioCoords();
-    const fields={ petName:clean(f.petName,40), species:f.species, sex:f.sex, ageApprox:clean(f.ageApprox,20), color:clean(f.color,40), features:clean(f.features,120), date:f.date, time:f.time, place:clean(f.place,80), zona:f.zona, barrio:f.barrio, cp:clean(f.cp,10), description:clean(f.description,400), phone:digits(f.phone), whatsapp:digits(f.whatsapp||f.phone), reward:clean(f.reward,40), lat:c.lat, lng:c.lng, preciseLocation:precise, photo };
+    const fields={ petName:clean(f.petName,40), species:f.species, sex:f.sex, ageApprox:clean(f.ageApprox,20), color:clean(f.color,40), features:clean(f.features,120), date:f.date, time:f.time, place:clean(f.place,80), zona:f.zona, barrio:f.barrio, cp:clean(f.cp,10), description:clean(f.description,400), phone:digits(f.phone), whatsapp:digits(f.whatsapp||f.phone), reward:clean(f.reward,40), lat:c.lat, lng:c.lng, preciseLocation:precise, photo, mascotaCodigo:f.mascotaCodigo||"" };
     const saved = editing ? await onSubmit({__edit:true,id:editPost.id,fields}) : await onSubmit({...fields,type:curType});
     setSaving(false);
     if(!saved){return;}
@@ -791,6 +831,17 @@ async function generarAfiche(post){
     const maxAncho=W-220;
     while(x.measureText(numTxt).width>maxAncho && numFont>22){ numFont-=2; x.font="800 "+numFont+"px sans-serif"; }
     x.fillText(numTxt,W/2,cy+90);
+    // QR de la mascota registrada (si la publicación vino de una mascota con QR)
+    if(post.mascotaCodigo){
+      try{
+        const qurl=`https://mascotasposadas.netlify.app/?m=${post.mascotaCodigo}`;
+        const qcv=document.createElement("canvas"); drawQROnCanvas(qcv,qurl,180,"#000000","#FFFFFF");
+        const qx=W-250, qy=cy-70;
+        x.fillStyle="#FFFFFF"; x.fillRect(qx-8,qy-8,180+16,180+16);
+        x.drawImage(qcv,qx,qy,180,180);
+        x.fillStyle="#12211C"; x.textAlign="center"; x.font="700 22px sans-serif"; x.fillText("Escaneá",qx+90,qy+205); x.fillText("para avisar",qx+90,qy+230);
+      }catch(e){}
+    }
     // Marca
     x.fillStyle="#0E7C6B"; x.font="800 36px sans-serif"; x.fillText("🐾 MASCOTAS PERDIDAS MISIONES",W/2,H-90);
     x.fillStyle="#5F726B"; x.font="400 26px sans-serif"; x.fillText("mascotasposadas.netlify.app",W/2,H-55);
