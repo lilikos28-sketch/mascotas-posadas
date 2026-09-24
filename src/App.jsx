@@ -262,7 +262,7 @@ function SvgMap({ markers, onMarkerClick, onPick, picked, height }){
 /* ================================ APP =================================== */
 export default function App(){
   const [realPosts,setRealPosts]=useState([]);
-  const [demoPosts,setDemoPosts]=useState(DEMO_POSTS);
+  const [demoPosts,setDemoPosts]=useState([]); // publicaciones de ejemplo desactivadas
   const [reports,setReports]=useState([]);
   const [mensajes,setMensajes]=useState([]);
   const [lugares,setLugares]=useState([]);
@@ -516,7 +516,8 @@ function Header({ go, count, conn }){
 function HomeView({ posts, go, conn, user, realPosts=[] }){
   const lost=posts.filter(p=>p.type==="lost"&&p.status!=="reunited").slice(0,6);
   const found=posts.filter(p=>p.type==="found").slice(0,6);
-  const reunited=posts.filter(p=>p.status==="reunited"||p.status==="found").length;
+  const reunited=posts.filter(p=>p.status==="reunited").length;
+  const activas=posts.filter(p=>p.status!=="reunited").length;
   // Mis publicaciones activas (para que el dueño encuentre su anuncio al entrar)
   const misActivas = (user ? realPosts.filter(p=>p.owner_id===user.id && p.status!=="reunited") : []).slice(0,3);
   return (
@@ -528,7 +529,7 @@ function HomeView({ posts, go, conn, user, realPosts=[] }){
       )}
 
       {misActivas.length>0 && <div className="mt-4 rounded-2xl p-3.5" style={{background:"#FFF0F0",border:`1.5px solid ${C.lost}`}}>
-        <div className="flex items-center gap-1.5 mb-2"><Bell size={15} style={{color:C.lost}}/><span className="font-extrabold text-[13px]" style={{color:C.lost}}>Tu búsqueda activa</span></div>
+        <div className="flex items-center gap-1.5 mb-2"><Bell size={15} style={{color:C.lost}}/><span className="font-extrabold text-[13px]" style={{color:C.lost}}>Tus publicaciones activas</span></div>
         <div className="space-y-2">{misActivas.map(p=>(
           <div key={p.id} className="rounded-xl overflow-hidden" style={{background:"#fff",border:`1px solid ${C.line}`}}>
             <button onClick={()=>go("detail",{post:p})} className="w-full flex items-center gap-2.5 p-2 text-left">
@@ -576,7 +577,7 @@ function HomeView({ posts, go, conn, user, realPosts=[] }){
         <div className="flex-1 text-left relative"><div className="font-extrabold text-sm">Ver mapa de Misiones 🗺️</div><div className="text-[11px] opacity-90">Mirá dónde se reportaron mascotas cerca tuyo</div></div>
         <ChevronRight size={18} className="opacity-90 relative"/>
       </button>
-      <StatStrip reunited={reunited} total={posts.length}/>
+      <StatStrip reunited={reunited} total={activas}/>
       <Row title="🔴 Últimas perdidas" posts={lost} go={go}/>
       <Row title="🟢 Últimas encontradas" posts={found} go={go}/>
       {/* Botones "Ayuda" y "Negocios amigos" ocultos temporalmente (a pedido). Para reactivarlos, quitar el comentario de abajo.
@@ -593,7 +594,7 @@ function HomeView({ posts, go, conn, user, realPosts=[] }){
 }
 function BigBtn({ color, label, sub, ico, onClick }){ return <button onClick={onClick} className="rounded-2xl p-3 text-white text-left flex flex-col justify-between h-[104px] active:scale-95 transition" style={{background:color}}><span className="text-lg">{ico}</span><span><span className="text-[12px] font-bold leading-tight block">{label}</span>{sub&&<span className="text-[9px] opacity-90 leading-tight block mt-0.5">{sub}</span>}</span></button>; }
 function QuickCard({ ico, title, sub, onClick }){ return <button onClick={onClick} className="rounded-2xl p-3.5 text-left flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{background:C.brandSoft,color:C.brand}}>{ico}</div><div><div className="font-bold text-sm">{title}</div><div className="text-[11px]" style={{color:C.muted}}>{sub}</div></div></button>; }
-function StatStrip({ reunited, total }){ const pct=total?Math.round(reunited/total*100):0; return <div className="mt-3 rounded-2xl p-4 flex items-center justify-between" style={{background:C.brandSoft}}><div><div className="text-2xl font-extrabold" style={{color:C.brandDeep}}>{pct}%</div><div className="text-[11px] font-semibold" style={{color:C.brand}}>mascotas recuperadas</div></div><div className="text-right text-[11px]" style={{color:C.brand}}><div className="font-bold text-base">{total}</div>publicaciones activas</div></div>; }
+function StatStrip({ reunited, total }){ return <div className="mt-3 rounded-2xl p-4 flex items-center justify-between" style={{background:C.brandSoft}}><div><div className="text-2xl font-extrabold" style={{color:C.brandDeep}}>{total}</div><div className="text-[11px] font-semibold" style={{color:C.brand}}>publicaciones activas</div></div><div className="text-right text-[11px]" style={{color:C.brand}}>{reunited>0?<><div className="font-bold text-base">{reunited} 🎉</div>volvieron a casa</>:<><div className="font-bold text-sm">¡Compartí!</div>así más mascotas vuelven</>}</div></div>; }
 function Row({ title, posts, go }){ if(!posts.length)return null; return <div className="mt-5"><h3 className="font-extrabold text-[15px] mb-2.5">{title}</h3><div className="flex gap-3 overflow-x-auto mp-scroll pb-1 -mx-4 px-4">{posts.map((p,i)=><MiniCard key={p.id} post={p} go={go} idx={i}/>)}</div></div>; }
 function MiniCard({ post, go, idx=0 }){ const t=TYPE[post.type]; return <button onClick={()=>go("detail",{post})} className="mp-aparece shrink-0 w-[140px] rounded-2xl overflow-hidden text-left" style={{background:C.surface,border:`1px solid ${C.line}`,animationDelay:(idx*0.08)+"s"}}><Thumb post={post} h={100}/><div className="p-2.5"><div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{background:t.dot}}/><span className="text-[10px] font-bold" style={{color:t.dot}}>{t.label}</span></div><div className="font-bold text-sm truncate mt-0.5">{post.petName||`${post.species} ${post.color}`}</div><div className="text-[11px] flex items-center gap-1 truncate" style={{color:C.muted}}><MapPin size={11}/> {ubicTxt(post)}</div></div></button>; }
 function Thumb({ post, h=110 }){
@@ -630,9 +631,9 @@ function AlertRadius({ posts, go }){
   return (
     <div className="mt-3 rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}>
       <div className="flex items-center gap-2 font-bold text-sm"><Bell size={16} color={C.brand}/> Alertas por zona <Tag t="PARCIAL"/></div>
-      <p className="text-[12px] mt-1" style={{color:C.muted}}>El cálculo por radio ya funciona. El envío push necesita configuración (gratis con FCM, 🟡 pendiente).</p>
+      <p className="text-[12px] mt-1" style={{color:C.muted}}>Elegí una distancia y mirá las mascotas perdidas cerca tuyo.</p>
       <div className="flex gap-2 mt-3">{[1,3,5,10].map(km=><button key={km} onClick={()=>setR(km)} className="flex-1 py-2 rounded-xl text-sm font-bold" style={{background:r===km?C.brandSoft:C.bg,color:r===km?C.brandDeep:C.muted,border:`1px solid ${r===km?C.brand:C.line}`}}>{km} km</button>)}</div>
-      <button onClick={locate} className="mt-3 w-full py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2" style={{background:C.brand}}><Navigation size={16}/> Simular alertas cerca mío</button>
+      <button onClick={locate} className="mt-3 w-full py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2" style={{background:C.brand}}><Navigation size={16}/> Ver perdidas cerca mío</button>
       {me&&(<div className="mt-3 space-y-2"><div className="text-[12px] font-bold">{near.length} perdida{near.length!==1?"s":""} a menos de {r} km</div>{near.slice(0,4).map(({p,km})=><button key={p.id} onClick={()=>go("detail",{post:p})} className="w-full flex items-center gap-3 p-2 rounded-xl text-left" style={{background:C.bg}}><div className="w-10 h-10 rounded-lg overflow-hidden shrink-0"><Thumb post={p} h={40}/></div><div className="flex-1 min-w-0"><div className="font-bold text-sm truncate">🐾 {p.petName||p.species} · {ubicTxt(p)}</div><div className="text-[11px]" style={{color:C.muted}}>a {km.toFixed(1)} km · {timeAgo(p.createdAt)}</div></div><ChevronRight size={16} color={C.muted}/></button>)}</div>)}
     </div>
   );
@@ -1160,7 +1161,7 @@ function BlogView({ go, entradas=[] }){
 }
 
 /* ------------------------------- Contacto -------------------------------- */
-const TIPOS_CONTACTO=["Publicidad","Sumar refugio","Sugerencia","Otro"];
+const TIPOS_CONTACTO=["Consulta","Reportar una publicación","Sumar refugio","Sugerencia","Publicidad","Otro"];
 function ContactoView({ go, onSend }){
   const [f,setF]=useState({nombre:"",contacto:"",tipo:TIPOS_CONTACTO[0],mensaje:""});
   const [busy,setBusy]=useState(false);const [ok,setOk]=useState(false);
@@ -1212,7 +1213,7 @@ function CostsView({ go, conn }){
 /* -------------------------------- Perfil --------------------------------- */
 function ProfileView({ posts, go, user, conn, onSignOut, onUpdateName }){
   const mine=posts.filter(p=>!p.demo&&user&&p.owner_id===user.id);
-  const found=posts.filter(p=>p.status==="reunited"||p.status==="found").length;
+  const found=mine.filter(p=>p.status==="reunited").length;
   const [editName,setEditName]=useState(false);const [name,setName]=useState(user?user.name:"");
   return (
     <div className="px-4">
@@ -1222,7 +1223,7 @@ function ProfileView({ posts, go, user, conn, onSignOut, onUpdateName }){
         <>
           <div className="rounded-2xl p-4 flex items-center gap-3" style={{background:`linear-gradient(135deg, ${C.brand}, ${C.brandDeep})`}}><div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-white"><User size={26}/></div><div className="text-white flex-1"><div className="font-extrabold">{user.name}</div><div className="text-[12px] opacity-90">{user.email}</div></div></div>
           {editName?(<div className="mt-2 flex gap-2"><input value={name} onChange={e=>setName(e.target.value)} className="inp" placeholder="Tu nombre"/><button onClick={()=>{onUpdateName(name);setEditName(false);}} className="px-4 rounded-xl font-bold text-white" style={{background:C.brand}}>OK</button></div>):(<button onClick={()=>{setName(user.name);setEditName(true);}} className="mt-2 w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2" style={{background:C.surface,border:`1px solid ${C.line}`}}><Pencil size={14}/> Editar nombre</button>)}
-          <div className="grid grid-cols-3 gap-2.5 mt-3"><Stat n={mine.length} l="Publicadas"/><Stat n={found} l="Reunidas"/><Stat n={0} l="Alertas"/></div>
+          <div className="grid grid-cols-3 gap-2.5 mt-3"><Stat n={mine.length} l="Publicadas"/><Stat n={mine.filter(p=>p.status!=="reunited").length} l="Activas"/><Stat n={found} l="Reunidas"/></div>
           <h3 className="font-extrabold text-sm mt-5 mb-1">Mis publicaciones</h3>
           <p className="text-[11px] mb-2" style={{color:C.muted}}>Volvé a compartir tus búsquedas cuando quieras. ¡Cuanto más se comparten, más chances de reencuentro! 🐾</p>
           {mine.length===0?<Empty text="Todavía no publicaste nada. Tocá el botón + para empezar."/>:
@@ -1266,7 +1267,7 @@ function AdminView({ posts, reports, approve, removePost, go, clearReport, conn,
 
       {tab==="stats"&&(<div className="space-y-3 mb-2"><div className="rounded-2xl p-4 text-center" style={{background:`linear-gradient(135deg, ${C.brand}, ${C.brandDeep})`,color:"#fff"}}><div className="text-4xl font-extrabold">{pct}%</div><div className="text-[12px] font-semibold opacity-90">porcentaje de recuperación</div></div><div className="grid grid-cols-2 gap-2.5"><Kpi n={total} l="Total publicaciones" c={C.ink}/><Kpi n={reunited} l="Reunidas con familia" c={C.reunited}/><Kpi n={lost} l="Perdidas" c={C.lost}/><Kpi n={found} l="Encontradas" c={C.found}/><Kpi n={seen} l="Vistas" c={C.seen}/><Kpi n={reports.length} l="Reportes" c={C.muted}/></div><div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Publicaciones por barrio</div><Bars data={byBarrio} max={maxB} color={C.brand}/></div>{repB.length>0&&<div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Barrios con más reportes</div><Bars data={repB} max={Math.max(1,...repB.map(x=>x.n))} color={C.lost}/></div>}</div>)}
 
-      {tab==="mod"&&(<div className="mb-2"><div className="flex gap-2 mb-3 overflow-x-auto mp-scroll -mx-4 px-4"><Sel value={fBarrio} onChange={setFBarrio} options={[["all","Barrio"],...BARRIO_LIST.map(b=>[b,b])]}/><Sel value={fStatus} onChange={setFStatus} options={[["all","Estado"],...Object.entries(STATUS).map(([k,v])=>[k,v.label])]}/><Sel value={fSp} onChange={setFSp} options={[["all","Especie"],["perro","Perro"],["gato","Gato"],["otro","Otro"]]}/></div><div className="text-[12px] font-semibold mb-2" style={{color:C.muted}}>{filtered.length} publicación{filtered.length!==1?"es":""}</div><div className="space-y-2.5">{filtered.map(p=>(<div key={p.id} className="rounded-2xl p-2.5 flex items-center gap-2.5" style={{background:C.surface,border:`1px solid ${p.reported?C.lost:C.line}`,opacity:p.approved===false?0.55:1}}><div className="w-11 h-11 rounded-xl overflow-hidden shrink-0"><Thumb post={p} h={44}/></div><button onClick={()=>go("detail",{post:p})} className="flex-1 min-w-0 text-left"><div className="text-[10px] font-bold" style={{color:TYPE[p.type].dot}}>{TYPE[p.type].label} · {STATUS[p.status].label}{p.demo?" · DEMO":""}{p.reported?" · ⚠":""}</div><div className="font-bold text-sm truncate">{p.petName||p.species} · {ubicTxt(p)}</div></button><div className="flex gap-1.5 shrink-0"><button onClick={()=>approve(p.id,p.approved===false)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{background:p.approved===false?C.found:C.bg}}>{p.approved===false?<Check size={15} color="#fff"/>:<EyeOff size={15} color={C.muted}/>}</button><button onClick={()=>removePost(p.id)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{background:"#FBE7E7"}}><Trash2 size={15} color={C.lost}/></button></div></div>))}</div></div>)}
+      {tab==="mod"&&(<div className="mb-2"><div className="flex gap-2 mb-3 overflow-x-auto mp-scroll -mx-4 px-4"><Sel value={fBarrio} onChange={setFBarrio} options={[["all","Barrio"],...BARRIO_LIST.map(b=>[b,b])]}/><Sel value={fStatus} onChange={setFStatus} options={[["all","Estado"],...Object.entries(STATUS).map(([k,v])=>[k,v.label])]}/><Sel value={fSp} onChange={setFSp} options={[["all","Especie"],["perro","Perro"],["gato","Gato"],["otro","Otro"]]}/></div><div className="text-[12px] font-semibold mb-2" style={{color:C.muted}}>{filtered.length} {filtered.length!==1?"publicaciones":"publicación"}</div><div className="space-y-2.5">{filtered.map(p=>(<div key={p.id} className="rounded-2xl p-2.5 flex items-center gap-2.5" style={{background:C.surface,border:`1px solid ${p.reported?C.lost:C.line}`,opacity:p.approved===false?0.55:1}}><div className="w-11 h-11 rounded-xl overflow-hidden shrink-0"><Thumb post={p} h={44}/></div><button onClick={()=>go("detail",{post:p})} className="flex-1 min-w-0 text-left"><div className="text-[10px] font-bold" style={{color:TYPE[p.type].dot}}>{TYPE[p.type].label} · {STATUS[p.status].label}{p.demo?" · DEMO":""}{p.reported?" · ⚠":""}</div><div className="font-bold text-sm truncate">{p.petName||p.species} · {ubicTxt(p)}</div></button><div className="flex gap-1.5 shrink-0"><button onClick={()=>approve(p.id,p.approved===false)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{background:p.approved===false?C.found:C.bg}}>{p.approved===false?<Check size={15} color="#fff"/>:<EyeOff size={15} color={C.muted}/>}</button><button onClick={()=>removePost(p.id)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{background:"#FBE7E7"}}><Trash2 size={15} color={C.lost}/></button></div></div>))}</div></div>)}
 
       {tab==="reports"&&(<div className="space-y-2.5 mb-2">{reports.length===0?<Empty text="No hay reportes pendientes."/>:reports.map(r=>(<div key={r.id} className="rounded-2xl p-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="flex items-center justify-between"><span className="text-[11px] font-bold px-2 py-0.5 rounded-full text-white" style={{background:C.lost}}>{r.reason}</span><span className="text-[10px]" style={{color:C.muted}}>{timeAgo(r.date)}</span></div><div className="font-bold text-sm mt-1.5">{r.postName} · {r.barrio}</div>{r.note&&<div className="text-[12px] mt-0.5" style={{color:C.muted}}>{r.note}</div>}<div className="flex gap-2 mt-2"><button onClick={()=>{const p=posts.find(x=>x.id===r.postId);if(p)go("detail",{post:p});}} className="flex-1 py-2 rounded-xl text-xs font-bold" style={{background:C.bg,border:`1px solid ${C.line}`}}>Ver</button><button onClick={()=>clearReport(r.id)} className="flex-1 py-2 rounded-xl text-xs font-bold text-white" style={{background:C.found}}>Resolver</button><button onClick={()=>removePost(r.postId)} className="py-2 px-3 rounded-xl text-xs font-bold" style={{background:"#FBE7E7",color:C.lost}}><Ban size={14}/></button></div></div>))}</div>)}
 
@@ -1365,5 +1366,5 @@ function BottomNav({ view, go }){
 
 /* ------------------------------- Helpers UI ------------------------------ */
 function Title({ back, title, tag }){ return <div className="flex items-center gap-3 mt-4 mb-3">{back&&<button onClick={back} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><ChevronLeft size={19}/></button>}<h2 className="text-lg font-extrabold flex-1">{title}</h2>{tag&&<Tag t={tag}/>}</div>; }
-function Tag({ t }){ const m={FUNCIONAL:C.found,PARCIAL:C.seen,PENDIENTE:C.muted,DEMO:C.brand}; return <span className="text-[9px] font-extrabold px-2 py-1 rounded-full" style={{background:(m[t]||C.muted)+"22",color:m[t]||C.muted}}>{t}</span>; }
+function Tag({ t }){ return null; const m={FUNCIONAL:C.found,PARCIAL:C.seen,PENDIENTE:C.muted,DEMO:C.brand}; return <span className="text-[9px] font-extrabold px-2 py-1 rounded-full" style={{background:(m[t]||C.muted)+"22",color:m[t]||C.muted}}>{t}</span>; }
 function Empty({ text }){ return <div className="rounded-2xl p-8 text-center text-sm" style={{background:C.surface,border:`1px dashed ${C.line}`,color:C.muted}}><PawPrint className="mx-auto mb-2 opacity-40"/> {text}</div>; }
