@@ -769,7 +769,7 @@ function DetailView({ post, all, go, setStatus, flash, onReport, user, onDelete 
   const owner = !post.demo && user && post.owner_id && post.owner_id===user.id;
   const canManage = owner || isAdmin(user);
   const matches=useMemo(()=>post.type==="lost"?MatchEngine.rank(post,all):[],[post,all]);
-  const wa=()=>{const est=post.type==="lost"?"🔴 PERDIDA":post.type==="found"?"🟢 ENCONTRADA":"🟡 VISTA";const esp=post.species&&post.species!=="otro"?post.species:"mascota";const quien=post.petName?`${post.petName} (${esp})`:esp.charAt(0).toUpperCase()+esp.slice(1);const msg=`Hola 👋 Te escribo por tu publicación en Mascotas Posadas:\n${est}: ${quien} en ${ubicTxt(post)}\n${linkPost(post)}\n\nCreo que tengo información que te puede servir.`;window.open(`https://wa.me/${digits(post.whatsapp)}?text=${encodeURIComponent(msg)}`,"_blank");};
+  const wa=()=>{const est=post.type==="lost"?"🔴 PERDIDA":post.type==="found"?"🟢 ENCONTRADA":"🟡 VISTA";const esp=post.species&&post.species!=="otro"?post.species:"mascota";const quien=post.petName?`${post.petName} (${esp})`:esp.charAt(0).toUpperCase()+esp.slice(1);const msg=`Hola 👋 Te escribo por tu publicación en Mascotas Perdidas Misiones:\n${est}: ${quien} en ${ubicTxt(post)}\n${linkPost(post)}\n\nCreo que tengo información que te puede servir.`;window.open(`https://wa.me/${digits(post.whatsapp)}?text=${encodeURIComponent(msg)}`,"_blank");};
   return (
     <div>
       <div className="relative"><Thumb post={post} h={260}/><button onClick={()=>go("home")} className="absolute top-3 left-3 w-10 h-10 rounded-full bg-white/95 flex items-center justify-center shadow"><ChevronLeft size={20}/></button><button onClick={()=>go("share",{post})} className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/95 flex items-center justify-center shadow"><Share2 size={18}/></button><div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-full text-white text-xs font-bold" style={{background:t.dot}}>{t.ico} {t.label}</div></div>
@@ -885,7 +885,7 @@ function ShareView({ post, go, flash }){
   const [gen,setGen]=useState(false);
   const frase = fraseCompartir(post);
   const text=`${t.ico} ${t.label.toUpperCase()}: ${post.petName||post.species} en ${ubicTxt(post)}. ${frase} 🐾 ${link}`;
-  const share=(net)=>{ if(net==="wa")window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank"); else if(net==="fb")window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}&quote=${encodeURIComponent(text)}`,"_blank"); else if(net==="native"){if(navigator.share)navigator.share({title:"Mascotas Posadas",text,url:link}).catch(()=>{});else{navigator.clipboard&&navigator.clipboard.writeText(text);flash("Copiado.");}} else {navigator.clipboard&&navigator.clipboard.writeText(text);flash("Texto copiado.");} };
+  const share=(net)=>{ if(net==="wa")window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank"); else if(net==="fb")window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}&quote=${encodeURIComponent(text)}`,"_blank"); else if(net==="native"){if(navigator.share)navigator.share({title:"Mascotas Perdidas Misiones",text,url:link}).catch(()=>{});else{navigator.clipboard&&navigator.clipboard.writeText(text);flash("Copiado.");}} else {navigator.clipboard&&navigator.clipboard.writeText(text);flash("Texto copiado.");} };
   const afiche=async(modo)=>{
     setGen(true);
     try{
@@ -893,7 +893,7 @@ function ShareView({ post, go, flash }){
       const blob=await new Promise(r=>cv.toBlob(r,"image/png",0.92));
       const file=new File([blob],`mascota-${post.petName||post.id}.png`,{type:"image/png"});
       if(modo==="share" && navigator.canShare && navigator.canShare({files:[file]})){
-        await navigator.share({files:[file],title:"Mascotas Posadas",text}); 
+        await navigator.share({files:[file],title:"Mascotas Perdidas Misiones",text}); 
       } else {
         const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=file.name; a.click(); URL.revokeObjectURL(url);
         flash("Afiche descargado ✓");
