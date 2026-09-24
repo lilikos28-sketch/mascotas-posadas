@@ -523,7 +523,6 @@ function HomeView({ posts, go, conn, user, realPosts=[] }){
           <CloudOff size={18} className="shrink-0 mt-0.5"/><p><b>Modo local:</b> las publicaciones se guardan solo en este dispositivo. Para que otras personas las vean, configurá Supabase (gratis) — ver <button onClick={()=>go("costs")} className="underline font-bold">Control de costos</button>.</p>
         </div>
       )}
-      <div className="mt-4 rounded-3xl p-5 text-white relative overflow-hidden" style={{background:`linear-gradient(135deg, ${C.brand}, ${C.brandDeep})`}}><PawPrint size={130} className="absolute -right-6 -bottom-8 opacity-10"/><h1 className="text-[22px] font-extrabold leading-tight">Juntos podemos<br/>ayudarlos a volver a casa.</h1><p className="text-[13px] mt-1.5 opacity-90">Reportá, buscá y reencontrá mascotas en Misiones.</p></div>
 
       {misActivas.length>0 && <div className="mt-4 rounded-2xl p-3.5" style={{background:"#FFF0F0",border:`1.5px solid ${C.lost}`}}>
         <div className="flex items-center gap-1.5 mb-2"><Bell size={15} style={{color:C.lost}}/><span className="font-extrabold text-[13px]" style={{color:C.lost}}>Tu búsqueda activa</span></div>
