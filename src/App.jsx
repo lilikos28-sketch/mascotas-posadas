@@ -85,7 +85,7 @@ const BARRIOS = {
   "Villa Urquiza":[-27.3760,-55.8925],"Villa Blosset":[-27.3820,-55.9010],"Villa Cabello":[-27.3925,-55.9330],
   "Miguel Lanús":[-27.3800,-55.9450],"Itaembé Miní":[-27.4050,-55.9600],"Itaembé Guazú":[-27.4250,-55.9250],
   "San Isidro":[-27.3730,-55.8760],"Chacra 32-33":[-27.3980,-55.8850],"El Palomar":[-27.3880,-55.9080],
-  "Los Paraísos":[-27.4010,-55.9150],"Fátima":[-27.4090,-55.8950],"Nemesio Parma":[-27.3900,-55.8650],
+  "Los Paraísos":[-27.4010,-55.9150],"Fátima":[-27.4090,-55.8950],"Nemesio Parma":[-27.4200,-56.0200],
   "Villa Lanús":[-27.3690,-55.9180],"San Lorenzo":[-27.3950,-55.8550],"Villa Poujade":[-27.4150,-55.9050],
 };
 const BARRIO_LIST = Object.keys(BARRIOS);
@@ -100,10 +100,12 @@ const unproject = (px,py)=>({ lng:BOUNDS.minLng+(px/1000)*(BOUNDS.maxLng-BOUNDS.
 /* ------------------------------ Utilidades ------------------------------- */
 const digits = (s)=>(s||"").replace(/\D/g,"");
 // Compartir una publicación (link + texto según estado) por WhatsApp o Facebook
-const linkPost = (p)=>`https://mascotasposadas.netlify.app/${p&&p.id?`?post=${p.id}`:""}`;
-const textoPost = (p)=>{ const est=p.type==="lost"?"🔴 PERDIDA":p.type==="found"?"🟢 ENCONTRADA":"🟡 VISTA"; const frase=p.type==="lost"?"Si la viste, ayudanos a encontrarla":p.type==="found"?"¿Es tuyo? Ayudalo a volver a casa":"Si sabés de quién es, avisanos"; const ubic=(p.zona==="Posadas"&&p.barrio)?`${p.barrio}, ${p.zona}`:(p.zona||"Misiones"); return `${est}: ${p.petName||p.species} en ${ubic}. ${frase} 🐾 ${linkPost(p)}`; };
+const linkPost = (p)=>`https://mascotasposadas.netlify.app/${p&&p.id&&!p.demo?`?post=${p.id}`:""}`;
+const fraseCompartir = (p)=> p.type==="lost" ? "Si viste a esta mascota, ayudanos a encontrarla" : p.type==="found" ? "¿Es tuya esta mascota? Ayudala a volver a casa" : "Si sabés de quién es esta mascota, avisanos";
+const textoPost = (p)=>{ const est=p.type==="lost"?"🔴 PERDIDA":p.type==="found"?"🟢 ENCONTRADA":"🟡 VISTA"; const frase=fraseCompartir(p); const ubic=(p.zona==="Posadas"&&p.barrio)?`${p.barrio}, ${p.zona}`:(p.zona||"Misiones"); return `${est}: ${p.petName||p.species} en ${ubic}. ${frase} 🐾 ${linkPost(p)}`; };
 const compartirPost = (p,net)=>{ const text=textoPost(p); const link=linkPost(p); if(net==="wa")window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank"); else if(net==="fb")window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`,"_blank"); else if(net==="native"){ if(navigator.share)navigator.share({title:"Mascotas Perdidas Misiones",text,url:link}).catch(()=>{}); else if(navigator.clipboard){navigator.clipboard.writeText(text);} } };
 const maskPhone = (s)=>{const d=digits(s);return d?`+${d.slice(0,4)} ••• •• ${d.slice(-2)}`:"—";};
+const sinTildes = (s)=>(s||"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const clean = (s,max=400)=>(s||"").toString().replace(/[\u0000-\u001F\u007F]/g,"").trim().slice(0,max);
 function haversine(a,b){const R=6371,r=(d)=>d*Math.PI/180;const dLat=r(b[0]-a[0]),dLng=r(b[1]-a[1]);const s=Math.sin(dLat/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[0]))*Math.sin(dLng/2)**2;return R*2*Math.atan2(Math.sqrt(s),Math.sqrt(1-s));}
 function timeAgo(iso){const d=(Date.now()-new Date(iso).getTime())/1000;if(d<3600)return `hace ${Math.max(1,Math.floor(d/60))} min`;if(d<86400)return `hace ${Math.floor(d/3600)} h`;return `hace ${Math.floor(d/86400)} d`;}
@@ -221,24 +223,27 @@ function useLeaflet(){
     if(typeof window==="undefined")return; if(window.L){setStatus("ready");return;}
     if(!document.getElementById("leaflet-css")){const css=document.createElement("link");css.id="leaflet-css";css.rel="stylesheet";css.href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";document.head.appendChild(css);}
     let done=false;const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";s.async=true;
-    s.onload=()=>{done=true;setStatus(window.L?"ready":"error");};s.onerror=()=>{done=true;setStatus("error");};document.body.appendChild(s);
+    s.onload=()=>{ if(!window.L){done=true;setStatus("error");return;}
+      if(!document.getElementById("mc-css")){const c2=document.createElement("link");c2.id="mc-css";c2.rel="stylesheet";c2.href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css";document.head.appendChild(c2);}
+      const mc=document.createElement("script");mc.src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js";mc.async=true;
+      const fin=()=>{done=true;setStatus("ready");};mc.onload=fin;mc.onerror=fin;document.body.appendChild(mc); };s.onerror=()=>{done=true;setStatus("error");};document.body.appendChild(s);
     const to=setTimeout(()=>{if(!done)setStatus("error");},7000);return ()=>clearTimeout(to);
   },[]);
   return status;
 }
-function GeoMap({ markers=[], center=POSADAS_CENTER, zoom=13, onMarkerClick, onPick, picked, height=340, locate=false, fitToMarkers=false }){
-  const status=useLeaflet();const elRef=useRef(),mapRef=useRef(),layerRef=useRef(),pickRef=useRef(),meRef=useRef();const [tileError,setTileError]=useState(false);
-  useEffect(()=>{ if(status!=="ready"||!elRef.current||mapRef.current)return;const L=window.L;const map=L.map(elRef.current,{zoomControl:true}).setView(center,zoom);
+function GeoMap({ markers=[], center=POSADAS_CENTER, zoom=13, onMarkerClick, onPick, picked, height=340, locate=false, fitToMarkers=false, cluster=false }){
+  const status=useLeaflet();const elRef=useRef(),mapRef=useRef(),layerRef=useRef(),pickRef=useRef(),meRef=useRef();const [tileError,setTileError]=useState(false);const fittedRef=useRef(false);
+  useEffect(()=>{ if(status!=="ready"||!elRef.current||mapRef.current)return;const L=window.L;const map=L.map(elRef.current,{zoomControl:true,scrollWheelZoom:false}).setView(center,zoom);
     const tiles=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"});let e=0;tiles.on("tileerror",()=>{if(++e>4)setTileError(true);});tiles.addTo(map);
-    layerRef.current=L.layerGroup().addTo(map);if(onPick)map.on("click",(ev)=>onPick(+ev.latlng.lat.toFixed(6),+ev.latlng.lng.toFixed(6)));mapRef.current=map;const t=setTimeout(()=>map.invalidateSize(),250);
+    layerRef.current=(cluster&&L.markerClusterGroup)?L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:45,spiderfyOnMaxZoom:true,iconCreateFunction:(cl)=>{const n=cl.getChildCount();const d=n<10?34:n<50?40:46;return L.divIcon({className:"mp-pin",html:`<span style="display:flex;align-items:center;justify-content:center;width:${d}px;height:${d}px;border-radius:50%;background:${C.brand};color:#fff;font-weight:800;font-size:13px;border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.4)">${n}</span>`,iconSize:[d,d],iconAnchor:[d/2,d/2]});}}):L.layerGroup();layerRef.current.addTo(map);if(onPick)map.on("click",(ev)=>onPick(+ev.latlng.lat.toFixed(6),+ev.latlng.lng.toFixed(6)));mapRef.current=map;const t=setTimeout(()=>map.invalidateSize(),250);
     return ()=>{clearTimeout(t);map.remove();mapRef.current=null;}; },[status]);
   useEffect(()=>{ if(status!=="ready"||!layerRef.current)return;const L=window.L;layerRef.current.clearLayers();markers.forEach(m=>{const icon=L.divIcon({className:"mp-pin",html:`<span style="display:block;width:18px;height:18px;border-radius:50%;background:${m.color};border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45)"></span>`,iconSize:[18,18],iconAnchor:[9,9]});const mk=L.marker([m.lat,m.lng],{icon}).addTo(layerRef.current);if(onMarkerClick)mk.on("click",()=>onMarkerClick(m.post));});
-    if(fitToMarkers&&markers.length>0&&mapRef.current){ try{ const b=L.latLngBounds(markers.map(m=>[m.lat,m.lng])); mapRef.current.fitBounds(b.pad(0.2),{maxZoom:13}); }catch(e){} } },[markers,status]);
+    if(fitToMarkers&&!fittedRef.current&&markers.length>0&&mapRef.current){ fittedRef.current=true; try{ const b=L.latLngBounds(markers.map(m=>[m.lat,m.lng])); mapRef.current.fitBounds(b.pad(0.2),{maxZoom:13}); }catch(e){} } },[markers,status]);
   useEffect(()=>{ if(status!=="ready"||!mapRef.current)return;const L=window.L;if(pickRef.current){mapRef.current.removeLayer(pickRef.current);pickRef.current=null;}if(picked){const icon=L.divIcon({className:"mp-pin",html:`<span style="display:block;width:22px;height:22px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${C.brand};border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.5)"></span>`,iconSize:[22,22],iconAnchor:[11,11]});pickRef.current=L.marker([picked.lat,picked.lng],{icon}).addTo(mapRef.current);mapRef.current.setView([picked.lat,picked.lng],Math.max(mapRef.current.getZoom(),15));} },[picked,status]);
   const goToMe=()=>{ if(!navigator.geolocation)return;navigator.geolocation.getCurrentPosition((pos)=>{const {latitude,longitude}=pos.coords;if(mapRef.current){mapRef.current.setView([latitude,longitude],15);const L=window.L;if(meRef.current)mapRef.current.removeLayer(meRef.current);meRef.current=L.circleMarker([latitude,longitude],{radius:8,color:"#1f6feb",fillColor:"#1f6feb",fillOpacity:.9}).addTo(mapRef.current);}if(onPick)onPick(+latitude.toFixed(6),+longitude.toFixed(6));}); };
   if(status==="loading")return <div style={{height,background:"#DCEBE6"}} className="rounded-2xl flex items-center justify-center"><Loader2 className="animate-spin" color={C.brand} /></div>;
   if(status==="error")return (<div className="relative"><SvgMap markers={markers} onMarkerClick={onMarkerClick} onPick={onPick} picked={picked} height={height} /><div className="absolute top-2 left-2 right-2 rounded-xl px-3 py-2 text-[11px] flex items-center gap-1.5" style={{background:"#FFF7E6",color:"#7A5B14",border:"1px solid #F3E1B5"}}><Info size={13}/> Mapa esquemático (el entorno bloqueó el mapa real). En un hosting funciona con Leaflet + OpenStreetMap.</div></div>);
-  return (<div className="relative rounded-2xl overflow-hidden" style={{border:`1px solid ${C.line}`}}><div ref={elRef} style={{height}}/>{tileError&&<div className="absolute top-2 left-2 right-2 z-[500] rounded-xl px-3 py-2 text-[11px] flex items-center gap-1.5" style={{background:"#FFF7E6",color:"#7A5B14",border:"1px solid #F3E1B5"}}><Info size={13}/> Mapa activo, pero el sandbox bloqueó las imágenes de OpenStreetMap. Al publicarla se ven normalmente.</div>}{locate&&<button onClick={goToMe} className="absolute bottom-3 right-3 z-[500] w-11 h-11 rounded-full flex items-center justify-center shadow-lg" style={{background:C.surface}}><Crosshair size={20} color={C.brand}/></button>}</div>);
+  return (<div className="relative rounded-2xl overflow-hidden" style={{border:`1px solid ${C.line}`,isolation:"isolate",zIndex:0}}><div ref={elRef} style={{height}}/>{tileError&&<div className="absolute top-2 left-2 right-2 z-[500] rounded-xl px-3 py-2 text-[11px] flex items-center gap-1.5" style={{background:"#FFF7E6",color:"#7A5B14",border:"1px solid #F3E1B5"}}><Info size={13}/> Mapa activo, pero el sandbox bloqueó las imágenes de OpenStreetMap. Al publicarla se ven normalmente.</div>}{locate&&<button onClick={goToMe} className="absolute bottom-3 right-3 z-[500] w-11 h-11 rounded-full flex items-center justify-center shadow-lg" style={{background:C.surface}}><Crosshair size={20} color={C.brand}/></button>}</div>);
 }
 function SvgMap({ markers, onMarkerClick, onPick, picked, height }){
   const ref=useRef();const click=(e)=>{if(!onPick)return;const r=ref.current.getBoundingClientRect();const px=(e.clientX-r.left)/r.width*1000,py=(e.clientY-r.top)/r.height*700;const {lat,lng}=unproject(px,py);onPick(+lat.toFixed(6),+lng.toFixed(6));};
@@ -275,7 +280,17 @@ export default function App(){
 
   const posts = useMemo(()=>[...realPosts,...demoPosts],[realPosts,demoPosts]);
   const flash=(m)=>{setToast(m);setTimeout(()=>setToast(null),2600);};
-  const go=(v,extra)=>{ if(extra&&extra.post)setCurrent(extra.post); if(extra&&extra.type)setNewType(extra.type); if(extra&&"edit" in extra)setEditPost(extra.edit); setView(v); if(typeof window!=="undefined")window.scrollTo(0,0); };
+  const postsRef=useRef(posts); postsRef.current=posts;
+  const currentRef=useRef(current); currentRef.current=current;
+  const go=(v,extra)=>{ if(extra&&extra.post)setCurrent(extra.post); if(extra&&extra.type)setNewType(extra.type); if(extra&&"edit" in extra)setEditPost(extra.edit); setView(v); if(typeof window!=="undefined"){ window.scrollTo(0,0);
+    try{ const post=(extra&&extra.post)||(v==="detail"||v==="share"?currentRef.current:null); const st={v,postId:post?post.id:null}; const url=(v==="detail"&&post&&!post.demo)?`/?post=${post.id}`:"/"; window.history.pushState(st,"",url); }catch{} } };
+  // Botón "atrás" del celular o del navegador: vuelve a la pantalla anterior de la app
+  useEffect(()=>{ if(typeof window==="undefined")return;
+    try{ if(!window.history.state)window.history.replaceState({v:"home"},"",window.location.pathname+window.location.search); }catch{}
+    const onPop=(e)=>{ const st=e.state||{v:"home"}; const v=st.v||"home";
+      if((v==="detail"||v==="share")&&st.postId!=null){ const p=postsRef.current.find(x=>String(x.id)===String(st.postId))||(currentRef.current&&String(currentRef.current.id)===String(st.postId)?currentRef.current:null); if(!p){ setView("home"); return; } setCurrent(p); }
+      setView(v); window.scrollTo(0,0); };
+    window.addEventListener("popstate",onPop); return ()=>window.removeEventListener("popstate",onPop); },[]);
 
   const loadReal = async ()=>{
     if(CLOUD){ try{ const c=await getClient(); if(!c){setConn("error");await loadLocal();return;} const {data,error}=await c.from("publicaciones").select("*").order("created_at",{ascending:false}); if(error)throw error; setRealPosts((data||[]).map(fromRow)); const rr=await c.from("reportes").select("*").order("created_at",{ascending:false}); setReports(((rr.data)||[]).map(r=>({id:r.id,postId:r.post_id,reason:r.reason,note:r.note,date:r.created_at,postName:r.post_name,barrio:r.barrio})));
@@ -304,7 +319,7 @@ export default function App(){
   };
 
   const abrirMascotaPorCodigo = async (code)=>{
-    if(CLOUD){ try{ const c=await getClient(); const {data}=await c.from("mascotas").select("*").eq("codigo",code).single(); if(data){ setQrMascota(data); setView("mascota_publica"); return; } }catch{} }
+    if(CLOUD){ try{ const c=await getClient(); const {data}=await c.from("mascotas").select("*").eq("codigo",code).single(); if(data){ setQrMascota(data); setView("mascota_publica"); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:"mascota_publica"},"",`/?m=${code}`); }catch{} return; } }catch{} }
     const locales=await Local.get(KEYS.mascotas,[]); const m=locales.find(x=>x.codigo===code); if(m){ setQrMascota(m); setView("mascota_publica"); }
   };
 
@@ -312,7 +327,7 @@ export default function App(){
     // Buscar primero en las publicaciones ya cargadas
     let encontrada = realPosts.find(p=>String(p.id)===String(pid));
     if(!encontrada && CLOUD){ try{ const c=await getClient(); const {data}=await c.from("publicaciones").select("*").eq("id",pid).single(); if(data)encontrada=fromRow(data); }catch{} }
-    if(encontrada){ setCurrent(encontrada); setView("detail"); }
+    if(encontrada){ setCurrent(encontrada); setView("detail"); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:"detail",postId:encontrada.id},"",`/?post=${encontrada.id}`); }catch{} }
   };
 
   /* ---- Auth handlers ---- */
@@ -588,17 +603,19 @@ function Thumb({ post, h=110 }){
 
 /* --------------------------------- Mapa ---------------------------------- */
 function MapView({ posts, go }){
-  const [f,setF]=useState({lost:true,found:true,seen:true,perro:true,gato:true,otro:true});const [sel,setSel]=useState(null);
+  const [f,setF]=useState({lost:true,found:true,seen:true,perro:true,gato:true,otro:true});const [sel,setSel]=useState(null);const cardRef=useRef();
   const chips=[["lost","🔴 Perdidas"],["found","🟢 Encontradas"],["seen","🟡 Vistas"],["perro","🐕 Perros"],["gato","🐈 Gatos"],["otro","🐾 Otras"]];
-  const shown=posts.filter(p=>f[p.type]&&f[p.species]&&p.status!=="reunited");const markers=shown.map(p=>({id:p.id,...jit(p),color:TYPE[p.type].dot,post:p}));
+  const markers=useMemo(()=>posts.filter(p=>!p.demo&&p.lat&&p.lng&&f[p.type]&&f[p.species]&&p.status!=="reunited").map(p=>({id:p.id,...jit(p),color:TYPE[p.type].dot,post:p})),[posts,f]);
+  useEffect(()=>{ if(sel&&cardRef.current)cardRef.current.scrollIntoView({behavior:"smooth",block:"nearest"}); },[sel]);
   return (
     <div className="px-4">
       <Title back={()=>go("home")} title="Mapa de Misiones" tag="FUNCIONAL"/>
       <div className="flex gap-2 overflow-x-auto mp-scroll pb-1 -mx-4 px-4">{chips.map(([k,l])=><Chip key={k} on={f[k]} onClick={()=>setF({...f,[k]:!f[k]})}>{l}</Chip>)}</div>
       <div className="mt-3 relative">
-        <GeoMap markers={markers} onMarkerClick={setSel} height={360} locate center={MISIONES_CENTER} zoom={MISIONES_ZOOM} fitToMarkers/>
-        {sel&&(<div className="absolute bottom-3 left-3 right-3 z-[500] rounded-2xl p-2.5 flex items-center gap-3 shadow-lg" style={{background:C.surface}}><div className="w-14 h-14 rounded-xl overflow-hidden shrink-0"><Thumb post={sel} h={56}/></div><div className="flex-1 min-w-0"><div className="text-[10px] font-bold" style={{color:TYPE[sel.type].dot}}>{TYPE[sel.type].label}</div><div className="font-bold text-sm truncate">{sel.petName||sel.species}</div><div className="text-[11px] truncate" style={{color:C.muted}}>{ubicTxt(sel)} · {sel.date}</div></div><button onClick={()=>go("detail",{post:sel})} className="px-3 py-2 rounded-xl text-xs font-bold text-white shrink-0" style={{background:C.brand}}>Ver</button><button onClick={()=>setSel(null)} className="shrink-0"><X size={16} color={C.muted}/></button></div>)}
+        <GeoMap markers={markers} onMarkerClick={setSel} height={360} locate center={MISIONES_CENTER} zoom={MISIONES_ZOOM} fitToMarkers cluster/>
+        
       </div>
+      {sel&&(<div ref={cardRef} className="mt-3 rounded-2xl p-2.5 flex items-center gap-3 shadow-lg" style={{background:C.surface,border:`1px solid ${C.line}`,scrollMarginBottom:"110px"}}><div className="w-14 h-14 rounded-xl overflow-hidden shrink-0"><Thumb post={sel} h={56}/></div><div className="flex-1 min-w-0"><div className="text-[10px] font-bold" style={{color:TYPE[sel.type].dot}}>{TYPE[sel.type].label}</div><div className="font-bold text-sm truncate">{sel.petName||sel.species}</div><div className="text-[11px] truncate" style={{color:C.muted}}>{ubicTxt(sel)} · {sel.date}</div></div><button onClick={()=>go("detail",{post:sel})} className="px-3 py-2 rounded-xl text-xs font-bold text-white shrink-0" style={{background:C.brand}}>Ver</button><button onClick={()=>setSel(null)} className="shrink-0"><X size={16} color={C.muted}/></button></div>)}
       <p className="text-[11px] mt-2 flex items-center gap-1.5" style={{color:C.muted}}><ShieldCheck size={13}/> Ubicaciones mostradas de forma aproximada para proteger la privacidad.</p>
       <AlertRadius posts={posts} go={go}/>
     </div>
@@ -622,7 +639,7 @@ function AlertRadius({ posts, go }){
 /* ------------------------------- Buscador -------------------------------- */
 function SearchView({ posts, go }){
   const [q,setQ]=useState(""),[type,setType]=useState("all"),[sp,setSp]=useState("all");
-  const res=useMemo(()=>{const t=q.trim().toLowerCase();return posts.filter(p=>{if(p.status==="reunited")return false;if(type!=="all"&&p.type!==type)return false;if(sp!=="all"&&p.species!==sp)return false;if(!t)return true;return [p.petName,p.barrio,p.zona,p.cp,p.color,p.species,p.sex,p.features,p.place,p.description].join(" ").toLowerCase().includes(t);});},[q,type,sp,posts]);
+  const res=useMemo(()=>{const t=sinTildes(q.trim());return posts.filter(p=>{if(p.status==="reunited")return false;if(type!=="all"&&p.type!==type)return false;if(sp!=="all"&&p.species!==sp)return false;if(!t)return true;const texto=sinTildes([p.petName,p.barrio,p.zona,ubicTxt(p),p.cp,p.color,p.species,p.sex,p.features,p.place,p.description].join(" "));return t.split(/\s+/).every(w=>texto.includes(w));});},[q,type,sp,posts]);
   return (
     <div className="px-4">
       <Title back={()=>go("home")} title="Buscar mascotas" tag="FUNCIONAL"/>
@@ -865,9 +882,9 @@ async function generarAfiche(post){
 }
 
 function ShareView({ post, go, flash }){
-  const t=TYPE[post.type];const link=`https://mascotasposadas.netlify.app`;
+  const t=TYPE[post.type];const link=linkPost(post);
   const [gen,setGen]=useState(false);
-  const frase = post.type==="lost"?"Si la viste, ayudanos a encontrarla":post.type==="found"?"¿Es tuyo? Ayudalo a volver a casa":"Si sabés de quién es, avisanos";
+  const frase = fraseCompartir(post);
   const text=`${t.ico} ${t.label.toUpperCase()}: ${post.petName||post.species} en ${ubicTxt(post)}. ${frase} 🐾 ${link}`;
   const share=(net)=>{ if(net==="wa")window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank"); else if(net==="fb")window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}&quote=${encodeURIComponent(text)}`,"_blank"); else if(net==="native"){if(navigator.share)navigator.share({title:"Mascotas Posadas",text,url:link}).catch(()=>{});else{navigator.clipboard&&navigator.clipboard.writeText(text);flash("Copiado.");}} else {navigator.clipboard&&navigator.clipboard.writeText(text);flash("Texto copiado.");} };
   const afiche=async(modo)=>{
@@ -1243,7 +1260,7 @@ function AdminView({ posts, reports, approve, removePost, go, clearReport, conn,
     <div className="px-4">
       <Title back={()=>go("home")} title="Panel administrador" tag="FUNCIONAL"/>
       {conn!=="cloud"&&<div className="rounded-2xl p-2.5 mb-2 text-[11px] flex items-center gap-1.5" style={{background:"#FFF7E6",border:"1px solid #F3E1B5",color:"#7A5B14"}}><CloudOff size={13}/> Modo local: la moderación afecta solo este dispositivo.</div>}
-      <div className="flex gap-2 mb-3 overflow-x-auto mp-scroll -mx-4 px-4">{[["stats","Estadísticas"],["mod","Moderación"],["reports",`Reportes${reports.length?` (${reports.length})`:""}`],["mensajes",`Mensajes${mensajes.length?` (${mensajes.length})`:""}`],["avistamientos",`Avistamientos${avistamientos.length?` (${avistamientos.length})`:""}`],["blog",`Blog${blog.length?` (${blog.length})`:""}`],["lugares","Lugares"],["estado","Estado"]].map(([k,l])=><button key={k} onClick={()=>setTab(k)} className="shrink-0 px-3 py-2 rounded-xl text-xs font-bold" style={{background:tab===k?C.ink:C.surface,color:tab===k?"#fff":C.muted,border:`1px solid ${tab===k?C.ink:C.line}`}}>{l}</button>)}</div>
+      <div className="flex flex-wrap gap-2 mb-3">{[["stats","Estadísticas"],["mod","Moderación"],["reports",`Reportes${reports.length?` (${reports.length})`:""}`],["mensajes",`Mensajes${mensajes.length?` (${mensajes.length})`:""}`],["avistamientos",`Avistamientos${avistamientos.length?` (${avistamientos.length})`:""}`],["blog",`Blog${blog.length?` (${blog.length})`:""}`],["lugares","Lugares"],["estado","Estado"]].map(([k,l])=><button key={k} onClick={()=>setTab(k)} className="shrink-0 px-3 py-2 rounded-xl text-xs font-bold" style={{background:tab===k?C.ink:C.surface,color:tab===k?"#fff":C.muted,border:`1px solid ${tab===k?C.ink:C.line}`}}>{l}</button>)}</div>
 
       {tab==="stats"&&(<div className="space-y-3 mb-2"><div className="rounded-2xl p-4 text-center" style={{background:`linear-gradient(135deg, ${C.brand}, ${C.brandDeep})`,color:"#fff"}}><div className="text-4xl font-extrabold">{pct}%</div><div className="text-[12px] font-semibold opacity-90">porcentaje de recuperación</div></div><div className="grid grid-cols-2 gap-2.5"><Kpi n={total} l="Total publicaciones" c={C.ink}/><Kpi n={reunited} l="Reunidas con familia" c={C.reunited}/><Kpi n={lost} l="Perdidas" c={C.lost}/><Kpi n={found} l="Encontradas" c={C.found}/><Kpi n={seen} l="Vistas" c={C.seen}/><Kpi n={reports.length} l="Reportes" c={C.muted}/></div><div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Publicaciones por barrio</div><Bars data={byBarrio} max={maxB} color={C.brand}/></div>{repB.length>0&&<div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Barrios con más reportes</div><Bars data={repB} max={Math.max(1,...repB.map(x=>x.n))} color={C.lost}/></div>}</div>)}
 
