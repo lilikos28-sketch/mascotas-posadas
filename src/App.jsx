@@ -19,6 +19,9 @@ import {
 const SUPABASE_URL = "https://qbihkpseaxctkzsybzgn.supabase.co";        // ← pegá tu Project URL (Supabase → Settings → API)
 const SUPABASE_ANON_KEY = "sb_publishable_vI40ZnrcMQYV3uUhP4mCeA_mKaXmU0H";   // ← pegá tu anon public key
 const ADMIN_EMAILS = ["lili.kos28@gmail.com"]; // ← tu email para ser admin en la nube
+// Dirección del sitio: se toma de donde está abierta la página (sirve con cualquier nombre en Netlify)
+const SITE_URL = (typeof window!=="undefined"&&window.location&&window.location.origin) || "https://mascotasperdidasmisiones.netlify.app";
+const SITE_HOST = SITE_URL.replace(/^https?:\/\//,"");
 const CLOUD = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 
 /* -------------------------------- Tokens --------------------------------- */
@@ -100,7 +103,7 @@ const unproject = (px,py)=>({ lng:BOUNDS.minLng+(px/1000)*(BOUNDS.maxLng-BOUNDS.
 /* ------------------------------ Utilidades ------------------------------- */
 const digits = (s)=>(s||"").replace(/\D/g,"");
 // Compartir una publicación (link + texto según estado) por WhatsApp o Facebook
-const linkPost = (p)=>`https://mascotasposadas.netlify.app/${p&&p.id&&!p.demo?`?post=${p.id}`:""}`;
+const linkPost = (p)=>`${SITE_URL}/${p&&p.id&&!p.demo?`?post=${p.id}`:""}`;
 const fraseCompartir = (p)=> p.type==="lost" ? "Si viste a esta mascota, ayudanos a encontrarla" : p.type==="found" ? "¿Es tuya esta mascota? Ayudala a volver a casa" : "Si sabés de quién es esta mascota, avisanos";
 const textoPost = (p)=>{ const est=p.type==="lost"?"🔴 PERDIDA":p.type==="found"?"🟢 ENCONTRADA":"🟡 VISTA"; const frase=fraseCompartir(p); const ubic=(p.zona==="Posadas"&&p.barrio)?`${p.barrio}, ${p.zona}`:(p.zona||"Misiones"); return `${est}: ${p.petName||p.species} en ${ubic}. ${frase} 🐾 ${linkPost(p)}`; };
 const compartirPost = (p,net)=>{ const text=textoPost(p); const link=linkPost(p); if(net==="wa")window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank"); else if(net==="fb")window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`,"_blank"); else if(net==="native"){ if(navigator.share)navigator.share({title:"Mascotas Perdidas Misiones",text,url:link}).catch(()=>{}); else if(navigator.clipboard){navigator.clipboard.writeText(text);} } };
@@ -850,7 +853,7 @@ async function generarAfiche(post){
     // QR de la mascota registrada (si la publicación vino de una mascota con QR)
     if(post.mascotaCodigo){
       try{
-        const qurl=`https://mascotasposadas.netlify.app/?m=${post.mascotaCodigo}`;
+        const qurl=`${SITE_URL}/?m=${post.mascotaCodigo}`;
         const qcv=document.createElement("canvas"); drawQROnCanvas(qcv,qurl,180,"#000000","#FFFFFF");
         const qx=W-250, qy=cy-70;
         x.fillStyle="#FFFFFF"; x.fillRect(qx-8,qy-8,180+16,180+16);
@@ -860,7 +863,7 @@ async function generarAfiche(post){
     }
     // Marca
     x.fillStyle="#0E7C6B"; x.font="800 36px sans-serif"; x.fillText("🐾 MASCOTAS PERDIDAS MISIONES",W/2,H-90);
-    x.fillStyle="#5F726B"; x.font="400 26px sans-serif"; x.fillText("mascotasposadas.netlify.app",W/2,H-55);
+    x.fillStyle="#5F726B"; x.font="400 26px sans-serif"; x.fillText(SITE_HOST,W/2,H-55);
   };
   // dibujar foto o emoji
   await new Promise((res)=>{
@@ -970,7 +973,7 @@ function drawQROnCanvas(canvas,text,size,dark,light){
   for(let r=0;r<count;r++){for(let c=0;c<count;c++){if(data[r*count+c]){ctx.fillRect(margin+c*cellSize,margin+r*cellSize,cellSize,cellSize);}}}
   return canvas;
 }
-const mascotaURL=(codigo)=>`https://mascotasposadas.netlify.app/?m=${codigo}`;
+const mascotaURL=(codigo)=>`${SITE_URL}/?m=${codigo}`;
 
 /* --------------------- Registrar tu mascota (ficha + QR) ------------------ */
 function RegistrarMascotaView({ go, onSave, flash }){
@@ -1027,7 +1030,7 @@ function QRMascotaView({ go, mascota, flash }){
     x.fillStyle="#159A5A";x.beginPath();x.roundRect(140,1240,W-280,80,16);x.fill(); x.fillStyle="#FFFFFF";x.font="800 32px sans-serif";x.fillText("Sin exponer los datos del dueño",W/2,1290);
     // marca (con espacio suficiente)
     x.fillStyle="#0E7C6B";x.font="800 34px sans-serif";x.fillText("🐾 MASCOTAS PERDIDAS MISIONES",W/2,1380);
-    x.fillStyle="#5F726B";x.font="400 26px sans-serif";x.fillText("mascotasposadas.netlify.app",W/2,1425);
+    x.fillStyle="#5F726B";x.font="400 26px sans-serif";x.fillText(SITE_HOST,W/2,1425);
     const url2=cv.toDataURL("image/png"); const a=document.createElement("a"); a.href=url2; a.download=`qr-${mascota.pet_name||mascota.codigo}.png`; a.click(); flash("Póster descargado ✓");
   };
   return (<div className="px-4 pb-6 text-center">

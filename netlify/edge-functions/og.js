@@ -2,26 +2,32 @@
 // esta función cambia el título, el texto y la imagen de la vista previa por los de esa mascota.
 const SUPABASE_URL = "https://qbihkpseaxctkzsybzgn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_vI40ZnrcMQYV3uUhP4mCeA_mKaXmU0H";
-const SITE = "https://mascotasposadas.netlify.app";
 
 const esc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export default async (request, context) => {
   const url = new URL(request.url);
   const id = url.searchParams.get("post");
+  const SITE = url.origin;
   const response = await context.next();
-  if (!id || !/^[\w-]{1,64}$/.test(id)) return response;
   if (!(response.headers.get("content-type") || "").includes("text/html")) return response;
+
+  // Las direcciones de la vista previa usan siempre el nombre con el que se abrió el sitio
+  const base = await response.text();
+  const headers = new Headers(response.headers);
+  headers.delete("content-length");
+  let html = base.replace(/https:\/\/mascotas(posadas|perdidasmisiones)\.netlify\.app/g, SITE);
+  if (!id || !/^[\w-]{1,64}$/.test(id)) return new Response(html, { status: response.status, headers });
 
   try {
     const r = await fetch(
       `${SUPABASE_URL}/rest/v1/publicaciones?id=eq.${encodeURIComponent(id)}&select=type,pet_name,species,zona,barrio,photo,approved`,
       { headers: { apikey: SUPABASE_KEY } }
     );
-    if (!r.ok) return response;
+    if (!r.ok) return new Response(html, { status: response.status, headers });
     const rows = await r.json();
     const p = rows && rows[0];
-    if (!p || p.approved === false) return response;
+    if (!p || p.approved === false) return new Response(html, { status: response.status, headers });
 
     const est = p.type === "lost" ? "🔴 PERDIDA" : p.type === "found" ? "🟢 ENCONTRADA" : "🟡 VISTA";
     const esp = p.species && p.species !== "otro" ? p.species : "mascota";
@@ -38,7 +44,6 @@ export default async (request, context) => {
     const image = hasPhoto ? p.photo : `${SITE}/portada.png`;
     const link = `${SITE}/?post=${encodeURIComponent(id)}`;
 
-    let html = await response.text();
     const set = (attr, key, val) => {
       const re = new RegExp(`(<meta\\s+${attr}="${key}"\\s+content=")[^"]*(")`, "i");
       html = html.replace(re, `$1${esc(val)}$2`);
@@ -53,11 +58,9 @@ export default async (request, context) => {
     if (hasPhoto) html = html.replace(/\s*<meta\s+property="og:image:(width|height)"[^>]*>/gi, "");
     html = html.replace(/<title>[^<]*<\/title>/i, `<title>${esc(title)} · Mascotas Perdidas Misiones</title>`);
 
-    const headers = new Headers(response.headers);
-    headers.delete("content-length");
     return new Response(html, { status: response.status, headers });
   } catch {
-    return response;
+    return new Response(html, { status: response.status, headers });
   }
 };
 
