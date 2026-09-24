@@ -281,6 +281,8 @@ export default function App(){
   const [reportFor,setReportFor]=useState(null);
   const [misMascotas,setMisMascotas]=useState([]);
   const [avistamientos,setAvistamientos]=useState([]);
+  const [avisosVistos,setAvisosVistos]=useState(()=>{ try{ return JSON.parse(window.localStorage.getItem("mp_avisos_vistos")||"{}"); }catch{ return {}; } });
+  const marcarAvisosVistos=(codigo)=>{ setAvisosVistos(prev=>{ const n={...prev,[codigo]:new Date().toISOString()}; try{ window.localStorage.setItem("mp_avisos_vistos",JSON.stringify(n)); }catch{} return n; }); };
   const [blog,setBlog]=useState([]);
   const [qrMascota,setQrMascota]=useState(null); // mascota abierta desde un QR
 
@@ -315,6 +317,8 @@ export default function App(){
     try{ const params=new URLSearchParams(window.location.search); const pid=params.get("post"); if(pid){ await abrirPublicacionPorId(pid); } }catch{}
   })(); },[]);
 
+  // Al volver a la página (por ejemplo, desde WhatsApp), se buscan avisos nuevos
+  useEffect(()=>{ if(typeof document==="undefined")return; const f=()=>{ if(document.visibilityState==="visible")loadMascotas(); }; document.addEventListener("visibilitychange",f); const t=setInterval(f,120000); return ()=>{ document.removeEventListener("visibilitychange",f); clearInterval(t); }; },[]);
   const loadMascotas = async ()=>{
     if(CLOUD){ try{ const c=await getClient(); if(!c)return;
       try{ const {data}=await c.from("mascotas").select("*").order("created_at",{ascending:false}); setMisMascotas(data||[]); }catch{}
@@ -442,6 +446,9 @@ export default function App(){
 
   if(!ready) return <div style={{background:C.bg,minHeight:480}} className="flex items-center justify-center"><PawPrint className="animate-pulse" color={C.brand}/></div>;
   const visible=posts.filter(p=>p.approved!==false);
+  // Avisos que dejaron personas que escanearon el QR de MIS mascotas y que todavía no vi
+  const misCodigos=user?misMascotas.filter(m=>m.owner_id===user.id).map(m=>m.codigo):[];
+  const avisosNuevos=avistamientos.filter(a=>misCodigos.includes(a.mascota_codigo)&&(!avisosVistos[a.mascota_codigo]||new Date(a.created_at)>new Date(avisosVistos[a.mascota_codigo])));
 
   return (
     <div style={{background:C.bg,color:C.ink,fontFamily:"'Plus Jakarta Sans', system-ui, -apple-system, Segoe UI, Roboto, sans-serif"}} className="min-h-screen w-full">
@@ -469,8 +476,9 @@ export default function App(){
         .inp{width:100%;padding:11px 13px;border-radius:14px;border:1px solid ${C.line};background:${C.surface};font-size:14px;outline:none;color:${C.ink}}`}</style>
 
       <div className="mx-auto max-w-[480px] relative pb-24" style={{background:C.bg}}>
-        <Header go={go} count={visible.filter(p=>p.status==="lost").length} conn={conn} />
+        <Header go={go} count={avisosNuevos.length} conn={conn} />
 
+        {view==="home" && avisosNuevos.length>0 && (<button onClick={()=>go("mis_mascotas")} className="mx-4 mt-3 w-[calc(100%-2rem)] rounded-2xl p-3.5 flex items-center gap-3 text-left text-white" style={{background:C.lost}}><Bell size={22} className="shrink-0"/><div className="flex-1"><div className="font-extrabold text-[14px]">¡Tenés {avisosNuevos.length} aviso{avisosNuevos.length>1?"s":""} nuevo{avisosNuevos.length>1?"s":""}!</div><div className="text-[12px] opacity-95">Alguien escaneó el QR de tu mascota. Tocá para ver dónde la vieron.</div></div><ChevronRight size={18}/></button>)}
         {view==="home"    && <HomeView posts={visible} go={go} conn={conn} user={user} realPosts={realPosts} />}
         {view==="map"     && <MapView posts={visible} go={go} />}
         {view==="search"  && <SearchView posts={visible} go={go} />}
@@ -482,7 +490,7 @@ export default function App(){
         {view==="contacto"&& <ContactoView go={go} onSend={enviarMensaje} />}
         {view==="blog"&& <BlogView go={go} entradas={blog} />}
         {view==="registrar_mascota"&& (requireAuthToPublish ? <AuthGate go={go} /> : <RegistrarMascotaView go={go} onSave={async(f)=>{ const m=await registrarMascota(f); if(m){ setQrMascota(m); } return m; }} flash={flash} />)}
-        {view==="mis_mascotas"&& <MisMascotasView go={go} mascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} user={user} onDelete={borrarMascota} avistamientos={avistamientos} setQr={setQrMascota} irQr={(m)=>{setQrMascota(m);go("qr_mascota");}} />}
+        {view==="mis_mascotas"&& <MisMascotasView go={go} mascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} user={user} onDelete={borrarMascota} avistamientos={avistamientos} avisosVistos={avisosVistos} marcarVistos={marcarAvisosVistos} setQr={setQrMascota} irQr={(m)=>{setQrMascota(m);go("qr_mascota");}} />}
         {view==="qr_mascota"&& (qrMascota ? <QRMascotaView go={go} mascota={qrMascota} flash={flash} /> : <VistaVacia go={go} texto="No se encontró la mascota. Volvé a Mis mascotas." />)}
         {view==="mascota_publica"&& (qrMascota ? <MascotaPublicaView go={go} mascota={qrMascota} onReport={reportarAvistamiento} flash={flash} /> : <VistaVacia go={go} texto="No se encontró esta mascota." />)}
         {view==="auth"    && <AuthView onSignIn={onSignIn} onSignUp={onSignUp} onReset={onReset} onGoogle={Auth.google} go={go} />}
@@ -507,7 +515,7 @@ function Header({ go, count, conn }){
       <div className="flex items-center justify-between">
         <button onClick={()=>go("home")} className="flex items-center gap-2"><div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{background:C.brand}}><PawPrint size={19} color="#fff"/></div><div className="leading-tight text-left"><div className="font-extrabold text-[15px]">Mascotas Perdidas Misiones</div><div className="text-[10px] font-semibold tracking-wide flex items-center gap-1" style={{color:C.muted}}>MISIONES · AR {conn==="cloud"?<Cloud size={11} color={C.found}/>:<CloudOff size={11} color={C.seen}/>}</div></div></button>
         <div className="flex items-center gap-1.5">
-          <button onClick={()=>go("map")} className="relative w-9 h-9 rounded-xl flex items-center justify-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><Bell size={17} color={C.ink}/>{count>0&&<span className="absolute -top-1 -right-1 text-[10px] font-bold text-white rounded-full min-w-[16px] h-[16px] px-1 flex items-center justify-center" style={{background:C.lost}}>{count}</span>}</button>
+          <button onClick={()=>go("mis_mascotas")} aria-label="Avisos de mis mascotas" className="relative w-9 h-9 rounded-xl flex items-center justify-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><Bell size={17} color={C.ink}/>{count>0&&<span className="absolute -top-1 -right-1 text-[10px] font-bold text-white rounded-full min-w-[16px] h-[16px] px-1 flex items-center justify-center" style={{background:C.lost}}>{count}</span>}</button>
           <button onClick={()=>go("admin")} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><Settings2 size={17} color={C.ink}/></button>
         </div>
       </div>
@@ -1038,6 +1046,9 @@ function QRMascotaView({ go, mascota, flash }){
     x.fillStyle="#5F726B";x.font="400 26px sans-serif";x.fillText(SITE_HOST,W/2,1425);
     const url2=cv.toDataURL("image/png"); const a=document.createElement("a"); a.href=url2; a.download=`qr-${mascota.pet_name||mascota.codigo}.png`; a.click(); flash("Póster descargado ✓");
   };
+  const soloQR=()=>{ const cv=document.createElement("canvas"); drawQROnCanvas(cv,url,1000,"#000000","#FFFFFF"); const W=1000+2*80; const out=document.createElement("canvas"); out.width=W; out.height=W; const x=out.getContext("2d"); x.fillStyle="#FFFFFF"; x.fillRect(0,0,W,W); x.drawImage(cv,80,80,1000,1000); return out.toDataURL("image/png"); };
+  const descargarSoloQR=()=>{ const a=document.createElement("a"); a.href=soloQR(); a.download=`qr-solo-${mascota.pet_name||mascota.codigo}.png`; a.click(); flash("QR descargado ✓"); };
+  const imprimirSoloQR=()=>{ const img=soloQR(); const w=window.open("","_blank"); if(!w){flash("Permití las ventanas emergentes para imprimir.");return;} w.document.write(`<html><head><title>QR</title><style>@page{margin:15mm}body{margin:0;display:flex;flex-wrap:wrap;gap:10mm}img{width:40mm;height:40mm}</style></head><body>${Array(6).fill(`<img src="${img}">`).join("")}<script>window.onload=()=>{window.print();}<\/script></body></html>`); w.document.close(); };
   return (<div className="px-4 pb-6 text-center">
     <Title back={()=>go("mis_mascotas")} title="QR de tu mascota" tag="FUNCIONAL"/>
     <div className="rounded-3xl p-5 mt-1" style={{background:C.surface,border:`1px solid ${C.line}`}}>
@@ -1047,7 +1058,8 @@ function QRMascotaView({ go, mascota, flash }){
       <p className="text-[12px] mt-3" style={{color:C.muted}}>Cuando alguien escanee este QR, verá la ficha de {mascota.pet_name||"tu mascota"} y podrá avisarte que la encontró — <b>sin ver tu teléfono</b>.</p>
     </div>
     <button onClick={descargarPoster} className="mt-4 w-full py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2" style={{background:C.brand}}><Copy size={18}/> Descargar póster con el QR</button>
-    <p className="text-[11px] mt-2" style={{color:C.muted}}>Imprimí el póster y colgá el QR, o ponelo en el collar. También podés guardarlo en el celular.</p>
+    <div className="grid grid-cols-2 gap-2 mt-2"><button onClick={descargarSoloQR} className="py-3 rounded-2xl font-bold text-sm" style={{background:C.brandSoft,color:C.brandDeep}}>Descargar solo el QR</button><button onClick={imprimirSoloQR} className="py-3 rounded-2xl font-bold text-sm" style={{background:C.brandSoft,color:C.brandDeep}}>Imprimir solo el QR</button></div>
+    <p className="text-[11px] mt-2" style={{color:C.muted}}>"Imprimir solo el QR" arma una hoja con 6 códigos de 4 cm, listos para recortar y poner en el collar o la chapita.</p>
     <button onClick={()=>go("mis_mascotas")} className="mt-3 w-full py-3 rounded-2xl font-bold" style={{background:C.surface,border:`1px solid ${C.line}`}}>Ver mis mascotas</button>
   </div>);
 }
@@ -1089,7 +1101,8 @@ function MascotaPublicaView({ go, mascota, onReport, flash }){
 }
 
 /* ------------------------- Mis mascotas registradas ----------------------- */
-function MisMascotasView({ go, mascotas=[], user, onDelete, avistamientos=[], irQr }){
+function MisMascotasView({ go, mascotas=[], user, onDelete, avistamientos=[], irQr, avisosVistos={}, marcarVistos=()=>{} }){
+  const esNuevo=(a)=>!avisosVistos[a.mascota_codigo]||new Date(a.created_at)>new Date(avisosVistos[a.mascota_codigo]);
   const [verAvisos,setVerAvisos]=useState(null); // mascota cuyos avisos se muestran
   const fmtFecha=(f)=>{ try{ return new Date(f).toLocaleDateString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}); }catch{ return ""; } };
 
@@ -1114,13 +1127,13 @@ function MisMascotasView({ go, mascotas=[], user, onDelete, avistamientos=[], ir
     <Title back={()=>go("home")} title="Mis mascotas" tag="FUNCIONAL"/>
     <button onClick={()=>go("registrar_mascota")} className="w-full py-3 rounded-2xl font-bold text-white flex items-center justify-center gap-2 mb-4" style={{background:C.brand}}><Plus size={18}/> Registrar una mascota</button>
     {mascotas.length===0 ? <Empty text="Todavía no registraste ninguna mascota. Registrala para tener su QR de seguridad."/> :
-    <div className="space-y-3">{mascotas.map(m=>{ const avisos=avistamientos.filter(a=>a.mascota_codigo===m.codigo).length; return (
+    <div className="space-y-3">{mascotas.map(m=>{ const lista=avistamientos.filter(a=>a.mascota_codigo===m.codigo); const avisos=lista.length; const nuevos=lista.filter(esNuevo).length; return (
       <div key={m.id} className="rounded-2xl overflow-hidden" style={{background:C.surface,border:`1px solid ${avisos>0?C.found:C.line}`}}>
         <div className="flex items-center gap-3 p-3">
           {m.photo? <img src={m.photo} alt="" className="w-14 h-14 rounded-xl object-cover"/> : <div className="w-14 h-14 rounded-xl flex items-center justify-center" style={{background:C.brandSoft}}>🐾</div>}
-          <div className="flex-1 min-w-0"><div className="font-bold text-sm">{m.pet_name||m.petName}</div><div className="text-[11px]" style={{color:C.muted}}>{m.species}{m.color?" · "+m.color:""} · código {m.codigo}</div>{avisos>0&&<div className="text-[11px] font-bold mt-0.5" style={{color:C.found}}>🔔 {avisos} aviso{avisos>1?"s":""} nuevo{avisos>1?"s":""}</div>}</div>
+          <div className="flex-1 min-w-0"><div className="font-bold text-sm">{m.pet_name||m.petName}</div><div className="text-[11px]" style={{color:C.muted}}>{m.species}{m.color?" · "+m.color:""} · código {m.codigo}</div>{nuevos>0?<div className="text-[11px] font-bold mt-0.5" style={{color:C.lost}}>🔔 {nuevos} aviso{nuevos>1?"s":""} nuevo{nuevos>1?"s":""}</div>:avisos>0&&<div className="text-[11px] font-bold mt-0.5" style={{color:C.found}}>{avisos} aviso{avisos>1?"s":""}</div>}</div>
         </div>
-        {avisos>0 && <button onClick={()=>setVerAvisos(m)} className="mx-3 mb-2 py-2.5 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-1 w-[calc(100%-1.5rem)]" style={{background:C.found}}><Bell size={13}/> Ver {avisos} aviso{avisos>1?"s":""} de dónde la vieron</button>}
+        {avisos>0 && <button onClick={()=>{setVerAvisos(m);marcarVistos(m.codigo);}} className="mx-3 mb-2 py-2.5 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-1 w-[calc(100%-1.5rem)]" style={{background:C.found}}><Bell size={13}/> Ver {avisos} aviso{avisos>1?"s":""} de dónde la vieron</button>}
         <div className="flex gap-2 px-3 pb-3">
           <button onClick={()=>irQr(m)} className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white" style={{background:C.brand}}>Ver / imprimir QR</button>
           <button onClick={()=>onDelete(m.id)} className="py-2.5 px-3 rounded-xl text-xs font-bold" style={{background:"#FBE7E7",color:C.lost}}><Trash2 size={14}/></button>
