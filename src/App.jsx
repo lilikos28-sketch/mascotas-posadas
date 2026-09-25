@@ -492,7 +492,7 @@ export default function App(){
         {view==="help"    && <HelpView go={go} lugares={lugares} />}
         {view==="business"&& <BusinessView go={go} />}
         {view==="contacto"&& <ContactoView go={go} onSend={enviarMensaje} />}
-        {view==="blog"&& <BlogView go={go} entradas={blog} />}
+        {view==="blog"&& <BlogView go={go} entradas={[...blog,...BLOG_FIJO.filter(f=>!blog.some(b=>b.titulo===f.titulo))].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))} />}
         {view==="registrar_mascota"&& (requireAuthToPublish ? <AuthGate go={go} /> : <RegistrarMascotaView go={go} onSave={async(f)=>{ const m=await registrarMascota(f); if(m){ setQrMascota(m); } return m; }} flash={flash} />)}
         {view==="mis_mascotas"&& <MisMascotasView go={go} mascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} user={user} onDelete={borrarMascota} avistamientos={avistamientos} avisosVistos={avisosVistos} marcarVistos={marcarAvisosVistos} setQr={setQrMascota} irQr={(m)=>{setQrMascota(m);go("qr_mascota");}} />}
         {view==="qr_mascota"&& (qrMascota ? <QRMascotaView go={go} mascota={qrMascota} flash={flash} /> : <VistaVacia go={go} texto="No se encontró la mascota. Volvé a Mis mascotas." />)}
@@ -1147,6 +1147,33 @@ function MisMascotasView({ go, mascotas=[], user, onDelete, avistamientos=[], ir
 }
 
 /* --------------------------------- Blog ---------------------------------- */
+// Notas del blog incluidas en la página (se muestran junto con las que se cargan desde el panel)
+const BLOG_FIJO = [
+{
+"id": "fija-nota-primeras-24-horas",
+"titulo": "Se perdió tu mascota: qué hacer en las primeras 24 horas",
+"texto": "Las primeras horas son las más importantes. La mayoría de las mascotas perdidas no se alejan mucho de donde se escaparon, así que actuar rápido y con un plan aumenta mucho las chances de encontrarla.\n\n1. Recorré la zona enseguida. Caminá despacio por las cuadras cercanas, llamala por su nombre con voz tranquila y llevá algo que haga ruido y reconozca, como su bolsa de alimento. Revisá garajes, patios, debajo de autos y lugares donde podría esconderse si está asustada.\n\n2. Publicala cuanto antes. Entrá a mascotasperdidasmisiones.netlify.app y cargala con una foto clara, el barrio y tu WhatsApp. Es gratis y en un minuto aparece en el mapa para que los vecinos la vean.\n\n3. Compartí el anuncio. Mandalo por WhatsApp a tus contactos, a los grupos del barrio y a los grupos de mascotas perdidas de tu ciudad. Cuantas más personas la vean, mejor.\n\n4. Avisá a veterinarias y refugios cercanos. Muchas veces las personas que encuentran un animal lo llevan ahí. Dejales tu contacto y una foto.\n\n5. Dejá algo con su olor en la puerta de tu casa, como su cama o una prenda tuya. A veces vuelven solos siguiendo olores conocidos.\n\n6. No bajes los brazos. Hay mascotas que aparecen después de varios días. Revisá la página seguido: si alguien la encuentra y la publica, la vas a ver ahí.\n\n¿Tu mascota ya está en casa? Registrala gratis y generá su chapita con QR, así si algún día se pierde, quien la encuentre puede avisarte al instante.",
+"foto": "/blog/nota-primeras-24-horas.jpg",
+"created_at": "2026-09-25T12:00:00Z",
+"fija": true
+},
+{
+"id": "fija-nota-encontre-un-perro",
+"titulo": "Encontraste un perro en la calle: ¿y ahora?",
+"texto": "Encontrar un perro solo en la calle genera muchas dudas. Con unos pasos simples podés ayudarlo a volver con su familia sin ponerte en riesgo.\n\n1. Acercate con calma. Hablale suave, agachate de costado y dejá que se acerque solo. Si se muestra agresivo o muy asustado, no lo fuerces: sacale una foto, anotá dónde está y publicalo igual.\n\n2. Ofrecele agua. Es lo más urgente, sobre todo con calor. Si le das comida, que sea poca cantidad.\n\n3. Revisá si tiene chapita, collar o QR. Si tiene un código QR, escanealo con la cámara del celular: podés avisarle a la familia al instante, sin necesidad de ver su teléfono.\n\n4. Publicalo como encontrado. En mascotasperdidasmisiones.netlify.app tocá el botón +, elegí \"Encontré\", subí una foto y marcá el barrio donde lo viste. Así su familia lo puede encontrar en el mapa.\n\n5. Consultá en una veterinaria cercana. Pueden revisar si tiene microchip y, muchas veces, alguien ya preguntó por él.\n\n6. Si no podés quedártelo, contactá a un refugio o proteccionista de tu zona. Y si podés tenerlo unos días, avisalo en tu publicación: eso tranquiliza mucho a la familia que lo busca.\n\nGracias por frenar y ayudar. Cada vecino que se detiene puede ser la diferencia para que una mascota vuelva a casa.",
+"foto": "/blog/nota-encontre-un-perro.jpg",
+"created_at": "2026-09-25T12:01:00Z",
+"fija": true
+},
+{
+"id": "fija-nota-chapita-qr",
+"titulo": "Por qué tu mascota necesita una chapita con QR",
+"texto": "Ninguno de nosotros piensa que su mascota se va a perder, hasta que pasa: una puerta abierta, un susto con la pirotecnia, una tormenta. En ese momento, lo que más ayuda es que quien la encuentre sepa cómo avisarte.\n\nCon Mascotas Perdidas Misiones podés registrar a tu mascota gratis y generar un código QR para su collar o chapita. Así funciona:\n\nQuien la encuentre escanea el código con la cámara del celular y ve la ficha de tu mascota con su foto y sus datos.\n\nDesde ahí te deja un aviso con su contacto y dónde la vio, y a vos te aparece en la página como aviso nuevo.\n\nTu teléfono no queda a la vista: vos decidís a quién contactar.\n\nAdemás, cuando tu mascota ya está registrada, si algún día se pierde podés publicarla en segundos con todos sus datos cargados.\n\nCómo hacerlo: entrá a mascotasperdidasmisiones.netlify.app, tocá \"Registrá tu mascota\", cargá su foto y tu WhatsApp, y descargá o imprimí el QR. Podés imprimir solo el código en tamaño chico, recortarlo y ponerlo en una chapita o dentro de un portachapa plástico.\n\nEs gratis, lleva cinco minutos y puede evitar muchas horas de angustia.",
+"foto": "/blog/nota-chapita-qr.jpg",
+"created_at": "2026-09-25T12:02:00Z",
+"fija": true
+}
+];
 function BlogView({ go, entradas=[] }){
   const [abierta,setAbierta]=useState(null);
   const fmtFecha=(f)=>{ try{ return new Date(f).toLocaleDateString("es-AR",{day:"numeric",month:"long",year:"numeric"}); }catch{ return ""; } };
