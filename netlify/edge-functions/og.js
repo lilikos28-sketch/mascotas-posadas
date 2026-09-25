@@ -22,6 +22,7 @@ export default async (request, context) => {
     "nota:24horas": ["Se perdió tu mascota: qué hacer en las primeras 24 horas", "Guía paso a paso para las horas más importantes.", "/blog/nota-primeras-24-horas.jpg"],
     "nota:encontre": ["Encontraste un perro en la calle: ¿y ahora?", "Qué hacer para que vuelva con su familia.", "/blog/nota-encontre-un-perro.jpg"],
     "nota:qr": ["Por qué tu mascota necesita una chapita con QR", "Registrala gratis y generá su código.", "/blog/nota-chapita-qr.jpg"],
+    "v:cuidados": ["Antes del finde: 3 cuidados para que tu mascota no se pierda", "Chapita con QR gratis en Mascotas Perdidas Misiones.", "/fb/cuidados.jpg"],
     "v:inicio": ["Mascotas Perdidas Misiones", "Publicá gratis tu mascota perdida o encontrada.", "/fb/presentacion.jpg"],
     "v:publicar": ["Publicá una mascota en 1 minuto", "Gratis, con foto, barrio y mapa.", "/fb/publicar.jpg"],
     "v:registrar": ["Registrá tu mascota y generá su QR", "Gratis. Si se pierde, te avisan al instante.", "/fb/registrar.jpg"],
