@@ -713,7 +713,7 @@ function NewView(props){ useEffect(()=>{ const t=setTimeout(()=>{ cargarDetector
 function NewViewInner({ type, setType, onSubmit, go, flash, editPost, misMascotas=[] }){
   const editing=!!editPost; const t=TYPE[editing?editPost.type:type];
   const init = editing ? { petName:editPost.petName||"", species:editPost.species||"perro", sex:editPost.sex||"", ageApprox:editPost.ageApprox||"", color:editPost.color||"", features:editPost.features||"", date:editPost.date||new Date().toISOString().slice(0,10), time:editPost.time||"", place:editPost.place||"", zona:editPost.zona||"Posadas", barrio:editPost.barrio||"", cp:editPost.cp||"", description:editPost.description||"", phone:editPost.phone||editPost.whatsapp||"", whatsapp:editPost.whatsapp||"", reward:editPost.reward||"", mascotaCodigo:editPost.mascotaCodigo||"" }
-    : { petName:"", species:"perro", sex:"", ageApprox:"", color:"", features:"", date:new Date().toISOString().slice(0,10), time:"", place:"", zona:"Posadas", barrio:"", cp:"3300", description:"", phone:"", whatsapp:"", reward:"", mascotaCodigo:"" };
+    : { petName:"", species:"", sex:"", ageApprox:"", color:"", features:"", date:new Date().toISOString().slice(0,10), time:"", place:"", zona:"Posadas", barrio:"", cp:"3300", description:"", phone:"", whatsapp:"", reward:"", mascotaCodigo:"" };
   const [f,setF]=useState(init);const [photo,setPhoto]=useState(editing?editPost.photo:null);const [coords,setCoords]=useState(editing&&editPost.preciseLocation?{lat:editPost.lat,lng:editPost.lng}:null);const [precise,setPrecise]=useState(editing?!!editPost.preciseLocation:false);const [locMode,setLocMode]=useState("barrio");const [busy,setBusy]=useState(false);const [saving,setSaving]=useState(false);const [done,setDone]=useState(null);const fileRef=useRef();
   const curType=editing?editPost.type:type;const set=(k,v)=>setF(s=>({...s,[k]:v}));
   // Para "Perdí mi mascota": ofrecer elegir una mascota registrada y autocompletar
@@ -729,9 +729,12 @@ function NewViewInner({ type, setType, onSubmit, go, flash, editPost, misMascota
   const useGps=()=>{ if(!navigator.geolocation){flash("El navegador no permite geolocalización.");return;} setLocMode("gps"); navigator.geolocation.getCurrentPosition(p=>{setCoords({lat:+p.coords.latitude.toFixed(6),lng:+p.coords.longitude.toFixed(6)});setPrecise(true);flash("Ubicación tomada ✓");},()=>flash("No pudimos obtener tu ubicación.")); };
   const barrioCoords=()=>{ if(f.zona==="Posadas"&&f.barrio&&BARRIOS[f.barrio]){const b=BARRIOS[f.barrio];return {lat:b[0],lng:b[1]};} const z=coordDe(f.zona);return {lat:z[0],lng:z[1]}; };
   const telOk=telValido(f.phone);
-  const canSubmit=f.color&&f.zona&&telOk&&(curType==="seen"||f.species);
+  // Qué falta para poder publicar (se muestra debajo del botón)
+  const faltan=[ (!photo&&curType!=="seen")&&"una foto", (!f.species&&curType!=="seen")&&"la especie", !f.color&&"el color", !f.zona&&"la zona", !telOk&&"un WhatsApp válido" ].filter(Boolean);
+  const listaFaltan=faltan.length>1?faltan.slice(0,-1).join(", ")+" y "+faltan[faltan.length-1]:faltan[0]||"";
+  const canSubmit=faltan.length===0;
   const submit=async()=>{
-    if(!canSubmit){flash("Completá foto, ubicación y contacto.");return;}
+    if(!canSubmit){flash(`Para publicar falta: ${listaFaltan}.`);return;}
     setSaving(true);const c=coords||barrioCoords();
     const fields={ petName:clean(f.petName,40), species:f.species, sex:f.sex, ageApprox:clean(f.ageApprox,20), color:clean(f.color,40), features:clean(f.features,120), date:f.date, time:f.time, place:clean(f.place,80), zona:f.zona, barrio:f.barrio, cp:clean(f.cp,10), description:cleanText(f.description,600), phone:telLocal(f.phone), whatsapp:telLocal(f.phone), reward:clean(f.reward,40), lat:c.lat, lng:c.lng, preciseLocation:precise, photo, mascotaCodigo:f.mascotaCodigo||"" };
     const saved = editing ? await onSubmit({__edit:true,id:editPost.id,fields}) : await onSubmit({...fields,type:curType});
@@ -778,7 +781,7 @@ function NewViewInner({ type, setType, onSubmit, go, flash, editPost, misMascota
       </div>
       <div className="space-y-3">
         {curType!=="found"&&<Field label="Nombre (si lo sabés)"><input value={f.petName} onChange={e=>set("petName",e.target.value)} className="inp" placeholder="Ej: Rocco"/></Field>}
-        <div className="grid grid-cols-2 gap-3"><Field label="Especie *"><select value={f.species} onChange={e=>set("species",e.target.value)} className="inp"><option value="perro">🐕 Perro</option><option value="gato">🐈 Gato</option><option value="otro">🐾 Otro</option></select></Field><Field label="Sexo"><select value={f.sex} onChange={e=>set("sex",e.target.value)} className="inp"><option value="">—</option><option>Macho</option><option>Hembra</option></select></Field></div>
+        <div className="grid grid-cols-2 gap-3"><Field label="Especie *"><select value={f.species} onChange={e=>set("species",e.target.value)} className="inp"><option value="" disabled>Elegí…</option><option value="perro">🐕 Perro</option><option value="gato">🐈 Gato</option><option value="otro">🐾 Otro</option></select></Field><Field label="Sexo"><select value={f.sex} onChange={e=>set("sex",e.target.value)} className="inp"><option value="">—</option><option>Macho</option><option>Hembra</option></select></Field></div>
         <div className="grid grid-cols-2 gap-3"><Field label="Color *"><input value={f.color} onChange={e=>set("color",e.target.value)} className="inp" placeholder="Marrón y blanco"/></Field><Field label="Edad aprox."><input value={f.ageApprox} onChange={e=>set("ageApprox",e.target.value)} className="inp" placeholder="2 años"/></Field></div>
         <Field label="Características"><input value={f.features} onChange={e=>set("features",e.target.value)} className="inp" placeholder="Collar rojo, cicatriz, tímido…"/></Field>
         <div className="grid grid-cols-2 gap-3"><Field label="Fecha"><input type="date" value={f.date} onChange={e=>set("date",e.target.value)} className="inp"/></Field><Field label="Hora aprox."><input type="time" value={f.time} onChange={e=>set("time",e.target.value)} className="inp"/></Field></div>
@@ -787,6 +790,7 @@ function NewViewInner({ type, setType, onSubmit, go, flash, editPost, misMascota
         {curType==="lost"&&<Field label="Recompensa (opcional)"><input value={f.reward} onChange={e=>set("reward",e.target.value)} className="inp" placeholder="Ej: Recompensa"/></Field>}
       </div>
       <button onClick={submit} disabled={saving} className="mt-5 w-full py-3.5 rounded-2xl font-bold text-white text-[15px] flex items-center justify-center gap-2" style={{background:canSubmit?t.dot:C.line}}>{saving&&<Loader2 size={18} className="animate-spin"/>}{editing?"Guardar cambios":"Publicar alerta"}</button>
+      {!canSubmit&&<p className="text-[12px] mt-2 text-center font-semibold" style={{color:C.lost}}>Para publicar falta: {listaFaltan}.</p>}
     </div>
   );
 }
