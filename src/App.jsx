@@ -113,6 +113,10 @@ const waNum = (s)=>{ const d=telLocal(s); return d.length===10 ? "549"+d : digit
 const maskPhone = (s)=>{const d=telLocal(s);return d?`${d.slice(0,4)} ••• ${d.slice(-2)}`:"—";};
 const sinTildes = (s)=>(s||"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const clean = (s,max=400)=>(s||"").toString().replace(/[\u0000-\u001F\u007F]/g,"").trim().slice(0,max);
+// Igual que clean pero respeta los saltos de línea (para textos largos: blog, descripciones, mensajes)
+const cleanText = (s,max=400)=>(s||"").toString().replace(/\r\n?/g,"\n").replace(/\t/g," ").replace(/[\u0000-\u0009\u000B-\u001F\u007F]/g,"").replace(/\n{3,}/g,"\n\n").trim().slice(0,max);
+// Para textos viejos que perdieron los saltos: separa en párrafos cuando un punto va pegado a la oración siguiente
+const parrafos = (t)=>(t||"").replace(/([.!?…])(?=[A-ZÁÉÍÓÚÑ¡¿])/g,"$1\n\n");
 function haversine(a,b){const R=6371,r=(d)=>d*Math.PI/180;const dLat=r(b[0]-a[0]),dLng=r(b[1]-a[1]);const s=Math.sin(dLat/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[0]))*Math.sin(dLng/2)**2;return R*2*Math.atan2(Math.sqrt(s),Math.sqrt(1-s));}
 function timeAgo(iso){const d=(Date.now()-new Date(iso).getTime())/1000;if(d<3600)return `hace ${Math.max(1,Math.floor(d/60))} min`;if(d<86400)return `hace ${Math.floor(d/3600)} h`;return `hace ${Math.floor(d/86400)} d`;}
 const publicJitter = (lat,lng,id)=>{const n=typeof id==="number"?id:String(id).length*7;return [lat+Math.sin(n*12.9)*0.0016, lng+Math.cos(n*7.3)*0.0016];};
@@ -392,7 +396,7 @@ export default function App(){
 
   /* ---- Mensajes de contacto (buzón privado del admin) ---- */
   const enviarMensaje=async(m)=>{
-    const rec={ nombre:clean(m.nombre,60), contacto:clean(m.contacto,60), tipo:m.tipo, mensaje:clean(m.mensaje,600) };
+    const rec={ nombre:clean(m.nombre,60), contacto:clean(m.contacto,60), tipo:m.tipo, mensaje:cleanText(m.mensaje,800) };
     if(conn==="cloud"){ try{ const c=await getClient(); const {error}=await c.from("mensajes").insert(rec); if(error)throw error; return true; }catch{ flash("No se pudo enviar. Reintentá."); return false; } }
     const full={...rec,id:Date.now(),created_at:new Date().toISOString()}; const nm=[full,...mensajes]; setMensajes(nm); Local.set(KEYS.mensajes,nm); return true;
   };
@@ -423,7 +427,7 @@ export default function App(){
   const borrarMascota=async(id)=>{ if(conn==="cloud"){try{const c=await getClient();await c.from("mascotas").delete().eq("id",id);}catch{}} const nm=misMascotas.filter(x=>x.id!==id); setMisMascotas(nm); if(conn!=="cloud")Local.set(KEYS.mascotas,nm); };
 
   const reportarAvistamiento=async(mascota,a)=>{
-    const rec={ mascota_id:mascota.id, mascota_codigo:mascota.codigo, mascota_nombre:mascota.pet_name||mascota.petName, owner_id:mascota.owner_id||null, quien:clean(a.quien,60), contacto:clean(a.contacto,60), zona:clean(a.zona,60), nota:clean(a.nota,400) };
+    const rec={ mascota_id:mascota.id, mascota_codigo:mascota.codigo, mascota_nombre:mascota.pet_name||mascota.petName, owner_id:mascota.owner_id||null, quien:clean(a.quien,60), contacto:clean(a.contacto,60), zona:clean(a.zona,60), nota:cleanText(a.nota,400) };
     if(conn==="cloud"){ try{ const c=await getClient(); const {error}=await c.from("avistamientos").insert(rec); if(error)throw error; return true; }catch{ flash("No se pudo enviar el aviso."); return false; } }
     const full={...rec,id:Date.now(),created_at:new Date().toISOString()}; const na=[full,...avistamientos]; setAvistamientos(na); Local.set(KEYS.avist,na); return true;
   };
@@ -431,7 +435,7 @@ export default function App(){
 
   /* ---- Blog (solo la admin carga entradas) ---- */
   const guardarBlog=async(entrada)=>{
-    const rec={ titulo:clean(entrada.titulo,120), texto:clean(entrada.texto,4000), foto:entrada.foto||null };
+    const rec={ titulo:clean(entrada.titulo,120), texto:cleanText(entrada.texto,6000), foto:entrada.foto||null };
     if(conn==="cloud"){ try{ const c=await getClient(); let foto=rec.foto; if(foto&&foto.startsWith("data:"))foto=await uploadPhoto(c,foto);
       if(entrada.id){ const {error}=await c.from("blog").update({...rec,foto}).eq("id",entrada.id); if(error)throw error; setBlog(prev=>prev.map(b=>b.id===entrada.id?{...b,...rec,foto}:b)); }
       else { const {error}=await c.from("blog").insert({...rec,foto}); if(error)throw error; const full={...rec,foto,id:Date.now(),created_at:new Date().toISOString()}; setBlog(prev=>[full,...prev]); }
@@ -716,7 +720,7 @@ function NewView({ type, setType, onSubmit, go, flash, editPost, misMascotas=[] 
   const submit=async()=>{
     if(!canSubmit){flash("Completá foto, ubicación y contacto.");return;}
     setSaving(true);const c=coords||barrioCoords();
-    const fields={ petName:clean(f.petName,40), species:f.species, sex:f.sex, ageApprox:clean(f.ageApprox,20), color:clean(f.color,40), features:clean(f.features,120), date:f.date, time:f.time, place:clean(f.place,80), zona:f.zona, barrio:f.barrio, cp:clean(f.cp,10), description:clean(f.description,400), phone:telLocal(f.phone), whatsapp:telLocal(f.phone), reward:clean(f.reward,40), lat:c.lat, lng:c.lng, preciseLocation:precise, photo, mascotaCodigo:f.mascotaCodigo||"" };
+    const fields={ petName:clean(f.petName,40), species:f.species, sex:f.sex, ageApprox:clean(f.ageApprox,20), color:clean(f.color,40), features:clean(f.features,120), date:f.date, time:f.time, place:clean(f.place,80), zona:f.zona, barrio:f.barrio, cp:clean(f.cp,10), description:cleanText(f.description,600), phone:telLocal(f.phone), whatsapp:telLocal(f.phone), reward:clean(f.reward,40), lat:c.lat, lng:c.lng, preciseLocation:precise, photo, mascotaCodigo:f.mascotaCodigo||"" };
     const saved = editing ? await onSubmit({__edit:true,id:editPost.id,fields}) : await onSubmit({...fields,type:curType});
     setSaving(false);
     if(!saved){return;}
@@ -1150,11 +1154,11 @@ function BlogView({ go, entradas=[] }){
     return (<div className="px-4 pb-6">
       <Title back={()=>setAbierta(null)} title="Blog" tag="FUNCIONAL"/>
       <div className="rounded-2xl overflow-hidden" style={{background:C.surface,border:`1px solid ${C.line}`}}>
-        {abierta.foto && <img src={abierta.foto} alt="" className="w-full object-cover" style={{maxHeight:280}}/>}
+        {abierta.foto && <img src={abierta.foto} alt={abierta.titulo||""} className="w-full h-auto block"/>}
         <div className="p-4">
           <div className="text-[11px] font-bold" style={{color:C.brand}}>{fmtFecha(abierta.created_at)}</div>
           <h2 className="text-xl font-extrabold mt-1">{abierta.titulo}</h2>
-          <p className="text-[14px] mt-2 whitespace-pre-wrap leading-relaxed" style={{color:C.ink}}>{abierta.texto}</p>
+          <div className="text-[14px] mt-2 leading-relaxed space-y-3" style={{color:C.ink}}>{parrafos(abierta.texto).split(/\n{2,}/).map((par,i)=><p key={i} className="whitespace-pre-wrap">{par}</p>)}</div>
         </div>
       </div>
     </div>);
@@ -1165,11 +1169,11 @@ function BlogView({ go, entradas=[] }){
     {entradas.length===0 ? <Empty text="Todavía no hay entradas en el blog. ¡Pronto vas a encontrar historias y novedades acá!"/> :
     <div className="space-y-3">{entradas.map(e=>(
       <button key={e.id} onClick={()=>setAbierta(e)} className="w-full text-left rounded-2xl overflow-hidden" style={{background:C.surface,border:`1px solid ${C.line}`}}>
-        {e.foto && <img src={e.foto} alt="" className="w-full object-cover" style={{maxHeight:180}}/>}
+        {e.foto && <div style={{background:C.brandSoft}}><img src={e.foto} alt={e.titulo||""} className="w-full object-contain block mx-auto" style={{maxHeight:220}}/></div>}
         <div className="p-3.5">
           <div className="text-[11px] font-bold" style={{color:C.brand}}>{fmtFecha(e.created_at)}</div>
           <div className="font-extrabold text-[15px] mt-0.5">{e.titulo}</div>
-          {e.texto && <div className="text-[12px] mt-1 line-clamp-2" style={{color:C.muted}}>{e.texto.slice(0,120)}{e.texto.length>120?"…":""}</div>}
+          {e.texto && <div className="text-[12px] mt-1 line-clamp-2" style={{color:C.muted}}>{parrafos(e.texto).replace(/\s+/g," ").slice(0,120)}{e.texto.length>120?"…":""}</div>}
           <div className="text-[12px] font-bold mt-1.5" style={{color:C.brand}}>Leer más →</div>
         </div>
       </button>
@@ -1315,11 +1319,11 @@ function BlogAdmin({ blog=[], guardarBlog, borrarBlog }){
     <div className="rounded-2xl p-3.5 mb-3" style={{background:C.surface,border:`1px solid ${C.line}`}}>
       <div className="font-extrabold text-sm mb-3">{f.id?"Editar entrada":"Nueva entrada del blog"}</div>
       <button onClick={()=>fileRef.current&&fileRef.current.click()} className="w-full rounded-xl overflow-hidden mb-3 flex items-center justify-center" style={{background:C.bg,border:`1.5px dashed ${C.line}`,height:f.foto?160:80}}>
-        {f.foto? <img src={f.foto} alt="" className="w-full h-full object-cover"/> : <div className="text-center text-[12px]" style={{color:C.muted}}><Camera size={20} className="mx-auto mb-1"/>Foto (opcional)</div>}
+        {f.foto? <img src={f.foto} alt="" className="w-full h-full object-contain"/> : <div className="text-center text-[12px]" style={{color:C.muted}}><Camera size={20} className="mx-auto mb-1"/>Foto (opcional)</div>}
       </button>
       <input ref={fileRef} type="file" accept="image/*" onChange={onFoto} className="hidden"/>
       <input value={f.titulo} onChange={e=>set("titulo",e.target.value)} className="inp mb-2" placeholder="Título (ej: Toby volvió a casa 🎉)"/>
-      <textarea value={f.texto} onChange={e=>set("texto",e.target.value)} rows={5} className="inp" placeholder="Escribí la historia o la novedad acá…"/>
+      <textarea value={f.texto} onChange={e=>set("texto",e.target.value)} rows={10} className="inp" placeholder="Escribí la historia o la novedad acá… (dejá una línea en blanco entre párrafos)"/>
       <div className="flex gap-2 mt-3">
         <button onClick={guardar} disabled={guardando||!f.titulo.trim()} className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-1" style={{background:f.titulo.trim()?C.brand:C.line}}>{guardando&&<Loader2 size={14} className="animate-spin"/>}{f.id?"Guardar cambios":"Publicar entrada"}</button>
         {f.id&&<button onClick={limpiar} className="py-2.5 px-3 rounded-xl text-xs font-bold" style={{background:C.bg,border:`1px solid ${C.line}`}}>Cancelar</button>}
