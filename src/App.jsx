@@ -4,7 +4,7 @@ import {
   Home, Check, X, Camera, ChevronLeft, ChevronRight, Sparkles, Trash2, EyeOff,
   PartyPopper, Copy, Store, Stethoscope, Settings2, Flag, Info, Navigation, Crosshair,
   Clock, Ruler, Ban, Loader2, Send, MapPinned, ListChecks, AlertTriangle, LogOut,
-  LogIn, Pencil, Wallet, Cloud, CloudOff, Mail, KeyRound, CircleUserRound, QrCode, BookOpen
+  LogIn, Pencil, Wallet, Cloud, CloudOff, Mail, KeyRound, CircleUserRound, QrCode, BookOpen, HelpCircle
 } from "lucide-react";
 
 /* =========================================================================
@@ -513,6 +513,7 @@ export default function App(){
         {view==="admin"   && (isAdmin(user) ? <AdminView posts={posts} reports={reports} approve={approve} removePost={removePost} go={go} clearReport={clearReport} conn={conn} mensajes={mensajes} borrarMensaje={borrarMensaje} lugares={lugares} guardarLugar={guardarLugar} borrarLugar={borrarLugar} avistamientos={avistamientos} borrarAvistamiento={borrarAvistamiento} blog={blog} guardarBlog={guardarBlog} borrarBlog={borrarBlog} /> : <AdminLocked go={go} />)}
 
         <BottomNav view={view} go={go} />
+        {!["new","admin","auth","registrar_mascota","mascota_publica","contacto"].includes(view) && <AyudaBot go={go} abrirNota={(id)=>{ setNotaInicial(id); go("blog"); }} />}
 
         {toast && <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[999] px-4 py-2.5 rounded-full text-white text-sm font-medium shadow-lg" style={{background:C.ink,animation:"pop .25s ease"}}>{toast}</div>}
         {celebrate && (<div className="fixed inset-0 z-[999] flex items-center justify-center pointer-events-none"><div className="bg-white rounded-3xl px-8 py-7 text-center shadow-2xl" style={{animation:"pop .3s ease"}}><PartyPopper size={44} color={C.reunited} className="mx-auto"/><p className="mt-2 font-extrabold text-lg">¡Una mascota volvió a casa! 🎉</p><p className="text-sm" style={{color:C.muted}}>Gracias por ser parte de la comunidad.</p></div></div>)}
@@ -1448,6 +1449,52 @@ function AuditPanel({ conn }){
   const red=["Comparar fotos entre sí para encontrar coincidencias: requiere servicio pago, no activar","Cobro a negocios: no implementar"];
   const Block=({t,items,c})=><div className="rounded-2xl p-3.5 mb-2.5" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-extrabold text-sm mb-2" style={{color:c}}>{t}</div><ul className="space-y-1">{items.map(i=><li key={i} className="text-[12px] flex gap-1.5"><span style={{color:c}}>•</span> {i}</li>)}</ul></div>;
   return (<div className="mb-2"><div className="rounded-2xl p-3 mb-2.5 text-[12px] flex items-center gap-2" style={{background:conn==="cloud"?C.brandSoft:"#FFF7E6",border:`1px solid ${conn==="cloud"?C.brand:"#F3E1B5"}`}}>{conn==="cloud"?<Cloud size={16} color={C.brand}/>:<CloudOff size={16} color={C.seen}/>}<b style={{color:conn==="cloud"?C.brandDeep:"#7A5B14"}}>Modo actual: {conn==="cloud"?"NUBE (multiusuario)":"LOCAL (este dispositivo)"}</b></div><Block t="🟢 Funcional" items={green} c={C.found}/><Block t="🟡 Parcial" items={yellow} c={C.seen}/><Block t="🔴 Requiere pago / no activar" items={red} c={C.lost}/></div>);
+}
+
+/* ------------------------ Asistente de ayuda (sin costo) ------------------------
+   Un "chat" con opciones: guía a la persona según lo que le pasó y la lleva a la acción. */
+const AYUDA=[
+  { k:"perdi", t:"🐾 Perdí mi mascota", intro:"Lo sentimos mucho. Actuar rápido ayuda un montón. Hacé esto:",
+    pasos:["Publicala ahora con una foto clara y el barrio donde se perdió.","Compartí el anuncio por WhatsApp y en los grupos de tu barrio.","Recorré la zona, preguntá a vecinos y avisá a veterinarias cercanas."],
+    acciones:[["Publicar mascota perdida","new:lost"],["Ver la guía de las primeras 24 horas","nota:24horas"]] },
+  { k:"encontre", t:"🏠 Encontré una mascota", intro:"¡Gracias por ayudar! Así la podés devolver a su familia:",
+    pasos:["Fijate si tiene chapita o código QR. Si tiene QR, escanealo con la cámara del celular: su familia recibe tu aviso.","Ofrecele agua y, si podés, tenela en un lugar seguro.","Publicala como encontrada con foto y barrio para que la familia la vea en el mapa."],
+    acciones:[["Publicar mascota encontrada","new:found"],["Qué hacer si encontraste un perro","nota:encontre"]] },
+  { k:"vi", t:"👀 Vi una mascota suelta", intro:"Tu dato puede ser justo lo que alguien necesita:",
+    pasos:["Si podés, sacale una foto sin acercarte si está asustada.","Publicala como vista, marcando dónde la viste.","Revisá el mapa: quizás su familia ya la está buscando."],
+    acciones:[["Publicar que la vi","new:seen"],["Ver el mapa","go:map"]] },
+  { k:"qr", t:"🔖 ¿Cómo funciona el QR?", intro:"Registrás a tu mascota gratis y te damos un código QR para su collar o chapita.",
+    pasos:["Si se pierde, quien la encuentre escanea el código con la cámara del celular.","Ve la ficha de tu mascota y te deja un aviso con su WhatsApp y dónde la vio.","Vos lo ves en la campanita, sin que tu teléfono quede a la vista."],
+    acciones:[["Registrar mi mascota","go:registrar_mascota"],["Leer más sobre la chapita QR","nota:qr"]] },
+  { k:"plata", t:"⚠️ Me piden plata", intro:"Cuidado: es una estafa común con mascotas perdidas.",
+    pasos:["No pagues nada antes de ver a tu mascota. Pedí una foto o un video actual, con algo que pruebe que es de hoy.","Si se encuentran, que sea en un lugar público y acompañado/a.","Reportá la publicación desde el botón de reporte del anuncio. Si hay amenazas o extorsión, hacé la denuncia policial."],
+    acciones:[] },
+  { k:"otra", t:"💬 Otra consulta", intro:"Escribinos y te respondemos a la brevedad.", pasos:[], acciones:[["Escribir un mensaje","go:contacto"]] },
+];
+function AyudaBot({ go, abrirNota }){
+  const [open,setOpen]=useState(false); const [sel,setSel]=useState(null);
+  const hacer=(a)=>{ const [tipo,val]=a.split(":"); setOpen(false); setSel(null);
+    if(tipo==="new")go("new",{type:val,edit:null}); else if(tipo==="nota")abrirNota(val); else go(val); };
+  const burbuja=(txt,yo)=>(<div className={`max-w-[85%] rounded-2xl px-3 py-2 text-[13px] leading-snug ${yo?"self-end":"self-start"}`} style={{background:yo?C.brand:C.bg,color:yo?"#fff":C.ink}}>{txt}</div>);
+  return (<>
+    {!open && <button onClick={()=>setOpen(true)} aria-label="Ayuda" className="fixed z-[650] bottom-24 rounded-full shadow-lg flex items-center gap-1.5 pl-3 pr-3.5 py-2.5 text-white text-[13px] font-bold" style={{background:C.brandDeep,right:"max(16px, calc(50vw - 224px))"}}><HelpCircle size={18}/> Ayuda</button>}
+    {open && <div className="fixed inset-0 z-[900] flex items-end justify-center" style={{background:"rgba(0,0,0,.35)"}} onClick={()=>{setOpen(false);setSel(null);}}>
+      <div onClick={e=>e.stopPropagation()} className="w-full max-w-[480px] rounded-t-3xl p-4 pb-6 flex flex-col" style={{background:C.surface,maxHeight:"80vh"}}>
+        <div className="flex items-center justify-between mb-3"><div className="font-extrabold text-[15px] flex items-center gap-2" style={{color:C.brandDeep}}><HelpCircle size={18}/> Asistente de ayuda</div><button onClick={()=>{setOpen(false);setSel(null);}} aria-label="Cerrar" className="w-8 h-8 rounded-full flex items-center justify-center" style={{background:C.bg}}><X size={16}/></button></div>
+        <div className="flex flex-col gap-2 overflow-y-auto">
+          {burbuja("¡Hola! 👋 Soy el asistente de Mascotas Perdidas Misiones. ¿Qué te pasó?",false)}
+          {!sel && <div className="flex flex-col gap-2 mt-1">{AYUDA.map(o=><button key={o.k} onClick={()=>setSel(o)} className="text-left rounded-2xl px-3.5 py-2.5 text-[13px] font-semibold" style={{border:`1.5px solid ${C.brand}`,color:C.brandDeep}}>{o.t}</button>)}</div>}
+          {sel && <>
+            {burbuja(sel.t.replace(/^\S+\s/,""),true)}
+            {burbuja(sel.intro,false)}
+            {sel.pasos.map((p,i)=><div key={i}>{burbuja(`${i+1}. ${p}`,false)}</div>)}
+            <div className="flex flex-col gap-2 mt-1">{sel.acciones.map(([txt,a])=><button key={a} onClick={()=>hacer(a)} className="rounded-2xl px-3.5 py-2.5 text-[13px] font-bold text-white" style={{background:C.brand}}>{txt}</button>)}
+              <button onClick={()=>setSel(null)} className="rounded-2xl px-3.5 py-2 text-[12px] font-semibold" style={{color:C.muted}}>← Volver a las opciones</button></div>
+          </>}
+        </div>
+      </div>
+    </div>}
+  </>);
 }
 
 /* ------------------------------ Bottom nav ------------------------------- */
