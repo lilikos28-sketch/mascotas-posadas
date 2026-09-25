@@ -18,7 +18,9 @@ import {
 /* ============================ CONFIG (editar acá) ======================== */
 const SUPABASE_URL = "https://qbihkpseaxctkzsybzgn.supabase.co";        // ← pegá tu Project URL (Supabase → Settings → API)
 const SUPABASE_ANON_KEY = "sb_publishable_vI40ZnrcMQYV3uUhP4mCeA_mKaXmU0H";   // ← pegá tu anon public key
-const ADMIN_EMAILS = ["lili.kos28@gmail.com"]; // ← tu email para ser admin en la nube
+const ADMIN_EMAILS = ["lili.kos28@gmail.com"];
+const FACEBOOK_URL = "https://www.facebook.com/mascotasperdidasmisiones";
+const FbIcon = ({size=16,color="currentColor"})=>(<svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true"><path d="M14 8.5V6.8c0-.8.2-1.3 1.4-1.3H17V2.6c-.3 0-1.3-.1-2.5-.1-2.5 0-4.1 1.5-4.1 4.2v1.8H7.6v3.2h2.8V22h3.5v-10.3h2.8l.4-3.2H14z"/></svg>); // ← tu email para ser admin en la nube
 // Dirección del sitio: se toma de donde está abierta la página (sirve con cualquier nombre en Netlify)
 const SITE_URL = (typeof window!=="undefined"&&window.location&&window.location.origin) || "https://mascotasperdidasmisiones.netlify.app";
 const SITE_HOST = SITE_URL.replace(/^https?:\/\//,"");
@@ -520,7 +522,8 @@ function Header({ go, count, conn }){
     <div className="sticky top-0 z-[600] px-4 pt-3 pb-3" style={{background:C.bg,borderBottom:`1px solid ${C.line}`}}>
       <div className="flex items-center justify-between">
         <button onClick={()=>go("home")} className="flex items-center gap-2"><div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{background:C.brand}}><PawPrint size={19} color="#fff"/></div><div className="leading-tight text-left"><div className="font-extrabold text-[15px]">Mascotas Perdidas Misiones</div><div className="text-[10px] font-semibold tracking-wide flex items-center gap-1" style={{color:C.muted}}>MISIONES · AR {conn==="cloud"?<Cloud size={11} color={C.found}/>:<CloudOff size={11} color={C.seen}/>}</div></div></button>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
+          <a href={FACEBOOK_URL} target="_blank" rel="noreferrer" aria-label="Seguinos en Facebook" className="w-6 h-9 flex items-center justify-center"><FbIcon size={17} color="#1877F2"/></a>
           <button onClick={()=>go("mis_mascotas")} aria-label="Avisos de mis mascotas" className="relative w-9 h-9 rounded-xl flex items-center justify-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><Bell size={17} color={C.ink}/>{count>0&&<span className="absolute -top-1 -right-1 text-[10px] font-bold text-white rounded-full min-w-[16px] h-[16px] px-1 flex items-center justify-center" style={{background:C.lost}}>{count}</span>}</button>
           <button onClick={()=>go("admin")} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><Settings2 size={17} color={C.ink}/></button>
         </div>
@@ -606,6 +609,7 @@ function HomeView({ posts, go, conn, user, realPosts=[] }){
       <div className="mt-4 mb-2 rounded-2xl p-3.5 flex gap-2.5 text-[12px]" style={{background:"#FFF7E6",border:"1px solid #F3E1B5",color:"#7A5B14"}}><AlertTriangle size={18} className="shrink-0 mt-0.5"/><p>Cuidado con quienes pidan dinero antes de demostrar que tienen a tu mascota. No compartas datos sensibles sin verificar.</p></div>
 
       <a href="https://posadas.gov.ar/imusa" target="_blank" rel="noreferrer" className="mb-2 w-full rounded-2xl p-3 flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{background:C.brandSoft,color:C.brand}}><Stethoscope size={17}/></div><div className="flex-1"><div className="font-bold text-[13px]">IMUSA Posadas · Castraciones y vacunas gratis</div><div className="text-[10px]" style={{color:C.muted}}>Instituto Municipal de Sanidad Animal</div></div><ChevronRight size={15} color={C.muted}/></a>
+      <a href={FACEBOOK_URL} target="_blank" rel="noreferrer" className="mt-3 mb-1 flex items-center justify-center gap-1.5 text-[12px] font-semibold py-2" style={{color:C.muted}}><FbIcon size={14} color="#1877F2"/> Seguinos en Facebook</a>
     </div>
   );
 }
