@@ -17,6 +17,24 @@ export default async (request, context) => {
   const headers = new Headers(response.headers);
   headers.delete("content-length");
   let html = base.replace(/https:\/\/mascotas(posadas|perdidasmisiones)\.netlify\.app/g, SITE);
+  // Vista previa especial para las notas del blog y las pantallas que se comparten en redes
+  const PAGINAS = {
+    "nota:24horas": ["Se perdió tu mascota: qué hacer en las primeras 24 horas", "Guía paso a paso para las horas más importantes.", "/blog/nota-primeras-24-horas.jpg"],
+    "nota:encontre": ["Encontraste un perro en la calle: ¿y ahora?", "Qué hacer para que vuelva con su familia.", "/blog/nota-encontre-un-perro.jpg"],
+    "nota:qr": ["Por qué tu mascota necesita una chapita con QR", "Registrala gratis y generá su código.", "/blog/nota-chapita-qr.jpg"],
+    "v:inicio": ["Mascotas Perdidas Misiones", "Publicá gratis tu mascota perdida o encontrada.", "/fb/presentacion.jpg"],
+    "v:publicar": ["Publicá una mascota en 1 minuto", "Gratis, con foto, barrio y mapa.", "/fb/publicar.jpg"],
+    "v:registrar": ["Registrá tu mascota y generá su QR", "Gratis. Si se pierde, te avisan al instante.", "/fb/registrar.jpg"],
+  };
+  const clave = url.searchParams.get("nota") ? "nota:" + url.searchParams.get("nota") : url.searchParams.get("v") ? "v:" + url.searchParams.get("v") : null;
+  if (!id && clave && PAGINAS[clave]) {
+    const [t, d, img] = PAGINAS[clave];
+    const setP = (attr, key, val) => { const re = new RegExp(`(<meta\\s+${attr}="${key}"\\s+content=")[^"]*(")`, "i"); html = html.replace(re, `$1${esc(val)}$2`); };
+    setP("property", "og:title", t); setP("property", "og:description", d); setP("property", "og:image", SITE + img); setP("property", "og:url", SITE + url.pathname + url.search);
+    setP("name", "twitter:title", t); setP("name", "twitter:description", d); setP("name", "twitter:image", SITE + img);
+    html = html.replace(/\s*<meta\s+property="og:image:(width|height)"[^>]*>/gi, "");
+    return new Response(html, { status: response.status, headers });
+  }
   if (!id || !/^[\w-]{1,64}$/.test(id)) return new Response(html, { status: response.status, headers });
 
   try {
