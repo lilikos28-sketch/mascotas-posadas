@@ -358,7 +358,10 @@ export default function App(){
   /* ---- Post handlers (nube o local) ---- */
   const routeDemo=(post)=>post&&post.demo;
   const createPost=async(p)=>{
-    const partial={ ...p, city:"posadas", approved:true, reported:false, recoveredAt:null, status:p.type==="found"?"found":p.type==="lost"?"lost":"searching", emoji:EMO[p.species]||"🐾", owner_id:(user&&user.id)||(conn==="cloud"?null:"local"), contactName:(user&&user.name)||"Vecino/a" };
+    // Revisión automática: sin animal en la foto o foto repetida => queda en revisión
+    let aprobada=true;
+    if(p.photo){ const otras=realPosts.filter(x=>x.photo&&typeof x.photo==="string"&&x.photo.startsWith("http")&&(!user||x.owner_id!==user.id)); const rv=await revisarFoto(p.photo,otras); if(!rv.animal||rv.repetida){ aprobada=false; flash(rv.repetida?"Tu publicación quedó en revisión: la foto ya aparece en otra publicación. La aprobamos a la brevedad.":"Tu publicación quedó en revisión porque no detectamos un animal en la foto. La aprobamos a la brevedad."); } }
+    const partial={ ...p, city:"posadas", approved:aprobada, reported:false, recoveredAt:null, status:p.type==="found"?"found":p.type==="lost"?"lost":"searching", emoji:EMO[p.species]||"🐾", owner_id:(user&&user.id)||(conn==="cloud"?null:"local"), contactName:(user&&user.name)||"Vecino/a" };
     if(conn==="cloud"){ try{ const c=await getClient(); let photo=p.photo; if(photo&&photo.startsWith("data:"))photo=await uploadPhoto(c,photo); const {data,error}=await c.from("publicaciones").insert(toRow({...partial,photo})).select().single(); if(error)throw error; const np=fromRow(data); setRealPosts(prev=>[np,...prev]); setCurrent(np); return np; }catch(e){ flash("No se pudo guardar en la nube."); return null; } }
     const id=Math.max(1000,...realPosts.filter(x=>typeof x.id==="number").map(x=>x.id))+1; const np={...partial,id,createdAt:new Date().toISOString()}; const next=[np,...realPosts]; setRealPosts(next); Local.set(KEYS.posts,next); setCurrent(np); return np;
   };
@@ -390,6 +393,7 @@ export default function App(){
     else { const next=realPosts.map(p=>p.id===id?{...p,approved:val}:p); setRealPosts(next); Local.set(KEYS.posts,next); }
   };
   const submitReport=async(post,reason,note)=>{
+    try{ const ya=JSON.parse(window.localStorage.getItem("mp_reportados")||"[]"); if(ya.includes(String(post.id))){ setReportFor(null); flash("Ya reportaste esta publicación. Gracias."); return; } window.localStorage.setItem("mp_reportados",JSON.stringify([...ya,String(post.id)])); }catch{}
     const rec={ postId:post.id, reason, note:clean(note,200), postName:post.petName||post.species, barrio:post.barrio };
     if(conn==="cloud"){ try{ const c=await getClient(); const {data}=await c.from("reportes").insert({post_id:String(post.id),reason,note:rec.note,post_name:rec.postName,barrio:rec.barrio}).select().single(); if(data)setReports(prev=>[{...rec,id:data.id,date:data.created_at},...prev]); }catch{} }
     else { const full={...rec,id:Date.now(),date:new Date().toISOString()}; const nr=[full,...reports]; setReports(nr); Local.set(KEYS.reports,nr); }
@@ -453,7 +457,9 @@ export default function App(){
   const requireAuthToPublish = CLOUD && !user;
 
   if(!ready) return <div style={{background:C.bg,minHeight:480}} className="flex items-center justify-center"><PawPrint className="animate-pulse" color={C.brand}/></div>;
-  const visible=posts.filter(p=>p.approved!==false);
+  // Con 3 reportes o más, la publicación se oculta sola hasta que la administradora la revise
+  const reportesPorPost=reports.reduce((m,r)=>{ const k=String(r.postId); m[k]=(m[k]||0)+1; return m; },{});
+  const visible=posts.filter(p=>p.approved!==false&&(reportesPorPost[String(p.id)]||0)<3);
   // Avisos que dejaron personas que escanearon el QR de MIS mascotas y que todavía no vi
   const misCodigos=user?misMascotas.filter(m=>m.owner_id===user.id).map(m=>m.codigo):[];
   const avisosNuevos=avistamientos.filter(a=>misCodigos.includes(a.mascota_codigo)&&(!avisosVistos[a.mascota_codigo]||new Date(a.created_at)>new Date(avisosVistos[a.mascota_codigo])));
@@ -703,7 +709,8 @@ function AuthView({ onSignIn, onSignUp, onReset, onGoogle, go }){
 }
 
 /* ------------------------------ Publicar --------------------------------- */
-function NewView({ type, setType, onSubmit, go, flash, editPost, misMascotas=[] }){
+function NewView(props){ useEffect(()=>{ const t=setTimeout(()=>{ cargarDetector(); },1500); return ()=>clearTimeout(t); },[]); return <NewViewInner {...props}/>; }
+function NewViewInner({ type, setType, onSubmit, go, flash, editPost, misMascotas=[] }){
   const editing=!!editPost; const t=TYPE[editing?editPost.type:type];
   const init = editing ? { petName:editPost.petName||"", species:editPost.species||"perro", sex:editPost.sex||"", ageApprox:editPost.ageApprox||"", color:editPost.color||"", features:editPost.features||"", date:editPost.date||new Date().toISOString().slice(0,10), time:editPost.time||"", place:editPost.place||"", zona:editPost.zona||"Posadas", barrio:editPost.barrio||"", cp:editPost.cp||"", description:editPost.description||"", phone:editPost.phone||editPost.whatsapp||"", whatsapp:editPost.whatsapp||"", reward:editPost.reward||"", mascotaCodigo:editPost.mascotaCodigo||"" }
     : { petName:"", species:"perro", sex:"", ageApprox:"", color:"", features:"", date:new Date().toISOString().slice(0,10), time:"", place:"", zona:"Posadas", barrio:"", cp:"3300", description:"", phone:"", whatsapp:"", reward:"", mascotaCodigo:"" };
@@ -998,6 +1005,33 @@ function drawQROnCanvas(canvas,text,size,dark,light){
 }
 const mascotaURL=(codigo)=>`${SITE_URL}/?m=${codigo}`;
 
+
+/* ---------------- Revisión automática de fotos (gratis, en el navegador) ----------------
+   1) Detecta si en la foto hay un animal (modelo COCO-SSD de TensorFlow.js, corre en el celular).
+   2) Detecta si la foto es igual a la de otra publicación (huella de imagen).
+   Si algo falla (sin internet, modelo que no carga), NO se bloquea la publicación. */
+const ANIMALES_COCO=["dog","cat","bird","horse","sheep","cow","bear","elephant","zebra","giraffe"];
+let _detectorPromesa=null;
+const cargarScript=(src)=>new Promise((ok,mal)=>{ if(document.querySelector(`script[src="${src}"]`)){ok();return;} const t=document.createElement("script"); t.src=src; t.async=true; t.onload=()=>ok(); t.onerror=()=>mal(new Error("script")); document.head.appendChild(t); });
+const cargarDetector=()=>{ if(typeof window==="undefined")return Promise.resolve(null);
+  if(!_detectorPromesa){ _detectorPromesa=(async()=>{ await cargarScript("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"); await cargarScript("https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"); return await window.cocoSsd.load({base:"lite_mobilenet_v2"}); })().catch(()=>{ _detectorPromesa=null; return null; }); }
+  return _detectorPromesa; };
+const conTiempo=(prom,ms)=>Promise.race([prom,new Promise(r=>setTimeout(()=>r("__timeout"),ms))]);
+const cargarImagen=(src)=>new Promise((ok,mal)=>{ const im=new Image(); im.crossOrigin="anonymous"; im.onload=()=>ok(im); im.onerror=()=>mal(new Error("img")); im.src=src; });
+const huellaImagen=async(src)=>{ const im=await cargarImagen(src); const cv=document.createElement("canvas"); cv.width=9; cv.height=8; const x=cv.getContext("2d"); x.drawImage(im,0,0,9,8); const d=x.getImageData(0,0,9,8).data; let bits=""; for(let y=0;y<8;y++)for(let c=0;c<8;c++){ const i=(y*9+c)*4, j=(y*9+c+1)*4; const a=d[i]*.3+d[i+1]*.59+d[i+2]*.11, b=d[j]*.3+d[j+1]*.59+d[j+2]*.11; bits+=a>b?"1":"0"; } return bits; };
+const distancia=(a,b)=>{ let n=0; for(let i=0;i<a.length;i++)if(a[i]!==b[i])n++; return n; };
+async function revisarFoto(foto, otrasPublicaciones=[]){
+  const r={ animal:true, repetida:false };
+  if(!foto)return r;
+  try{ const det=await conTiempo(cargarDetector(),20000);
+    if(det&&det!=="__timeout"){ const im=await cargarImagen(foto); const preds=await conTiempo(det.detect(im,10,0.3),15000);
+      if(Array.isArray(preds))r.animal=preds.some(p=>ANIMALES_COCO.includes(p.class)&&p.score>=0.35); } }catch{}
+  try{ const mia=await conTiempo(huellaImagen(foto),5000);
+    if(typeof mia==="string"){ const hs=await conTiempo(Promise.all(otrasPublicaciones.slice(0,60).map(o=>conTiempo(huellaImagen(o.photo).catch(()=>null),4000))),8000);
+      if(Array.isArray(hs))r.repetida=hs.some(h=>typeof h==="string"&&distancia(mia,h)<=10); } }catch{}
+  return r;
+}
+
 /* --------------------- Registrar tu mascota (ficha + QR) ------------------ */
 function RegistrarMascotaView({ go, onSave, flash }){
   const [f,setF]=useState({ petName:"", species:"perro", sex:"", color:"", features:"", zona:"Posadas", phone:"", whatsapp:"", notas:"", photo:null });
@@ -1079,7 +1113,7 @@ function MascotaPublicaView({ go, mascota, onReport, flash }){
   const [f,setF]=useState({quien:"",contacto:"",zona:"",nota:""});
   const [busy,setBusy]=useState(false);const [ok,setOk]=useState(false);
   const set=(k,v)=>setF(s=>({...s,[k]:v}));
-  const enviar=async()=>{ if(!f.quien||!f.contacto){flash("Dejá tu nombre y un contacto.");return;} setBusy(true); const r=await onReport(mascota,f); setBusy(false); if(r)setOk(true); };
+  const enviar=async()=>{ if(!f.quien||!f.contacto){flash("Dejá tu nombre y tu WhatsApp.");return;} if(!telValido(f.contacto)){flash("Revisá tu WhatsApp: con característica, sin 0 ni 15. Ej: 3764 123456");return;} setBusy(true); const r=await onReport(mascota,f); setBusy(false); if(r)setOk(true); };
   const nombre=mascota.pet_name||mascota.petName||"esta mascota";
   if(ok)return (<div className="px-4 pt-10 text-center"><div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center" style={{background:C.brandSoft}}><Check size={32} color={C.brand}/></div><h2 className="text-xl font-extrabold mt-3">¡Gracias! 🐾</h2><p className="text-sm mt-1" style={{color:C.muted}}>Le avisamos al dueño de {nombre} que la viste. Sos un sol por ayudar. ❤️</p><button onClick={()=>go("home")} className="mt-5 w-full py-3 rounded-2xl font-bold text-white" style={{background:C.brand}}>Ir a Mascotas Perdidas Misiones</button></div>);
   return (<div className="px-4 pb-6">
@@ -1101,7 +1135,7 @@ function MascotaPublicaView({ go, mascota, onReport, flash }){
       <div className="font-extrabold text-sm mb-3">📍 Avisar que la vi</div>
       <div className="space-y-3">
         <Field label="Tu nombre *"><input value={f.quien} onChange={e=>set("quien",e.target.value)} className="inp" placeholder="¿Cómo te llamás?"/></Field>
-        <Field label="Tu teléfono / WhatsApp *"><input value={f.contacto} onChange={e=>set("contacto",e.target.value)} className="inp" placeholder="Para que te contacten"/></Field>
+        <Field label="Tu WhatsApp *"><input inputMode="tel" value={f.contacto} onChange={e=>set("contacto",e.target.value)} className="inp" placeholder="Ej: 3764 123456"/>{f.contacto&&!telValido(f.contacto)&&<div className="text-[11px] mt-1 font-semibold" style={{color:C.lost}}>Con característica, sin 0 ni 15. Ej: 3764 123456</div>}</Field>
         <Field label="¿Dónde la viste?"><input value={f.zona} onChange={e=>set("zona",e.target.value)} className="inp" placeholder="Zona o dirección aproximada"/></Field>
         <Field label="Mensaje"><textarea value={f.nota} onChange={e=>set("nota",e.target.value)} rows={3} className="inp" placeholder="Contá cómo está, dónde, etc."/></Field>
       </div>
@@ -1127,7 +1161,7 @@ function MisMascotasView({ go, mascotas=[], user, onDelete, avistamientos=[], ir
           <div className="flex items-center justify-between"><div className="font-bold text-sm">{a.quien||"Alguien"}</div><div className="text-[10px]" style={{color:C.muted}}>{fmtFecha(a.created_at)}</div></div>
           {a.zona&&<div className="text-[12px] mt-1 flex items-center gap-1" style={{color:C.ink}}><MapPin size={12}/> La vio en: {a.zona}</div>}
           {a.nota&&<div className="text-[12px] mt-1" style={{color:C.muted}}>{a.nota}</div>}
-          {a.contacto&&<div className="flex gap-2 mt-2.5"><a href={`https://wa.me/${waNum(a.contacto)}`} target="_blank" rel="noreferrer" className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white text-center flex items-center justify-center gap-1" style={{background:C.found}}><Phone size={13}/> Contactar por WhatsApp</a><a href={`tel:${a.contacto}`} className="py-2.5 px-3 rounded-xl text-xs font-bold text-center" style={{background:C.brandSoft,color:C.brandDeep}}>Llamar</a></div>}
+          {a.contacto&&<div className="flex gap-2 mt-2.5"><a href={`https://wa.me/${waNum(a.contacto)}?text=${encodeURIComponent(`Hola${a.quien?" "+a.quien:""} 👋 Soy quien busca a ${verAvisos.pet_name||verAvisos.petName||"mi mascota"}. Vi tu aviso en Mascotas Perdidas Misiones${a.zona?` de que la viste en ${a.zona}`:""}. ¿Me podés contar más? ¡Gracias!`)}`} target="_blank" rel="noreferrer" className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white text-center flex items-center justify-center gap-1" style={{background:C.found}}><Phone size={13}/> Contactar por WhatsApp</a><a href={`tel:+${waNum(a.contacto)}`} className="py-2.5 px-3 rounded-xl text-xs font-bold text-center" style={{background:C.brandSoft,color:C.brandDeep}}>Llamar</a></div>}
         </div>
       ))}</div>}
     </div>);
@@ -1405,9 +1439,9 @@ function LugaresAdmin({ lugares=[], guardarLugar, borrarLugar }){
 function Bars({ data, max, color }){ return <div className="space-y-2">{data.map(x=><div key={x.b} className="flex items-center gap-2"><div className="w-24 text-[11px] truncate" style={{color:C.muted}}>{x.b}</div><div className="flex-1 h-3 rounded-full overflow-hidden" style={{background:C.bg}}><div style={{width:`${x.n/max*100}%`,background:color,height:"100%"}}/></div><div className="w-5 text-right text-[11px] font-bold">{x.n}</div></div>)}</div>; }
 function Kpi({ n, l, c }){ return <div className="rounded-2xl p-3.5" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="text-2xl font-extrabold" style={{color:c}}>{n}</div><div className="text-[11px] font-semibold" style={{color:C.muted}}>{l}</div></div>; }
 function AuditPanel({ conn }){
-  const green=["Publicar (perdida/encontrada/vista) + foto comprimida","Buscador y filtros","Mapa real (Leaflet+OSM) con respaldo","Coincidencias por características + distancia + tiempo","WhatsApp con mensaje automático","Compartir (WhatsApp/Facebook/Copiar/Nativo)","Estados + fecha de recuperación","Moderación por categorías + reportes","Login/registro/logout/editar perfil","Editar y borrar la propia publicación","Alertas por radio (1/3/5/10 km)","Control de costos ($0)"];
-  const yellow=["Multiusuario real: FUNCIONA al configurar Supabase (URL+key) y publicar en hosting","Tiles del mapa: dependen del entorno/hosting","Enlaces profundos para compartir (necesitan dominio)","Notificaciones push (FCM, gratis, requiere configurar)"];
-  const red=["IA visual de fotos — REQUIERE SERVICIO PAGO (interfaz lista en MatchEngine.visionHook)","Pagos de negocios — no implementar"];
+  const green=["Publicar (perdida/encontrada/vista) con foto","Buscador sin tildes y filtros","Mapa con publicaciones reales, agrupadas y en zona aproximada","Coincidencias por características, distancia y tiempo","WhatsApp al dueño con el anuncio y su enlace","Compartir con enlace directo y vista previa con foto","Botón atrás dentro de la página","Multiusuario en la nube (Supabase + Netlify)","Moderación, reportes y ocultado automático con 3 reportes","Revisión automática de fotos: sin animal o repetida queda en revisión (gratis)","Registro de mascotas con QR y avisos al dueño (campanita)","Blog con notas y enlaces directos","Todo sin costo ($0)"];
+  const yellow=["Notificaciones en el celular con la página cerrada: se puede sumar gratis, requiere configuración","Avisos al dueño: se ven al abrir la página"];
+  const red=["Comparar fotos entre sí para encontrar coincidencias: requiere servicio pago, no activar","Cobro a negocios: no implementar"];
   const Block=({t,items,c})=><div className="rounded-2xl p-3.5 mb-2.5" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-extrabold text-sm mb-2" style={{color:c}}>{t}</div><ul className="space-y-1">{items.map(i=><li key={i} className="text-[12px] flex gap-1.5"><span style={{color:c}}>•</span> {i}</li>)}</ul></div>;
   return (<div className="mb-2"><div className="rounded-2xl p-3 mb-2.5 text-[12px] flex items-center gap-2" style={{background:conn==="cloud"?C.brandSoft:"#FFF7E6",border:`1px solid ${conn==="cloud"?C.brand:"#F3E1B5"}`}}>{conn==="cloud"?<Cloud size={16} color={C.brand}/>:<CloudOff size={16} color={C.seen}/>}<b style={{color:conn==="cloud"?C.brandDeep:"#7A5B14"}}>Modo actual: {conn==="cloud"?"NUBE (multiusuario)":"LOCAL (este dispositivo)"}</b></div><Block t="🟢 Funcional" items={green} c={C.found}/><Block t="🟡 Parcial" items={yellow} c={C.seen}/><Block t="🔴 Requiere pago / no activar" items={red} c={C.lost}/></div>);
 }
