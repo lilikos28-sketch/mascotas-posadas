@@ -291,7 +291,8 @@ export default function App(){
   const marcarAvisosVistos=(codigo)=>{ setAvisosVistos(prev=>{ const n={...prev,[codigo]:new Date().toISOString()}; try{ window.localStorage.setItem("mp_avisos_vistos",JSON.stringify(n)); }catch{} return n; }); };
   const [blog,setBlog]=useState([]);
   const [qrMascota,setQrMascota]=useState(null);
-  const [notaInicial,setNotaInicial]=useState(null); // mascota abierta desde un QR
+  const [notaInicial,setNotaInicial]=useState(null);
+  const [busquedaInicial,setBusquedaInicial]=useState(""); // mascota abierta desde un QR
 
   const posts = useMemo(()=>[...realPosts,...demoPosts],[realPosts,demoPosts]);
   const flash=(m)=>{setToast(m);setTimeout(()=>setToast(null),2600);};
@@ -322,7 +323,7 @@ export default function App(){
     try{ const params=new URLSearchParams(window.location.search); const code=params.get("m"); if(code){ await abrirMascotaPorCodigo(code); } }catch{}
     // ¿Se abrió el enlace de una publicación compartida? La URL trae ?post=ID
     try{ const params=new URLSearchParams(window.location.search); const pid=params.get("post"); if(pid){ await abrirPublicacionPorId(pid); } }catch{}
-    try{ const params=new URLSearchParams(window.location.search); const nota=params.get("nota"); const v=params.get("v"); const dest=nota?"blog":v==="blog"?"blog":v==="registrar"?"registrar_mascota":null; if(dest){ if(nota)setNotaInicial(nota); setView(dest); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:dest},"",nota?`/?nota=${encodeURIComponent(nota)}`:`/?v=${v}`); }catch{} } }catch{}
+    try{ const params=new URLSearchParams(window.location.search); const nota=params.get("nota"); const v=params.get("v"); const buscar=params.get("buscar"); if(buscar){ setBusquedaInicial(buscar.slice(0,40)); setView("search"); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:"search"},"",`/?buscar=${encodeURIComponent(buscar)}`); }catch{} return; } const dest=nota?"blog":v==="blog"?"blog":v==="registrar"?"registrar_mascota":null; if(dest){ if(nota)setNotaInicial(nota); setView(dest); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:dest},"",nota?`/?nota=${encodeURIComponent(nota)}`:`/?v=${v}`); }catch{} } }catch{}
   })(); },[]);
 
   // Al volver a la página (por ejemplo, desde WhatsApp), se buscan avisos nuevos
@@ -495,7 +496,7 @@ export default function App(){
         {view==="home" && avisosNuevos.length>0 && (<button onClick={()=>go("mis_mascotas")} className="mx-4 mt-3 w-[calc(100%-2rem)] rounded-2xl p-3.5 flex items-center gap-3 text-left text-white" style={{background:C.lost}}><Bell size={22} className="shrink-0"/><div className="flex-1"><div className="font-extrabold text-[14px]">¡Tenés {avisosNuevos.length} aviso{avisosNuevos.length>1?"s":""} nuevo{avisosNuevos.length>1?"s":""}!</div><div className="text-[12px] opacity-95">Alguien escaneó el QR de tu mascota. Tocá para ver dónde la vieron.</div></div><ChevronRight size={18}/></button>)}
         {view==="home"    && <HomeView posts={visible} go={go} conn={conn} user={user} realPosts={realPosts} />}
         {view==="map"     && <MapView posts={visible} go={go} />}
-        {view==="search"  && <SearchView posts={visible} go={go} />}
+        {view==="search"  && <SearchView posts={visible} go={go} qInicial={busquedaInicial} tipoInicial={busquedaInicial?"lost":"all"} />}
         {view==="new"     && (requireAuthToPublish ? <AuthGate go={go} /> : <NewView type={newType} setType={setNewType} onSubmit={submitPost} go={go} flash={flash} editPost={editPost} esAdmin={isAdmin(user)} misMascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} />)}
         {view==="detail"  && current && <DetailView post={current} all={visible} go={go} setStatus={setStatus} flash={flash} onReport={()=>setReportFor(current)} user={user} onDelete={removePost} />}
         {view==="share"   && current && <ShareView post={current} go={go} flash={flash} />}
@@ -668,8 +669,8 @@ function AlertRadius({ posts, go }){
 }
 
 /* ------------------------------- Buscador -------------------------------- */
-function SearchView({ posts, go }){
-  const [q,setQ]=useState(""),[type,setType]=useState("all"),[sp,setSp]=useState("all");
+function SearchView({ posts, go, qInicial="", tipoInicial="all" }){
+  const [q,setQ]=useState(qInicial),[type,setType]=useState(tipoInicial),[sp,setSp]=useState("all");
   const res=useMemo(()=>{const t=sinTildes(q.trim());return posts.filter(p=>{if(p.status==="reunited")return false;if(type!=="all"&&p.type!==type)return false;if(sp!=="all"&&p.species!==sp)return false;if(!t)return true;const texto=sinTildes([p.petName,p.barrio,p.zona,ubicTxt(p),p.cp,p.color,p.species,p.sex,p.features,p.place,p.description].join(" "));return t.split(/\s+/).every(w=>texto.includes(w));});},[q,type,sp,posts]);
   return (
     <div className="px-4">

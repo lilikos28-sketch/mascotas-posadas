@@ -23,11 +23,12 @@ export default async (request, context) => {
     "nota:encontre": ["Encontraste un perro en la calle: ¿y ahora?", "Qué hacer para que vuelva con su familia.", "/blog/nota-encontre-un-perro.jpg"],
     "nota:qr": ["Por qué tu mascota necesita una chapita con QR", "Registrala gratis y generá su código.", "/blog/nota-chapita-qr.jpg"],
     "v:cuidados": ["Antes del finde: 3 cuidados para que tu mascota no se pierda", "Chapita con QR gratis en Mascotas Perdidas Misiones.", "/fb/cuidados.jpg"],
+    "buscar:villa sarita": ["Mascotas perdidas en Villa Sarita: ¿las viste?", "Mirá sus fotos y avisá por WhatsApp si viste alguna.", "/fb/villa-sarita.jpg"],
     "v:inicio": ["Mascotas Perdidas Misiones", "Publicá gratis tu mascota perdida o encontrada.", "/fb/presentacion.jpg"],
     "v:publicar": ["Publicá una mascota en 1 minuto", "Gratis, con foto, barrio y mapa.", "/fb/publicar.jpg"],
     "v:registrar": ["Registrá tu mascota y generá su QR", "Gratis. Si se pierde, te avisan al instante.", "/fb/registrar.jpg"],
   };
-  const clave = url.searchParams.get("nota") ? "nota:" + url.searchParams.get("nota") : url.searchParams.get("v") ? "v:" + url.searchParams.get("v") : null;
+  const clave = url.searchParams.get("buscar") ? "buscar:" + url.searchParams.get("buscar").toLowerCase() : url.searchParams.get("nota") ? "nota:" + url.searchParams.get("nota") : url.searchParams.get("v") ? "v:" + url.searchParams.get("v") : null;
   if (!id && clave && PAGINAS[clave]) {
     const [t, d, img] = PAGINAS[clave];
     const setP = (attr, key, val) => { const re = new RegExp(`(<meta\\s+${attr}="${key}"\\s+content=")[^"]*(")`, "i"); html = html.replace(re, `$1${esc(val)}$2`); };
