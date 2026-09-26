@@ -496,7 +496,7 @@ export default function App(){
         {view==="home"    && <HomeView posts={visible} go={go} conn={conn} user={user} realPosts={realPosts} />}
         {view==="map"     && <MapView posts={visible} go={go} />}
         {view==="search"  && <SearchView posts={visible} go={go} />}
-        {view==="new"     && (requireAuthToPublish ? <AuthGate go={go} /> : <NewView type={newType} setType={setNewType} onSubmit={submitPost} go={go} flash={flash} editPost={editPost} misMascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} />)}
+        {view==="new"     && (requireAuthToPublish ? <AuthGate go={go} /> : <NewView type={newType} setType={setNewType} onSubmit={submitPost} go={go} flash={flash} editPost={editPost} esAdmin={isAdmin(user)} misMascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} />)}
         {view==="detail"  && current && <DetailView post={current} all={visible} go={go} setStatus={setStatus} flash={flash} onReport={()=>setReportFor(current)} user={user} onDelete={removePost} />}
         {view==="share"   && current && <ShareView post={current} go={go} flash={flash} />}
         {view==="help"    && <HelpView go={go} lugares={lugares} />}
@@ -711,7 +711,9 @@ function AuthView({ onSignIn, onSignUp, onReset, onGoogle, go }){
 
 /* ------------------------------ Publicar --------------------------------- */
 function NewView(props){ useEffect(()=>{ const t=setTimeout(()=>{ cargarDetector(); },1500); return ()=>clearTimeout(t); },[]); return <NewViewInner {...props}/>; }
-function NewViewInner({ type, setType, onSubmit, go, flash, editPost, misMascotas=[] }){
+function NewViewInner({ type, setType, onSubmit, go, flash, editPost, misMascotas=[], esAdmin=false }){
+  const [fotoUrl,setFotoUrl]=useState("");
+  const fotoDesdeEnlace=async()=>{ const u=fotoUrl.trim(); if(!u)return; setBusy(true); try{ const r=await fetch(`/api/img?u=${encodeURIComponent(u)}`); if(!r.ok)throw new Error(); const b=await r.blob(); setPhoto(await compressImage(new File([b],"foto.jpg",{type:b.type||"image/jpeg"}))); setFotoUrl(""); flash("Foto cargada ✓"); }catch{ flash("No se pudo traer esa foto. Usá el enlace de la imagen de Facebook."); } setBusy(false); };
   const editing=!!editPost; const t=TYPE[editing?editPost.type:type];
   const init = editing ? { petName:editPost.petName||"", species:editPost.species||"perro", sex:editPost.sex||"", ageApprox:editPost.ageApprox||"", color:editPost.color||"", features:editPost.features||"", date:editPost.date||new Date().toISOString().slice(0,10), time:editPost.time||"", place:editPost.place||"", zona:editPost.zona||"Posadas", barrio:editPost.barrio||"", cp:editPost.cp||"", description:editPost.description||"", phone:editPost.phone||editPost.whatsapp||"", whatsapp:editPost.whatsapp||"", reward:editPost.reward||"", mascotaCodigo:editPost.mascotaCodigo||"" }
     : { petName:"", species:"", sex:"", ageApprox:"", color:"", features:"", date:new Date().toISOString().slice(0,10), time:"", place:"", zona:"Posadas", barrio:"", cp:"3300", description:"", phone:"", whatsapp:"", reward:"", mascotaCodigo:"" };
@@ -768,6 +770,7 @@ function NewViewInner({ type, setType, onSubmit, go, flash, editPost, misMascota
       <div className="rounded-2xl p-3 mb-4 text-[12px] flex gap-2" style={{background:t.soft,color:C.ink}}><Sparkles size={16} className="shrink-0 mt-0.5" style={{color:t.dot}}/><span>{curType==="found"?"No publiques datos privados que identifiquen al dueño sin verificar primero su identidad.":"Publicá en menos de 2 minutos. Lo esencial: foto, ubicación y contacto."}</span></div>
       <button onClick={()=>fileRef.current&&fileRef.current.click()} className="w-full rounded-2xl mb-2 overflow-hidden flex items-center justify-center" style={{height:170,background:C.surface,border:`1.5px dashed ${C.line}`}}>{busy?<Loader2 className="animate-spin" color={C.brand}/>:photo?<img src={photo} alt="" className="w-full h-full object-cover"/>:<div className="text-center" style={{color:C.muted}}><Camera size={30} className="mx-auto"/><div className="text-sm font-semibold mt-1">Agregar foto</div><div className="text-[11px]">Se comprime automáticamente</div></div>}</button>
       <input ref={fileRef} type="file" accept="image/*" onChange={onFile} className="hidden"/>
+      {esAdmin&&<div className="flex gap-2 mb-3"><input value={fotoUrl} onChange={e=>setFotoUrl(e.target.value)} className="inp flex-1" placeholder="Admin: enlace de la imagen de Facebook" aria-label="Enlace de la imagen de Facebook"/><button type="button" onClick={fotoDesdeEnlace} className="px-3 rounded-xl text-[12px] font-bold text-white" style={{background:C.brand}}>Cargar</button></div>}
       <div className="rounded-2xl p-3 mb-4" style={{background:C.surface,border:`1px solid ${C.line}`}}>
         <div className="text-[12px] font-bold mb-2 flex items-center gap-1.5"><MapPinned size={15} color={C.brand}/> Ubicación</div>
         <div className="grid grid-cols-3 gap-2"><LocBtn on={locMode==="gps"} onClick={useGps} ico={<Navigation size={15}/>} label="Mi ubicación"/><LocBtn on={locMode==="pick"} onClick={()=>setLocMode("pick")} ico={<MapPin size={15}/>} label="En el mapa"/><LocBtn on={locMode==="barrio"} onClick={()=>{setLocMode("barrio");setCoords(null);setPrecise(false);}} ico={<ListChecks size={15}/>} label="Barrio/dirección"/></div>
