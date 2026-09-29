@@ -1,3 +1,4 @@
+import { fotoDePublicacion, tamanoImagen } from "../shared/foto-comun.js";
 // Vista previa al compartir: cuando alguien comparte /?post=ID en Facebook o WhatsApp,
 // esta función cambia el título, el texto y la imagen de la vista previa por los de esa mascota.
 const SUPABASE_URL = "https://qbihkpseaxctkzsybzgn.supabase.co";
@@ -70,8 +71,11 @@ export default async (request, context) => {
       : p.type === "found"
       ? "¿Es tuya esta mascota? Ayudala a volver a casa. Tocá para ver el anuncio."
       : "Si sabés de quién es esta mascota, avisanos. Tocá para ver el anuncio.";
-    const hasPhoto = typeof p.photo === "string" && p.photo.startsWith("https://");
-    const image = hasPhoto ? p.photo : `${SITE}/portada.png`;
+    // La foto se entrega desde el propio dominio (/foto), así Facebook y WhatsApp siempre la pueden descargar
+    const foto = typeof p.photo === "string" && p.photo ? await fotoDePublicacion(id) : null;
+    const hasPhoto = !!foto;
+    const image = hasPhoto ? `${SITE}/foto?post=${encodeURIComponent(id)}` : `${SITE}/portada.png`;
+    const tam = hasPhoto ? tamanoImagen(foto.bytes) : null;
     const link = `${SITE}/?post=${encodeURIComponent(id)}`;
 
     const set = (attr, key, val) => {
@@ -85,7 +89,11 @@ export default async (request, context) => {
     set("name", "twitter:title", title);
     set("name", "twitter:description", desc);
     set("name", "twitter:image", image);
-    if (hasPhoto) html = html.replace(/\s*<meta\s+property="og:image:(width|height)"[^>]*>/gi, "");
+    if (hasPhoto) {
+      html = html.replace(/\s*<meta\s+property="og:image:(width|height|type)"[^>]*>/gi, "");
+      const extra = `<meta property="og:image:type" content="${esc(foto.tipo)}" />` + (tam && tam.w && tam.h ? `<meta property="og:image:width" content="${tam.w}" /><meta property="og:image:height" content="${tam.h}" />` : "") + `<meta property="og:image:alt" content="${esc(title)}" />`;
+      html = html.replace(/(<meta\s+property="og:image"[^>]*>)/i, `$1${extra}`);
+    }
     html = html.replace(/<title>[^<]*<\/title>/i, `<title>${esc(title)} · Mascotas Perdidas Misiones</title>`);
 
     return new Response(html, { status: response.status, headers });
