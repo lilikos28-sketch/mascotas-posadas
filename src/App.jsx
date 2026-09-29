@@ -293,7 +293,8 @@ export default function App(){
   const [qrMascota,setQrMascota]=useState(null);
   const [notaInicial,setNotaInicial]=useState(null);
   const [busquedaInicial,setBusquedaInicial]=useState("");
-  const [dniMascota,setDniMascota]=useState(null); // mascota abierta desde un QR
+  const [dniMascota,setDniMascota]=useState(null);
+  const [guia,setGuia]=useState(false); // mascota abierta desde un QR
 
   const posts = useMemo(()=>[...realPosts,...demoPosts],[realPosts,demoPosts]);
   const flash=(m)=>{setToast(m);setTimeout(()=>setToast(null),2600);};
@@ -492,7 +493,7 @@ export default function App(){
         .inp{width:100%;padding:11px 13px;border-radius:14px;border:1px solid ${C.line};background:${C.surface};font-size:14px;outline:none;color:${C.ink}}`}</style>
 
       <div className="mx-auto max-w-[480px] md:max-w-[680px] relative pb-24" style={{background:C.bg}}>
-        <Header go={go} count={avisosNuevos.length} conn={conn} />
+        <Header abrirGuia={()=>setGuia(true)} go={go} count={avisosNuevos.length} conn={conn} />
 
         {view==="home" && avisosNuevos.length>0 && (<button onClick={()=>go("mis_mascotas")} className="mx-4 mt-3 w-[calc(100%-2rem)] rounded-2xl p-3.5 flex items-center gap-3 text-left text-white" style={{background:C.lost}}><Bell size={22} className="shrink-0"/><div className="flex-1"><div className="font-extrabold text-[14px]">¡Tenés {avisosNuevos.length} aviso{avisosNuevos.length>1?"s":""} nuevo{avisosNuevos.length>1?"s":""}!</div><div className="text-[12px] opacity-95">Alguien escaneó el QR de tu mascota. Tocá para ver dónde la vieron.</div></div><ChevronRight size={18}/></button>)}
         {view==="home"    && <HomeView posts={visible} go={go} conn={conn} user={user} realPosts={realPosts} />}
@@ -516,7 +517,8 @@ export default function App(){
         {view==="admin"   && (isAdmin(user) ? <AdminView posts={posts} reports={reports} approve={approve} removePost={removePost} go={go} clearReport={clearReport} conn={conn} mensajes={mensajes} borrarMensaje={borrarMensaje} lugares={lugares} guardarLugar={guardarLugar} borrarLugar={borrarLugar} avistamientos={avistamientos} borrarAvistamiento={borrarAvistamiento} blog={blog} guardarBlog={guardarBlog} borrarBlog={borrarBlog} /> : <AdminLocked go={go} />)}
 
         <BottomNav view={view} go={go} />
-        {!["new","admin","auth","registrar_mascota","mascota_publica","contacto","dni_mascota"].includes(view) && <AyudaBot go={go} abrirNota={(id)=>{ setNotaInicial(id); go("blog"); }} />}
+        {guia && <GuiaView onClose={()=>setGuia(false)} />}
+        {!["new","admin","auth","registrar_mascota","mascota_publica","contacto","dni_mascota"].includes(view) && <AyudaBot go={go} abrirGuia={()=>setGuia(true)} abrirNota={(id)=>{ setNotaInicial(id); go("blog"); }} />}
 
         {toast && <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[999] px-4 py-2.5 rounded-full text-white text-sm font-medium shadow-lg" style={{background:C.ink,animation:"pop .25s ease"}}>{toast}</div>}
         {celebrate && (<div className="fixed inset-0 z-[999] flex items-center justify-center pointer-events-none"><div className="bg-white rounded-3xl px-8 py-7 text-center shadow-2xl" style={{animation:"pop .3s ease"}}><PartyPopper size={44} color={C.reunited} className="mx-auto"/><p className="mt-2 font-extrabold text-lg">¡Una mascota volvió a casa! 🎉</p><p className="text-sm" style={{color:C.muted}}>Gracias por ser parte de la comunidad.</p></div></div>)}
@@ -527,12 +529,13 @@ export default function App(){
 }
 
 /* ------------------------------- Header ---------------------------------- */
-function Header({ go, count, conn }){
+function Header({ go, count, conn, abrirGuia=()=>{} }){
   return (
     <div className="sticky top-0 z-[600] px-4 pt-3 pb-3" style={{background:C.bg,borderBottom:`1px solid ${C.line}`}}>
       <div className="flex items-center justify-between">
         <button onClick={()=>go("home")} className="flex items-center gap-2"><div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{background:C.brand}}><PawPrint size={19} color="#fff"/></div><div className="leading-tight text-left"><div className="font-extrabold text-[15px]">Mascotas Perdidas Misiones</div><div className="text-[10px] font-semibold tracking-wide flex items-center gap-1" style={{color:C.muted}}>MISIONES · AR {conn==="cloud"?<Cloud size={11} color={C.found}/>:<CloudOff size={11} color={C.seen}/>}</div></div></button>
         <div className="flex items-center gap-1">
+          <button onClick={abrirGuia} aria-label="Cómo funciona la página" title="Cómo funciona" className="w-9 h-9 rounded-full flex items-center justify-center" style={{background:C.brandSoft}}><PawPrint size={17} color={C.brandDeep}/></button>
           <a href={FACEBOOK_URL} target="_blank" rel="noreferrer" aria-label="Seguinos en Facebook" className="w-6 h-9 flex items-center justify-center"><FbIcon size={17} color="#1877F2"/></a>
           <button onClick={()=>go("mis_mascotas")} aria-label="Avisos de mis mascotas" className="relative w-9 h-9 rounded-xl flex items-center justify-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><Bell size={17} color={C.ink}/>{count>0&&<span className="absolute -top-1 -right-1 text-[10px] font-bold text-white rounded-full min-w-[16px] h-[16px] px-1 flex items-center justify-center" style={{background:C.lost}}>{count}</span>}</button>
           <button onClick={()=>go("admin")} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><Settings2 size={17} color={C.ink}/></button>
@@ -1677,13 +1680,14 @@ const AYUDA=[
   { k:"plata", t:"⚠️ Me piden plata", intro:"Cuidado: es una estafa común con mascotas perdidas.",
     pasos:["No pagues nada antes de ver a tu mascota. Pedí una foto o un video actual, con algo que pruebe que es de hoy.","Si se encuentran, que sea en un lugar público y acompañado/a.","Reportá la publicación desde el botón de reporte del anuncio. Si hay amenazas o extorsión, hacé la denuncia policial."],
     acciones:[] },
+  { k:"guia", t:"📖 Ver cómo funciona la página", intro:"Te mostramos en pocas imágenes cómo usarla.", pasos:[], acciones:[["Ver la guía","go:guia"]] },
   { k:"otra", t:"💬 Otra consulta", intro:"Escribinos y te respondemos a la brevedad.", pasos:[], acciones:[["Escribir un mensaje","go:contacto"]] },
 ];
-function AyudaBot({ go, abrirNota }){
+function AyudaBot({ go, abrirNota, abrirGuia=()=>{} }){
   const [open,setOpen]=useState(false); const [sel,setSel]=useState(null);
   const css=<style>{`.mp-ayuda{right:max(16px,calc(50vw - 224px))}@media (min-width:768px){.mp-ayuda{right:calc(50vw - 324px)}}`}</style>;
   const hacer=(a)=>{ const [tipo,val]=a.split(":"); setOpen(false); setSel(null);
-    if(tipo==="new")go("new",{type:val,edit:null}); else if(tipo==="nota")abrirNota(val); else go(val); };
+    if(tipo==="new")go("new",{type:val,edit:null}); else if(tipo==="nota")abrirNota(val); else if(val==="guia")abrirGuia(); else go(val); };
   const burbuja=(txt,yo)=>(<div className={`max-w-[85%] rounded-2xl px-3 py-2 text-[13px] leading-snug ${yo?"self-end":"self-start"}`} style={{background:yo?C.brand:C.bg,color:yo?"#fff":C.ink}}>{txt}</div>);
   return (<>
     {css}
@@ -1705,6 +1709,26 @@ function AyudaBot({ go, abrirNota }){
       </div>
     </div>}
   </>);
+}
+
+/* ------------------------ Guía "Cómo funciona" (presentación) ------------------------ */
+const GUIA=["01-portada","02-que-es","03-perdi","04-encontre","05-prevenir","06-dni","07-estafas","08-ayudar","09-cierre"].map(n=>`/guia/${n}.jpg`);
+function GuiaView({ onClose }){
+  const [i,setI]=useState(0); const [x0,setX0]=useState(null);
+  const ir=(d)=>setI(v=>Math.max(0,Math.min(GUIA.length-1,v+d)));
+  useEffect(()=>{ const k=(e)=>{ if(e.key==="ArrowRight")ir(1); if(e.key==="ArrowLeft")ir(-1); if(e.key==="Escape")onClose(); }; window.addEventListener("keydown",k); return ()=>window.removeEventListener("keydown",k); },[]);
+  return (<div className="fixed inset-0 z-[950] flex flex-col items-center justify-center p-3" style={{background:"rgba(10,25,22,.92)"}} onClick={onClose}>
+    <div onClick={e=>e.stopPropagation()} className="w-full max-w-[900px]">
+      <div className="flex items-center justify-between mb-2 text-white"><div className="font-extrabold text-[15px] flex items-center gap-2"><PawPrint size={18}/> Cómo funciona</div><button onClick={onClose} aria-label="Cerrar" className="w-9 h-9 rounded-full flex items-center justify-center" style={{background:"rgba(255,255,255,.15)"}}><X size={18} color="#fff"/></button></div>
+      <div className="relative rounded-2xl overflow-hidden" style={{aspectRatio:"16/9",background:"#12302B"}} onTouchStart={e=>setX0(e.touches[0].clientX)} onTouchEnd={e=>{ if(x0==null)return; const dx=e.changedTouches[0].clientX-x0; if(Math.abs(dx)>40)ir(dx<0?1:-1); setX0(null); }}>
+        <img src={GUIA[i]} alt={`Diapositiva ${i+1} de ${GUIA.length} de la guía Cómo funciona`} className="w-full h-full object-contain"/>
+        {i>0&&<button onClick={()=>ir(-1)} aria-label="Anterior" className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center" style={{background:"rgba(0,0,0,.45)"}}><ChevronLeft size={22} color="#fff"/></button>}
+        {i<GUIA.length-1&&<button onClick={()=>ir(1)} aria-label="Siguiente" className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center" style={{background:"rgba(0,0,0,.45)"}}><ChevronRight size={22} color="#fff"/></button>}
+      </div>
+      <div className="flex items-center justify-center gap-1.5 mt-3">{GUIA.map((_,k)=><button key={k} onClick={()=>setI(k)} aria-label={`Ir a la diapositiva ${k+1}`} className="rounded-full" style={{width:k===i?22:8,height:8,background:k===i?"#9FD8C6":"rgba(255,255,255,.35)"}}/>)}</div>
+      {i===GUIA.length-1&&<button onClick={onClose} className="mt-3 w-full py-3 rounded-2xl font-bold text-white" style={{background:C.brand}}>¡Entendido, empezar!</button>}
+    </div>
+  </div>);
 }
 
 /* ------------------------------ Bottom nav ------------------------------- */
