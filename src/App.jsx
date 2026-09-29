@@ -1342,9 +1342,88 @@ const BLOG_FIJO = [
 "foto": "/blog/nota-chapita-qr.jpg",
 "created_at": "2026-09-25T12:02:00Z",
 "fija": true
+},
+{
+"id": "pirotecnia",
+"titulo": "Pirotecnia: cómo proteger a tu mascota",
+"texto": "Para muchas mascotas, las fiestas son la noche más difícil del año. El ruido de la pirotecnia las asusta tanto que pueden saltar rejas, romper correas o escaparse por una puerta entreabierta. Después de Navidad y Año Nuevo, los grupos de mascotas perdidas se llenan de casos.\n\nAlgunas cosas simples hacen la diferencia:\n\nDejala adentro de la casa desde antes de que empiecen los ruidos, en una habitación tranquila, con las ventanas cerradas y algo de música o la tele para tapar los estruendos.\n\nAsegurate de que tenga collar con chapita o QR. Si se escapa, es lo que más rápido la trae de vuelta.\n\nNunca la dejes sola en el patio ni atada: el miedo puede hacer que se lastime tratando de huir.\n\nNo la retes si está asustada. Quedate cerca, hablale con calma y dejala esconderse si lo necesita.\n\nSi tu mascota sufre mucho con los ruidos, consultá a tu veterinario con tiempo: no le des medicamentos por tu cuenta.\n\nY si se pierde, publicala enseguida en mascotasperdidasmisiones.netlify.app: en esas noches, cada minuto cuenta.",
+"foto": "/blog/pirotecnia.jpg",
+"created_at": "2026-09-29T15:00:00Z",
+"fija": true
+},
+{
+"id": "tormentas",
+"titulo": "Tormentas: cómo ayudar a tu mascota con miedo",
+"texto": "En Misiones las tormentas llegan fuerte y de golpe. Los truenos y el viento asustan a muchos perros y gatos, y el miedo es una de las causas más comunes de escapes.\n\nAntes de la tormenta, revisá que rejas, portones y cercos estén bien cerrados, y entrá a tu mascota a la casa.\n\nDale un refugio: un rincón cerrado, con su cama o una manta, donde se sienta protegida. Muchos perros eligen solos el baño o debajo de una mesa; dejalos.\n\nQuedate cerca y hablale con voz tranquila. Tu calma la ayuda a calmarse.\n\nNo la dejes atada afuera ni sola en el patio durante la tormenta.\n\nDespués de una tormenta fuerte, mirá si hay algún cerco roto antes de dejarla salir de nuevo.\n\nSi el miedo es muy intenso, hablalo con tu veterinario: hay formas de ayudarla que conviene que indique un profesional.\n\n¿Tu mascota no tiene todavía su chapita con QR? Registrala gratis en la página: si algún día se asusta y se escapa, quien la encuentre te va a poder avisar.",
+"foto": "/blog/tormentas.jpg",
+"created_at": "2026-09-29T15:01:00Z",
+"fija": true
+},
+{
+"id": "foto",
+"titulo": "La foto que puede traer a tu mascota de vuelta",
+"texto": "Cuando una mascota se pierde, la foto es lo más importante del anuncio. Es lo que hace que un vecino diga \"¡esa la vi!\". Y muchas veces, justo en ese momento, nos damos cuenta de que no tenemos ninguna buena.\n\nSacale hoy una foto pensada para identificarla:\n\nDe frente, a la altura de sus ojos, con buena luz natural.\n\nOtra de cuerpo entero, de costado, donde se vea su tamaño.\n\nFotos de sus señas particulares: manchas, una oreja caída, una cicatriz, el color de sus ojos.\n\nSin filtros ni efectos: tiene que verse como es en la realidad.\n\nGuardalas en una carpeta del celular llamada con su nombre, así las encontrás rápido si un día las necesitás.\n\nActualizalas cada tanto, sobre todo si es cachorro o si le cortás el pelo.\n\nY si querés dejar todo listo de antemano, registrala en mascotasperdidasmisiones.netlify.app: su foto y sus datos quedan guardados, y si se pierde podés publicarla en segundos.",
+"foto": "/blog/foto.jpg",
+"created_at": "2026-09-29T15:02:00Z",
+"fija": true
+},
+{
+"id": "gatos",
+"titulo": "Se perdió tu gato: dónde buscar primero",
+"texto": "Los gatos no se pierden como los perros. Un perro puede alejarse varias cuadras; un gato asustado, en cambio, suele esconderse muy cerca de su casa y quedarse quieto y en silencio.\n\nPor eso, empezá buscando en tu propia cuadra:\n\nRevisá techos, garajes, galpones, debajo de autos, entre plantas y en cualquier hueco donde pueda meterse.\n\nPedile permiso a tus vecinos para mirar en sus patios y depósitos. Muchos gatos aparecen encerrados sin querer en un garaje o un lavadero.\n\nBuscá de noche o a la madrugada, cuando hay silencio: llevá una linterna (los ojos brillan con la luz) y llamalo con voz suave.\n\nDejá su arenero y algo con tu olor en la puerta de tu casa.\n\nNo lo persigas si lo ves: agachate, quedate quieto y dejá que se acerque solo.\n\nPublicalo en la página con una foto clara y el barrio exacto, y pedí a los vecinos que revisen sus espacios. Con los gatos, la paciencia es clave: muchos aparecen después de varios días.",
+"foto": "/blog/gatos.jpg",
+"created_at": "2026-09-29T15:03:00Z",
+"fija": true
+},
+{
+"id": "estafas",
+"titulo": "Estafas con mascotas perdidas: cómo reconocerlas",
+"texto": "Lamentablemente, hay personas que se aprovechan de la desesperación de quien perdió a su mascota. Conocer cómo actúan es la mejor forma de protegerte.\n\nEstas son las señales de alerta más comunes:\n\nTe piden plata antes de que veas a tu mascota: \"para el taxi\", \"para la comida\", \"como recompensa por adelantado\".\n\nNo te mandan una foto o un video actual. Pedí algo que demuestre que es de hoy, por ejemplo con un papel que diga la fecha.\n\nTe apuran y no quieren encontrarse en persona, o proponen un lugar raro.\n\nDicen tenerla pero no pueden describir ninguna seña que no esté en tu publicación.\n\nCómo cuidarte:\n\nNunca pagues nada antes de ver a tu mascota.\n\nSi se encuentran, que sea en un lugar público y con compañía.\n\nGuardá los mensajes y el número.\n\nSi una publicación de la página te parece una estafa, reportala con el botón de reporte del anuncio. Y si hay amenazas o extorsión, hacé la denuncia policial.",
+"foto": "/blog/estafas.jpg",
+"created_at": "2026-09-29T15:04:00Z",
+"fija": true
+},
+{
+"id": "cartel",
+"titulo": "Cómo hacer un cartel que realmente funcione",
+"texto": "Los carteles en la calle siguen siendo de lo más efectivo para encontrar una mascota: la ven los vecinos que caminan por la zona todos los días. Pero un cartel con mucho texto y letra chica no lo lee nadie.\n\nLa receta de un buen cartel:\n\nArriba y bien grande: \"SE BUSCA\" o \"PERRO PERDIDO\".\n\nUna foto grande y clara, que ocupe gran parte de la hoja.\n\nPocas palabras: nombre, color, tamaño, una seña particular y la zona.\n\nUn solo contacto, bien visible.\n\nUn código QR que lleve al anuncio, así quien lo ve puede ver más fotos y escribirte al instante.\n\nDónde pegarlo: en postes y comercios de la cuadra donde se perdió, en almacenes, verdulerías, veterinarias y paradas de colectivo. Pedí permiso en los comercios: casi todos ayudan.\n\nCuando la encuentres, volvé a sacar los carteles y avisá que apareció. Ayuda a que la gente siga confiando en los carteles.",
+"foto": "/blog/cartel.jpg",
+"created_at": "2026-09-29T15:05:00Z",
+"fija": true
+},
+{
+"id": "mudanza",
+"titulo": "Mudanzas y viajes: el momento de más riesgo",
+"texto": "Las mudanzas y los viajes son de los momentos en que más mascotas se pierden: puertas abiertas todo el día, gente entrando y saliendo, ruidos y lugares nuevos que no conocen.\n\nEl día de la mudanza, dejala encerrada en una habitación con un cartel en la puerta que diga \"no abrir\", o en la casa de alguien de confianza.\n\nAntes de mudarte, actualizá sus datos: tu nuevo barrio y tu teléfono en su registro y en su chapita. Si tiene QR de la página, el cambio se hace una sola vez y queda actualizado.\n\nEn la casa nueva, revisá cercos, rejas y huecos antes de dejarla salir al patio.\n\nLos primeros días, sacala siempre con correa: todavía no conoce el lugar y, si se asusta, no sabe volver.\n\nSi viajan, llevá una foto actual en el celular y asegurate de que tenga collar con identificación.\n\nUn gato en una casa nueva conviene tenerlo adentro al menos dos semanas, hasta que se adapte.",
+"foto": "/blog/mudanza.jpg",
+"created_at": "2026-09-29T15:06:00Z",
+"fija": true
+},
+{
+"id": "castracion",
+"titulo": "Castrar también evita que se pierdan",
+"texto": "Castrar a tu mascota no solo evita camadas no deseadas: también hace que se escape mucho menos.\n\nLos perros y gatos sin castrar sienten un impulso muy fuerte de salir a buscar pareja, sobre todo en época de celo. Ese impulso los lleva a saltar rejas, cavar debajo de cercos y recorrer muchas cuadras, y así se pierden o terminan en peleas y accidentes en la calle.\n\nCon la castración:\n\nSe reducen mucho los intentos de escape.\n\nHay menos peleas con otros animales.\n\nNacen menos cachorros que terminan en la calle.\n\nEn Posadas, el IMUSA (Instituto Municipal de Sanidad Animal) ofrece castraciones y vacunas gratuitas. Consultá en sus canales oficiales cómo sacar turno: en la página de inicio tenés el enlace directo.\n\nCastrar es una decisión que cuida a tu mascota y a todo el barrio.",
+"foto": "/blog/castracion.jpg",
+"created_at": "2026-09-29T15:07:00Z",
+"fija": true
+},
+{
+"id": "sin-reclamo",
+"titulo": "Encontraste una mascota y nadie la busca",
+"texto": "A veces encontramos un perro o un gato, lo publicamos y pasan los días sin que nadie lo reclame. ¿Qué hacer?\n\nPrimero, tené paciencia. Muchas familias tardan en enterarse, no usan redes o la están buscando en otra zona.\n\nMientras tanto:\n\nPublicala como encontrada en la página, con foto y el barrio exacto donde la encontraste, y compartila en los grupos de la zona.\n\nRevisá seguido las mascotas perdidas en el mapa: quizás su familia ya publicó.\n\nLlevala a una veterinaria cercana para ver si tiene microchip.\n\nPegá algunos carteles en la cuadra donde la encontraste.\n\nSi podés tenerla unos días, avisalo en la publicación: tranquiliza mucho a la familia que la busca.\n\nRecién después de un tiempo razonable sin novedades, pensá en darla en adopción responsable, con la ayuda de un refugio o proteccionista de tu zona.\n\nGracias por no mirar para otro lado: sos parte de que más mascotas vuelvan a casa.",
+"foto": "/blog/sin-reclamo.jpg",
+"created_at": "2026-09-29T15:08:00Z",
+"fija": true
+},
+{
+"id": "dni",
+"titulo": "Ya podés descargar el DNI de tu mascota",
+"texto": "¡Tenemos novedad! En Mascotas Perdidas Misiones ya podés crear y descargar el DNI de tu mascota, gratis.\n\nEs una tarjeta con su foto, su nombre, especie, raza, sexo, color, fecha de nacimiento, lugar de residencia y tu contacto. En lugar de huella digital tiene su patita, y el número de DNI es el número de legajo de su registro en la página.\n\nPero lo más importante es su código QR: abre la ficha de tu mascota. Si algún día se pierde, quien la encuentre lo escanea con la cámara del celular y te deja un aviso con su WhatsApp y dónde la vio, sin que tu teléfono quede a la vista.\n\nCómo sacarlo:\n\nIngresá con tu cuenta y registrá a tu mascota, si todavía no lo hiciste.\n\nTocá \"¡Descargá el DNI de tu mascota!\", completá los datos y mirá la vista previa.\n\nDescargalo o imprimilo en tamaño tarjeta.\n\nEs un documento de fantasía, pero puede ayudar muchísimo el día que más lo necesites.",
+"foto": "/blog/dni.jpg",
+"created_at": "2026-09-29T15:09:00Z",
+"fija": true
 }
-];
-function BlogView({ go, entradas=[], notaInicial=null }){
+];function BlogView({ go, entradas=[], notaInicial=null }){
   const [abierta,setAbierta]=useState(()=>notaInicial?entradas.find(e=>String(e.id)===String(notaInicial))||null:null);
   const fmtFecha=(f)=>{ try{ return new Date(f).toLocaleDateString("es-AR",{day:"numeric",month:"long",year:"numeric"}); }catch{ return ""; } };
   if(abierta){
