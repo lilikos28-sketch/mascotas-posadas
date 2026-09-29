@@ -292,7 +292,8 @@ export default function App(){
   const [blog,setBlog]=useState([]);
   const [qrMascota,setQrMascota]=useState(null);
   const [notaInicial,setNotaInicial]=useState(null);
-  const [busquedaInicial,setBusquedaInicial]=useState(""); // mascota abierta desde un QR
+  const [busquedaInicial,setBusquedaInicial]=useState("");
+  const [dniMascota,setDniMascota]=useState(null); // mascota abierta desde un QR
 
   const posts = useMemo(()=>[...realPosts,...demoPosts],[realPosts,demoPosts]);
   const flash=(m)=>{setToast(m);setTimeout(()=>setToast(null),2600);};
@@ -323,7 +324,7 @@ export default function App(){
     try{ const params=new URLSearchParams(window.location.search); const code=params.get("m"); if(code){ await abrirMascotaPorCodigo(code); } }catch{}
     // ¿Se abrió el enlace de una publicación compartida? La URL trae ?post=ID
     try{ const params=new URLSearchParams(window.location.search); const pid=params.get("post"); if(pid){ await abrirPublicacionPorId(pid); } }catch{}
-    try{ const params=new URLSearchParams(window.location.search); const nota=params.get("nota"); const v=params.get("v"); const buscar=params.get("buscar"); if(buscar){ setBusquedaInicial(buscar.slice(0,40)); setView("search"); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:"search"},"",`/?buscar=${encodeURIComponent(buscar)}`); }catch{} return; } const dest=nota?"blog":v==="blog"?"blog":v==="registrar"?"registrar_mascota":null; if(dest){ if(nota)setNotaInicial(nota); setView(dest); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:dest},"",nota?`/?nota=${encodeURIComponent(nota)}`:`/?v=${v}`); }catch{} } }catch{}
+    try{ const params=new URLSearchParams(window.location.search); const nota=params.get("nota"); const v=params.get("v"); const buscar=params.get("buscar"); if(buscar){ setBusquedaInicial(buscar.slice(0,40)); setView("search"); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:"search"},"",`/?buscar=${encodeURIComponent(buscar)}`); }catch{} return; } const dest=nota?"blog":v==="blog"?"blog":v==="registrar"?"registrar_mascota":v==="dni"?"dni_mascota":null; if(dest){ if(nota)setNotaInicial(nota); setView(dest); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:dest},"",nota?`/?nota=${encodeURIComponent(nota)}`:`/?v=${v}`); }catch{} } }catch{}
   })(); },[]);
 
   // Al volver a la página (por ejemplo, desde WhatsApp), se buscan avisos nuevos
@@ -505,7 +506,8 @@ export default function App(){
         {view==="contacto"&& <ContactoView go={go} onSend={enviarMensaje} />}
         {view==="blog"&& <BlogView go={go} notaInicial={notaInicial} entradas={[...blog,...BLOG_FIJO.filter(f=>!blog.some(b=>b.titulo===f.titulo))].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))} />}
         {view==="registrar_mascota"&& (requireAuthToPublish ? <AuthGate go={go} /> : <RegistrarMascotaView go={go} onSave={async(f)=>{ const m=await registrarMascota(f); if(m){ setQrMascota(m); } return m; }} flash={flash} />)}
-        {view==="mis_mascotas"&& <MisMascotasView go={go} mascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} user={user} onDelete={borrarMascota} avistamientos={avistamientos} avisosVistos={avisosVistos} marcarVistos={marcarAvisosVistos} setQr={setQrMascota} irQr={(m)=>{setQrMascota(m);go("qr_mascota");}} />}
+        {view==="mis_mascotas"&& <MisMascotasView go={go} mascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} user={user} onDelete={borrarMascota} avistamientos={avistamientos} avisosVistos={avisosVistos} marcarVistos={marcarAvisosVistos} setQr={setQrMascota} irQr={(m)=>{setQrMascota(m);go("qr_mascota");}} irDni={(m)=>{setDniMascota(m);go("dni_mascota");}} />}
+        {view==="dni_mascota"&& <DNIMascotaView go={go} user={user} mascotas={misMascotas} inicial={dniMascota} flash={flash} />}
         {view==="qr_mascota"&& (qrMascota ? <QRMascotaView go={go} mascota={qrMascota} flash={flash} /> : <VistaVacia go={go} texto="No se encontró la mascota. Volvé a Mis mascotas." />)}
         {view==="mascota_publica"&& (qrMascota ? <MascotaPublicaView go={go} mascota={qrMascota} onReport={reportarAvistamiento} flash={flash} /> : <VistaVacia go={go} texto="No se encontró esta mascota." />)}
         {view==="auth"    && <AuthView onSignIn={onSignIn} onSignUp={onSignUp} onReset={onReset} onGoogle={Auth.google} go={go} />}
@@ -514,7 +516,7 @@ export default function App(){
         {view==="admin"   && (isAdmin(user) ? <AdminView posts={posts} reports={reports} approve={approve} removePost={removePost} go={go} clearReport={clearReport} conn={conn} mensajes={mensajes} borrarMensaje={borrarMensaje} lugares={lugares} guardarLugar={guardarLugar} borrarLugar={borrarLugar} avistamientos={avistamientos} borrarAvistamiento={borrarAvistamiento} blog={blog} guardarBlog={guardarBlog} borrarBlog={borrarBlog} /> : <AdminLocked go={go} />)}
 
         <BottomNav view={view} go={go} />
-        {!["new","admin","auth","registrar_mascota","mascota_publica","contacto"].includes(view) && <AyudaBot go={go} abrirNota={(id)=>{ setNotaInicial(id); go("blog"); }} />}
+        {!["new","admin","auth","registrar_mascota","mascota_publica","contacto","dni_mascota"].includes(view) && <AyudaBot go={go} abrirNota={(id)=>{ setNotaInicial(id); go("blog"); }} />}
 
         {toast && <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[999] px-4 py-2.5 rounded-full text-white text-sm font-medium shadow-lg" style={{background:C.ink,animation:"pop .25s ease"}}>{toast}</div>}
         {celebrate && (<div className="fixed inset-0 z-[999] flex items-center justify-center pointer-events-none"><div className="bg-white rounded-3xl px-8 py-7 text-center shadow-2xl" style={{animation:"pop .3s ease"}}><PartyPopper size={44} color={C.reunited} className="mx-auto"/><p className="mt-2 font-extrabold text-lg">¡Una mascota volvió a casa! 🎉</p><p className="text-sm" style={{color:C.muted}}>Gracias por ser parte de la comunidad.</p></div></div>)}
@@ -595,6 +597,7 @@ function HomeView({ posts, go, conn, user, realPosts=[] }){
         </div>
       </button>
       <button onClick={()=>go("mis_mascotas")} className="mt-2 w-full text-center text-[12px] font-bold py-1" style={{color:C.brand}}>Ver mis mascotas registradas →</button>
+      <div className="mt-2"><BotonDNI onClick={()=>go("dni_mascota")}/></div>
 
       <div className="mt-5 mb-1 text-[13px] font-bold" style={{color:C.muted}}>¿Perdiste o encontraste una mascota?</div>
       <div className="grid grid-cols-3 gap-2.5 mt-4"><BigBtn color={C.lost} label="Perdí mi mascota" sub="Se escapó o no aparece" ico="🔴" onClick={()=>go("new",{type:"lost",edit:null})}/><BigBtn color={C.found} label="Encontré una" sub="La tengo conmigo" ico="🟢" onClick={()=>go("new",{type:"found",edit:null})}/><BigBtn color={C.seen} label="Vi una mascota" sub="La vi en la calle" ico="🟡" onClick={()=>go("new",{type:"seen",edit:null})}/></div>
@@ -1041,6 +1044,120 @@ async function revisarFoto(foto, otrasPublicaciones=[]){
   return r;
 }
 
+/* ------------------------ DNI de mi mascota ------------------------
+   Genera una tarjeta tipo DNI (de fantasía) con foto, datos, QR del registro y una huella de patita.
+   El número de DNI es el número de legajo del registro. Solo para usuarios registrados. */
+const legajoDe=(m)=>{ const n=String(m.id||"").replace(/\D/g,""); return n&&n.length<=12 ? n.padStart(8,"0") : (m.codigo||"").toUpperCase(); };
+const DNI_EXTRA_KEY="mp_dni_extra";
+const leerExtraDNI=(codigo)=>{ try{ return (JSON.parse(window.localStorage.getItem(DNI_EXTRA_KEY)||"{}"))[codigo]||{}; }catch{ return {}; } };
+const guardarExtraDNI=(codigo,d)=>{ try{ const all=JSON.parse(window.localStorage.getItem(DNI_EXTRA_KEY)||"{}"); all[codigo]=d; window.localStorage.setItem(DNI_EXTRA_KEY,JSON.stringify(all)); }catch{} };
+const rr=(x,X,Y,W,H,R)=>{ x.beginPath(); x.moveTo(X+R,Y); x.arcTo(X+W,Y,X+W,Y+H,R); x.arcTo(X+W,Y+H,X,Y+H,R); x.arcTo(X,Y+H,X,Y,R); x.arcTo(X,Y,X+W,Y,R); x.closePath(); };
+const dibujarPatita=(x,cx,cy,s,color)=>{ x.save(); x.fillStyle=color;
+  const dedo=(dx,dy,rx,ry,rot)=>{ x.beginPath(); x.ellipse(cx+dx*s,cy+dy*s,rx*s,ry*s,rot,0,Math.PI*2); x.fill(); };
+  dedo(-0.62,-0.28,0.17,0.23,-0.35); dedo(-0.24,-0.62,0.18,0.25,-0.1); dedo(0.24,-0.62,0.18,0.25,0.1); dedo(0.62,-0.28,0.17,0.23,0.35);
+  x.beginPath(); x.moveTo(cx,cy-0.1*s); x.bezierCurveTo(cx+0.55*s,cy-0.12*s,cx+0.62*s,cy+0.55*s,cx+0.28*s,cy+0.6*s); x.bezierCurveTo(cx+0.12*s,cy+0.62*s,cx+0.06*s,cy+0.5*s,cx,cy+0.5*s); x.bezierCurveTo(cx-0.06*s,cy+0.5*s,cx-0.12*s,cy+0.62*s,cx-0.28*s,cy+0.6*s); x.bezierCurveTo(cx-0.62*s,cy+0.55*s,cx-0.55*s,cy-0.12*s,cx,cy-0.1*s); x.fill();
+  x.restore(); };
+const dibujarSol=(x,cx,cy,r)=>{ x.save(); x.translate(cx,cy); x.fillStyle="#F2B535"; for(let i=0;i<32;i++){ x.rotate(Math.PI/16); x.beginPath(); if(i%2){ x.moveTo(-r*0.07,r*0.55); x.lineTo(0,r); x.lineTo(r*0.07,r*0.55);} else { x.moveTo(-r*0.05,r*0.55); x.quadraticCurveTo(r*0.12,r*0.78,0,r*0.95); x.quadraticCurveTo(-r*0.08,r*0.78,r*0.05,r*0.55);} x.fill(); }
+  x.beginPath(); x.arc(0,0,r*0.5,0,Math.PI*2); x.fillStyle="#F6C445"; x.fill(); x.strokeStyle="#D9962A"; x.lineWidth=r*0.04; x.stroke(); x.restore(); };
+async function generarDNI(m, d){
+  const W=1712, H=1080; const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const x=cv.getContext("2d");
+  const F="'Helvetica Neue', Arial, sans-serif";
+  // fondo de la tarjeta
+  x.fillStyle="#FFFFFF"; x.fillRect(0,0,W,H);
+  const g=x.createLinearGradient(0,0,W,H); g.addColorStop(0,"#EAF5FC"); g.addColorStop(1,"#D6EAF6"); x.fillStyle=g; rr(x,20,20,W-40,H-40,60); x.fill();
+  x.save(); rr(x,20,20,W-40,H-40,60); x.clip();
+  x.globalAlpha=0.35; x.fillStyle="#74ACDF"; x.beginPath(); x.moveTo(900,380); x.bezierCurveTo(1150,250,1350,330,1640,230); x.lineTo(1640,330); x.bezierCurveTo(1350,430,1150,350,900,480); x.fill();
+  x.globalAlpha=0.08; for(let i=0;i<6;i++) dibujarPatita(x,1450+(i%3)*90,700+Math.floor(i/3)*120,40,"#1F5E8C"); x.globalAlpha=1; x.restore();
+  x.strokeStyle="#B9D8EC"; x.lineWidth=4; rr(x,20,20,W-40,H-40,60); x.stroke();
+  // foto
+  const PX=80,PY=90,PW=560,PH=700;
+  x.fillStyle="#FFFFFF"; rr(x,PX-12,PY-12,PW+24,PH+24,40); x.fill(); x.strokeStyle="#1E88D6"; x.lineWidth=10; rr(x,PX-12,PY-12,PW+24,PH+24,40); x.stroke();
+  if(m.photo){ try{ const im=await cargarImagen(m.photo); x.save(); rr(x,PX,PY,PW,PH,30); x.clip(); const sc=Math.max(PW/im.width,PH/im.height); const iw=im.width*sc, ih=im.height*sc; x.drawImage(im,PX+(PW-iw)/2,PY+(PH-ih)/2,iw,ih); x.restore(); }catch{ dibujarPatita(x,PX+PW/2,PY+PH/2,160,"#9CC6E6"); } }
+  else dibujarPatita(x,PX+PW/2,PY+PH/2,160,"#9CC6E6");
+  // código de barras con el legajo
+  const leg=legajoDe(m); let bx=90; const by=850; x.fillStyle="#111";
+  for(const ch of (leg+leg).split("")){ const v=ch.charCodeAt(0); for(let k=0;k<4;k++){ const w=((v>>k)&1)?7:3; x.fillRect(bx,by,w,100); bx+=w+4; if(bx>620)break; } if(bx>620)break; }
+  x.font=`500 38px ${F}`; x.textAlign="center"; x.fillText(leg,360,1000);
+  // títulos
+  x.textAlign="left"; x.fillStyle="#12202B"; x.font=`800 84px ${F}`; x.fillText("DNI MASCOTA",700,170);
+  x.fillStyle="#1E88D6"; x.font=`800 70px ${F}`; x.fillText("ARGENTINA",700,250);
+  dibujarSol(x,1540,150,95);
+  // datos
+  const hoy=new Date(); const meses=["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEPT","OCT","NOV","DIC"];
+  const L=(label,val,X,Y,max)=>{ x.textAlign="left"; x.fillStyle="#12202B"; x.font=`600 26px ${F}`; x.fillText(label.toUpperCase(),X,Y); let fs=38; let v=String(val||"—").toUpperCase(); x.font=`800 ${fs}px ${F}`; while(x.measureText(v).width>max&&fs>26){ fs-=2; x.font=`800 ${fs}px ${F}`; } while(x.measureText(v).width>max&&v.length>3)v=v.slice(0,-2)+"…"; x.fillText(v,X,Y+42); };
+  const nombre=m.pet_name||m.petName||"";
+  const c1=700,c2=1170,y0=305,dy=95;
+  L("Nombre",nombre,c1,y0,440); L("Apellido",d.apellido,c1,y0+dy,440); L("Especie",m.species,c1,y0+2*dy,440); L("Sexo",m.sex,c1,y0+3*dy,440);
+  L("Lugar de residencia",d.residencia,c1,y0+4*dy,440); L("Tutor responsable",d.tutor,c1,y0+5*dy,440); L("Teléfono de contacto",m.whatsapp||m.phone,c1,y0+6*dy,440);
+  L("N° de legajo",leg,c2,y0,470); L("Raza",d.raza,c2,y0+dy,470); L("Color",m.color,c2,y0+2*dy,470); L("Fecha de nacimiento",d.nacimiento,c2,y0+3*dy,470);
+  L("Fecha de emisión",`${hoy.getDate()} ${meses[hoy.getMonth()]} ${hoy.getFullYear()}`,c2,y0+4*dy,470);
+  // QR con el registro
+  const q=document.createElement("canvas"); drawQROnCanvas(q,mascotaURL(m.codigo),210,"#000000","#FFFFFF");
+  x.fillStyle="#FFFFFF"; rr(x,c2,755,240,240,18); x.fill(); x.drawImage(q,c2+15,770,210,210);
+  // huella de patita
+  x.strokeStyle="#12202B"; x.lineWidth=5; const HX=1470,HY=785,HS=130;
+  [[0,0,1,1],[HS,0,-1,1],[0,HS,1,-1],[HS,HS,-1,-1]].forEach(([ox,oy,sx,sy])=>{ x.beginPath(); x.moveTo(HX+ox+sx*32,HY+oy); x.lineTo(HX+ox,HY+oy); x.lineTo(HX+ox,HY+oy+sy*32); x.stroke(); });
+  dibujarPatita(x,HX+HS/2,HY+HS/2-6,52,"#2B2B2B");
+  x.fillStyle="#12202B"; x.font=`700 24px ${F}`; x.textAlign="center"; x.fillText("HUELLA",HX+HS/2,HY+HS+34);
+  // pie
+  x.textAlign="center"; x.font=`500 22px ${F}`; x.fillStyle="#3B556B"; x.fillText("VÁLIDO SOLO COMO IDENTIFICACIÓN DE FANTASÍA · mascotasperdidasmisiones.netlify.app",W/2,H-40);
+  return cv;
+}
+function BotonDNI({ onClick, compacto=false }){
+  return (<>
+    <style>{`@keyframes mpWiggle{0%,82%,100%{transform:rotate(0) scale(1)}85%{transform:rotate(-3deg) scale(1.04)}88%{transform:rotate(3deg) scale(1.04)}91%{transform:rotate(-2deg) scale(1.03)}94%{transform:rotate(1deg) scale(1.02)}}
+@keyframes mpBrillo{0%{left:-60%}55%,100%{left:130%}}
+@keyframes mpFlota{0%,100%{transform:translateY(0) rotate(-8deg)}50%{transform:translateY(-6px) rotate(8deg)}}
+@keyframes mpLatido{0%,100%{box-shadow:0 0 0 0 rgba(30,136,214,.45)}50%{box-shadow:0 0 0 10px rgba(30,136,214,0)}}
+.mp-dni-btn{animation:mpWiggle 3.2s ease-in-out infinite, mpLatido 2s ease-out infinite}
+.mp-dni-btn:hover{animation-play-state:paused;transform:scale(1.03)}
+.mp-dni-brillo{position:absolute;top:0;bottom:0;width:45%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);animation:mpBrillo 2.6s ease-in-out infinite}
+.mp-dni-flota{display:inline-block;animation:mpFlota 1.8s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.mp-dni-btn,.mp-dni-brillo,.mp-dni-flota{animation:none}}`}</style>
+    <button onClick={onClick} className={`mp-dni-btn relative overflow-hidden w-full rounded-2xl text-white text-left flex items-center gap-3 ${compacto?"px-3 py-2.5":"px-4 py-3.5"}`} style={{background:"linear-gradient(120deg,#1E88D6,#0E7C6B)"}}>
+      <span className="mp-dni-brillo"/>
+      <span className={`mp-dni-flota ${compacto?"text-2xl":"text-3xl"}`}>🪪</span>
+      <span className="flex-1"><span className={`block font-extrabold ${compacto?"text-[13px]":"text-[15px]"}`}>¡Descargá el DNI de tu mascota!</span>{!compacto&&<span className="block text-[11px] opacity-95">Con su foto, sus datos y su QR. Gratis 🐾</span>}</span>
+      <ChevronRight size={18}/>
+    </button>
+  </>);
+}
+function DNIMascotaView({ go, user, mascotas=[], inicial=null, flash }){
+  const mias=mascotas.filter(m=>user&&m.owner_id===user.id);
+  const [sel,setSel]=useState(()=>inicial&&mias.find(m=>m.codigo===inicial.codigo)?inicial:(mias[0]||null));
+  const base=(m)=>({ apellido:(user&&user.name||"").split(" ").slice(1).join(" "), raza:"", nacimiento:"", residencia:[m&&m.zona,"Misiones"].filter(Boolean).join(", "), tutor:user?user.name:"" });
+  const [d,setD]=useState(()=>sel?{...base(sel),...leerExtraDNI(sel.codigo)}:{});
+  const [img,setImg]=useState(null); const [busy,setBusy]=useState(false);
+  useEffect(()=>{ if(sel)setD({...base(sel),...leerExtraDNI(sel.codigo)}); },[sel&&sel.codigo]);
+  useEffect(()=>{ if(!sel)return; let vivo=true; const t=setTimeout(async()=>{ const cv=await generarDNI(sel,d); if(vivo)setImg(cv.toDataURL("image/png")); guardarExtraDNI(sel.codigo,d); },350); return ()=>{vivo=false;clearTimeout(t);}; },[sel,d]);
+  const set=(k,v)=>setD(s=>({...s,[k]:v}));
+  if(!user) return (<div className="px-4 pb-6"><Title back={()=>go("home")} title="DNI de tu mascota"/><div className="rounded-2xl p-5 text-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="text-4xl mb-2">🪪</div><div className="font-bold">Ingresá para crear el DNI de tu mascota</div><p className="text-[12px] mt-1" style={{color:C.muted}}>Es gratis. Necesitás una cuenta y tu mascota registrada.</p><button onClick={()=>go("auth")} className="mt-3 w-full py-3 rounded-2xl font-bold text-white" style={{background:C.brand}}>Ingresar / Registrarme</button></div></div>);
+  if(!mias.length) return (<div className="px-4 pb-6"><Title back={()=>go("home")} title="DNI de tu mascota"/><div className="rounded-2xl p-5 text-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="text-4xl mb-2">🐾</div><div className="font-bold">Primero registrá a tu mascota</div><p className="text-[12px] mt-1" style={{color:C.muted}}>El DNI usa los datos y el QR de su registro.</p><button onClick={()=>go("registrar_mascota")} className="mt-3 w-full py-3 rounded-2xl font-bold text-white" style={{background:C.brand}}>Registrar mi mascota</button></div></div>);
+  const nombreArch=`dni-${(sel.pet_name||sel.codigo).toLowerCase().replace(/[^a-z0-9]+/g,"-")}.png`;
+  const descargar=()=>{ if(!img)return; const a=document.createElement("a"); a.href=img; a.download=nombreArch; a.click(); flash("DNI descargado ✓"); };
+  const imprimir=()=>{ if(!img)return; const w=window.open("","_blank"); if(!w){flash("Permití las ventanas emergentes para imprimir.");return;} w.document.write(`<html><head><title>DNI</title><style>@page{margin:15mm}body{margin:0}img{width:85.6mm;height:54mm;border:1px dashed #999;border-radius:3mm}</style></head><body><img src="${img}"><script>window.onload=()=>window.print()<\/script></body></html>`); w.document.close(); };
+  const enviarMail=async()=>{ if(!img)return; setBusy(true);
+    try{ const c=await getClient(); const {data}=c?await c.auth.getSession():{data:null}; const token=data&&data.session&&data.session.access_token; if(!token)throw new Error("sesion");
+      const r=await fetch("/api/enviar-dni",{method:"POST",headers:{"content-type":"application/json",authorization:`Bearer ${token}`},body:JSON.stringify({nombre:sel.pet_name||"tu mascota",archivo:nombreArch.replace(".png",".jpg"),imagen:(await generarDNI(sel,d)).toDataURL("image/jpeg",0.9).split(",")[1]})});
+      if(r.status===503)flash("El envío por mail todavía no está activado. Por ahora, descargalo con el botón."); else if(!r.ok)throw new Error(); else flash(`¡Listo! Te lo enviamos a ${user.email} 📩`);
+    }catch{ flash("No se pudo enviar el mail. Probá descargarlo."); } setBusy(false); };
+  return (<div className="px-4 pb-6">
+    <Title back={()=>go("mis_mascotas")} title="DNI de tu mascota"/>
+    {mias.length>1&&<div className="flex gap-2 overflow-x-auto mp-scroll mb-3">{mias.map(m=><button key={m.codigo} onClick={()=>setSel(m)} className="px-3 py-1.5 rounded-full text-[12px] font-bold whitespace-nowrap" style={{background:sel.codigo===m.codigo?C.brand:C.surface,color:sel.codigo===m.codigo?"#fff":C.ink,border:`1px solid ${C.line}`}}>{m.pet_name||m.codigo}</button>)}</div>}
+    <div className="rounded-2xl overflow-hidden shadow-lg mb-4" style={{background:"#EAF5FC",aspectRatio:"1712/1080"}}>{img?<img src={img} alt={`DNI de ${sel.pet_name||"tu mascota"}`} className="w-full h-full object-contain"/>:<div className="w-full h-full flex items-center justify-center text-[12px]" style={{color:C.muted}}>Armando el DNI…</div>}</div>
+    <div className="grid grid-cols-2 gap-3">
+      <Field label="Apellido"><input value={d.apellido||""} onChange={e=>set("apellido",e.target.value.slice(0,24))} className="inp" placeholder="Ej: García"/></Field>
+      <Field label="Raza"><input value={d.raza||""} onChange={e=>set("raza",e.target.value.slice(0,24))} className="inp" placeholder="Ej: Caniche"/></Field>
+      <Field label="Fecha de nacimiento"><input value={d.nacimiento||""} onChange={e=>set("nacimiento",e.target.value.slice(0,14))} className="inp" placeholder="Ej: 10/12/2023"/></Field>
+      <Field label="Residencia"><input value={d.residencia||""} onChange={e=>set("residencia",e.target.value.slice(0,32))} className="inp" placeholder="Ej: Villa Sarita, Misiones"/></Field>
+    </div>
+    <Field label="Tutor responsable"><input value={d.tutor||""} onChange={e=>set("tutor",e.target.value.slice(0,32))} className="inp" placeholder="Tu nombre"/></Field>
+    <p className="text-[11px] mb-3" style={{color:C.muted}}>El número de DNI es el <b>legajo del registro</b> ({legajoDe(sel)}) y el QR abre la ficha de {sel.pet_name||"tu mascota"}: si se pierde, quien lo escanee te avisa.</p>
+    <button onClick={descargar} disabled={!img} className="w-full py-3.5 rounded-2xl font-bold text-white mb-2" style={{background:C.brand}}>Descargar DNI</button>
+    <div className="grid grid-cols-2 gap-2"><button onClick={imprimir} disabled={!img} className="py-3 rounded-2xl font-bold text-sm" style={{background:C.brandSoft,color:C.brandDeep}}>Imprimir tamaño tarjeta</button><button onClick={enviarMail} disabled={!img||busy} className="py-3 rounded-2xl font-bold text-sm" style={{background:C.brandSoft,color:C.brandDeep}}>{busy?"Enviando…":"Enviármelo por mail"}</button></div>
+  </div>);
+}
+
 /* --------------------- Registrar tu mascota (ficha + QR) ------------------ */
 function RegistrarMascotaView({ go, onSave, flash }){
   const [f,setF]=useState({ petName:"", species:"perro", sex:"", color:"", features:"", zona:"Posadas", phone:"", whatsapp:"", notas:"", photo:null });
@@ -1154,7 +1271,7 @@ function MascotaPublicaView({ go, mascota, onReport, flash }){
 }
 
 /* ------------------------- Mis mascotas registradas ----------------------- */
-function MisMascotasView({ go, mascotas=[], user, onDelete, avistamientos=[], irQr, avisosVistos={}, marcarVistos=()=>{} }){
+function MisMascotasView({ go, mascotas=[], user, onDelete, avistamientos=[], irQr, irDni=()=>{}, avisosVistos={}, marcarVistos=()=>{} }){
   const esNuevo=(a)=>!avisosVistos[a.mascota_codigo]||new Date(a.created_at)>new Date(avisosVistos[a.mascota_codigo]);
   const [verAvisos,setVerAvisos]=useState(null); // mascota cuyos avisos se muestran
   const fmtFecha=(f)=>{ try{ return new Date(f).toLocaleDateString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}); }catch{ return ""; } };
@@ -1187,6 +1304,7 @@ function MisMascotasView({ go, mascotas=[], user, onDelete, avistamientos=[], ir
           <div className="flex-1 min-w-0"><div className="font-bold text-sm">{m.pet_name||m.petName}</div><div className="text-[11px]" style={{color:C.muted}}>{m.species}{m.color?" · "+m.color:""} · código {m.codigo}</div>{nuevos>0?<div className="text-[11px] font-bold mt-0.5" style={{color:C.lost}}>🔔 {nuevos} aviso{nuevos>1?"s":""} nuevo{nuevos>1?"s":""}</div>:avisos>0&&<div className="text-[11px] font-bold mt-0.5" style={{color:C.found}}>{avisos} aviso{avisos>1?"s":""}</div>}</div>
         </div>
         {avisos>0 && <button onClick={()=>{setVerAvisos(m);marcarVistos(m.codigo);}} className="mx-3 mb-2 py-2.5 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-1 w-[calc(100%-1.5rem)]" style={{background:C.found}}><Bell size={13}/> Ver {avisos} aviso{avisos>1?"s":""} de dónde la vieron</button>}
+        {user&&m.owner_id===user.id&&<div className="px-3 pb-2"><BotonDNI compacto onClick={()=>irDni(m)}/></div>}
         <div className="flex gap-2 px-3 pb-3">
           <button onClick={()=>irQr(m)} className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white" style={{background:C.brand}}>Ver / imprimir QR</button>
           <button onClick={()=>onDelete(m.id)} className="py-2.5 px-3 rounded-xl text-xs font-bold" style={{background:"#FBE7E7",color:C.lost}}><Trash2 size={14}/></button>
