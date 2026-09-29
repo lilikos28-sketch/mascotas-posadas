@@ -1087,8 +1087,8 @@ async function generarDNI(m, d){
   const L=(label,val,X,Y,max)=>{ x.textAlign="left"; x.fillStyle="#12202B"; x.font=`600 26px ${F}`; x.fillText(label.toUpperCase(),X,Y); let fs=38; let v=String(val||"—").toUpperCase(); x.font=`800 ${fs}px ${F}`; while(x.measureText(v).width>max&&fs>26){ fs-=2; x.font=`800 ${fs}px ${F}`; } while(x.measureText(v).width>max&&v.length>3)v=v.slice(0,-2)+"…"; x.fillText(v,X,Y+42); };
   const nombre=m.pet_name||m.petName||"";
   const c1=700,c2=1170,y0=305,dy=95;
-  L("Nombre",nombre,c1,y0,440); L("Apellido",d.apellido,c1,y0+dy,440); L("Especie",m.species,c1,y0+2*dy,440); L("Sexo",m.sex,c1,y0+3*dy,440);
-  L("Lugar de residencia",d.residencia,c1,y0+4*dy,440); L("Tutor responsable",d.tutor,c1,y0+5*dy,440); L("Teléfono de contacto",m.whatsapp||m.phone,c1,y0+6*dy,440);
+  L("Nombre",nombre,c1,y0,440); L("Especie",m.species,c1,y0+dy,440); L("Sexo",m.sex,c1,y0+2*dy,440);
+  L("Lugar de residencia",d.residencia,c1,y0+3*dy,440); L("Tutor responsable",d.tutor,c1,y0+4*dy,440); L("Teléfono de contacto",m.whatsapp||m.phone,c1,y0+5*dy,440);
   L("N° de legajo",leg,c2,y0,470); L("Raza",d.raza,c2,y0+dy,470); L("Color",m.color,c2,y0+2*dy,470); L("Fecha de nacimiento",d.nacimiento,c2,y0+3*dy,470);
   L("Fecha de emisión",`${hoy.getDate()} ${meses[hoy.getMonth()]} ${hoy.getFullYear()}`,c2,y0+4*dy,470);
   // QR con el registro
@@ -1125,7 +1125,7 @@ function BotonDNI({ onClick, compacto=false }){
 function DNIMascotaView({ go, user, mascotas=[], inicial=null, flash }){
   const mias=mascotas.filter(m=>user&&m.owner_id===user.id);
   const [sel,setSel]=useState(()=>inicial&&mias.find(m=>m.codigo===inicial.codigo)?inicial:(mias[0]||null));
-  const base=(m)=>({ apellido:(user&&user.name||"").split(" ").slice(1).join(" "), raza:"", nacimiento:"", residencia:[m&&m.zona,"Misiones"].filter(Boolean).join(", "), tutor:user?user.name:"" });
+  const base=(m)=>({ raza:"", nacimiento:"", residencia:[m&&m.zona,"Misiones"].filter(Boolean).join(", "), tutor:user?user.name:"" });
   const [d,setD]=useState(()=>sel?{...base(sel),...leerExtraDNI(sel.codigo)}:{});
   const [img,setImg]=useState(null); const [busy,setBusy]=useState(false);
   useEffect(()=>{ if(sel)setD({...base(sel),...leerExtraDNI(sel.codigo)}); },[sel&&sel.codigo]);
@@ -1146,11 +1146,10 @@ function DNIMascotaView({ go, user, mascotas=[], inicial=null, flash }){
     {mias.length>1&&<div className="flex gap-2 overflow-x-auto mp-scroll mb-3">{mias.map(m=><button key={m.codigo} onClick={()=>setSel(m)} className="px-3 py-1.5 rounded-full text-[12px] font-bold whitespace-nowrap" style={{background:sel.codigo===m.codigo?C.brand:C.surface,color:sel.codigo===m.codigo?"#fff":C.ink,border:`1px solid ${C.line}`}}>{m.pet_name||m.codigo}</button>)}</div>}
     <div className="rounded-2xl overflow-hidden shadow-lg mb-4" style={{background:"#EAF5FC",aspectRatio:"1712/1080"}}>{img?<img src={img} alt={`DNI de ${sel.pet_name||"tu mascota"}`} className="w-full h-full object-contain"/>:<div className="w-full h-full flex items-center justify-center text-[12px]" style={{color:C.muted}}>Armando el DNI…</div>}</div>
     <div className="grid grid-cols-2 gap-3">
-      <Field label="Apellido"><input value={d.apellido||""} onChange={e=>set("apellido",e.target.value.slice(0,24))} className="inp" placeholder="Ej: García"/></Field>
       <Field label="Raza"><input value={d.raza||""} onChange={e=>set("raza",e.target.value.slice(0,24))} className="inp" placeholder="Ej: Caniche"/></Field>
       <Field label="Fecha de nacimiento"><input value={d.nacimiento||""} onChange={e=>set("nacimiento",e.target.value.slice(0,14))} className="inp" placeholder="Ej: 10/12/2023"/></Field>
-      <Field label="Residencia"><input value={d.residencia||""} onChange={e=>set("residencia",e.target.value.slice(0,32))} className="inp" placeholder="Ej: Villa Sarita, Misiones"/></Field>
     </div>
+    <Field label="Lugar de residencia"><input value={d.residencia||""} onChange={e=>set("residencia",e.target.value.slice(0,32))} className="inp" placeholder="Ej: Villa Sarita, Misiones"/></Field>
     <Field label="Tutor responsable"><input value={d.tutor||""} onChange={e=>set("tutor",e.target.value.slice(0,32))} className="inp" placeholder="Tu nombre"/></Field>
     <p className="text-[11px] mb-3" style={{color:C.muted}}>El número de DNI es el <b>legajo del registro</b> ({legajoDe(sel)}) y el QR abre la ficha de {sel.pet_name||"tu mascota"}: si se pierde, quien lo escanee te avisa.</p>
     <button onClick={descargar} disabled={!img} className="w-full py-3.5 rounded-2xl font-bold text-white mb-2" style={{background:C.brand}}>Descargar DNI</button>
