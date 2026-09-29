@@ -150,8 +150,8 @@ async function getClient(){
   return _client;
 }
 /* Mapeo fila <-> objeto de la app */
-const toRow = (p)=>({ owner_id:p.owner_id??null, type:p.type, status:p.status, pet_name:p.petName, species:p.species, sex:p.sex, age_approx:p.ageApprox, color:p.color, features:p.features, date:p.date, time:p.time, place:p.place, zona:p.zona, barrio:p.barrio, cp:p.cp, description:p.description, photo:p.photo, contact_name:p.contactName, phone:p.phone, whatsapp:p.whatsapp, reward:p.reward, lat:p.lat, lng:p.lng, precise_location:p.preciseLocation, recovered_at:p.recoveredAt, approved:p.approved, reported:p.reported, city:p.city, mascota_codigo:p.mascotaCodigo });
-const fromRow = (r)=>({ id:r.id, legajo:r.legajo, owner_id:r.owner_id, type:r.type, status:r.status, petName:r.pet_name, species:r.species, sex:r.sex, ageApprox:r.age_approx, color:r.color, features:r.features, date:r.date, time:r.time, place:r.place, zona:r.zona, barrio:r.barrio, cp:r.cp, description:r.description, photo:r.photo, contactName:r.contact_name, phone:r.phone, whatsapp:r.whatsapp, reward:r.reward, lat:r.lat, lng:r.lng, preciseLocation:r.precise_location, recoveredAt:r.recovered_at, createdAt:r.created_at, approved:r.approved, reported:r.reported, city:r.city, mascotaCodigo:r.mascota_codigo, demo:false, emoji:EMO[r.species]||"🐾" });
+const toRow = (p)=>({ owner_id:p.owner_id??null, type:p.type, status:p.status, pet_name:p.petName, species:p.species, sex:p.sex, age_approx:p.ageApprox, color:p.color, features:p.features, date:p.date, time:p.time, place:p.place, zona:p.zona, barrio:p.barrio, cp:p.cp, description:p.description, photo:p.photo, contact_name:p.contactName, phone:p.phone, whatsapp:p.whatsapp, reward:p.reward, lat:p.lat, lng:p.lng, precise_location:p.preciseLocation, recovered_at:p.recoveredAt, approved:p.approved, reported:p.reported, city:p.city, mascota_codigo:p.mascotaCodigo, ...(p.huella?{huella_foto:p.huella}:{}) });
+const fromRow = (r)=>({ id:r.id, legajo:r.legajo, owner_id:r.owner_id, type:r.type, status:r.status, petName:r.pet_name, species:r.species, sex:r.sex, ageApprox:r.age_approx, color:r.color, features:r.features, date:r.date, time:r.time, place:r.place, zona:r.zona, barrio:r.barrio, cp:r.cp, description:r.description, photo:r.photo, contactName:r.contact_name, phone:r.phone, whatsapp:r.whatsapp, reward:r.reward, lat:r.lat, lng:r.lng, preciseLocation:r.precise_location, recoveredAt:r.recovered_at, createdAt:r.created_at, approved:r.approved, reported:r.reported, city:r.city, mascotaCodigo:r.mascota_codigo, huella:r.huella_foto||null, demo:false, emoji:EMO[r.species]||"🐾" });
 async function uploadPhoto(client, dataUrl){
   try{ const blob=await(await fetch(dataUrl)).blob(); const name=`pub/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
     const { error }=await client.storage.from("fotos").upload(name,blob,{contentType:"image/jpeg"}); if(error)throw error;
@@ -172,14 +172,15 @@ const isAdmin = (user)=> CLOUD ? !!(user&&ADMIN_EMAILS.includes(user.email)) : t
 
 /* --------------------- Motor de coincidencia (interfaz) ------------------ */
 const MatchEngine = {
-  visionHook:null, // (target,candidate)=>Promise<0..100>|null  ← IA visual (🔴 requiere servicio pago)
+  visionHook:null, // la comparación visual se hace con similitudFotos (MobileNet, gratis)
   attributeScore(a,b){ let s=0,m=0;const add=(w,ok)=>{m+=w;if(ok)s+=w;};
     add(35,a.species===b.species);const ac=(a.color||"").toLowerCase(),bc=(b.color||"").toLowerCase();
     add(25,ac.split(/\s|y/).some(t=>t.length>2&&bc.includes(t)));add(15,a.sex&&a.sex===b.sex);add(15,a.barrio===b.barrio);
     const fa=(a.features||"").toLowerCase(),fb=(b.features||"").toLowerCase();add(10,fa&&fb&&fa.split(/\W+/).some(t=>t.length>3&&fb.includes(t)));return Math.round(s/m*100); },
-  rank(target,cands){ return cands.filter(p=>(p.type==="found"||p.type==="seen")&&p.id!==target.id&&p.status!=="reunited")
-    .map(p=>({post:p,score:this.attributeScore(target,p),visualScore:null,distanceKm:target.lat&&p.lat?haversine([target.lat,target.lng],[p.lat,p.lng]):null,ago:p.createdAt}))
-    .filter(m=>m.score>=45).sort((a,b)=>b.score-a.score).slice(0,4); },
+  rank(target,cands){ return cands.filter(p=>(p.type==="found"||p.type==="seen")&&p.id!==target.id&&p.status!=="reunited"&&(!target.species||!p.species||target.species===p.species||p.species==="otro"))
+    .map(p=>{ const attr=this.attributeScore(target,p); const vis=puntajeFoto(similitudFotos(target.huella,p.huella)); const score=vis==null?attr:Math.round(attr*0.6+vis*0.4);
+      return {post:p,score,attrScore:attr,visualScore:vis,distanceKm:target.lat&&p.lat?haversine([target.lat,target.lng],[p.lat,p.lng]):null,ago:p.createdAt}; })
+    .filter(m=>m.score>=45||(m.visualScore!=null&&m.visualScore>=75&&m.attrScore>=35)).sort((a,b)=>b.score-a.score).slice(0,4); },
 };
 
 /* ----------------------------- Datos DEMO -------------------------------- */
@@ -364,7 +365,8 @@ export default function App(){
     // Revisión automática: sin animal en la foto o foto repetida => queda en revisión
     let aprobada=true;
     if(p.photo){ const otras=realPosts.filter(x=>x.photo&&typeof x.photo==="string"&&x.photo.startsWith("http")&&(!user||x.owner_id!==user.id)); const rv=await revisarFoto(p.photo,otras); if(!rv.animal||rv.repetida){ aprobada=false; flash(rv.repetida?"Tu publicación quedó en revisión: la foto ya aparece en otra publicación. La aprobamos a la brevedad.":"Tu publicación quedó en revisión porque no detectamos un animal en la foto. La aprobamos a la brevedad."); } }
-    const partial={ ...p, city:"posadas", approved:aprobada, reported:false, recoveredAt:null, status:p.type==="found"?"found":p.type==="lost"?"lost":"searching", emoji:EMO[p.species]||"🐾", owner_id:(user&&user.id)||(conn==="cloud"?null:"local"), contactName:(user&&user.name)||"Vecino/a" };
+    let huella=null; if(p.photo){ try{ huella=await huellaFoto(p.photo); }catch{} }
+    const partial={ ...p, city:"posadas", approved:aprobada, ...(huella?{huella}:{}), reported:false, recoveredAt:null, status:p.type==="found"?"found":p.type==="lost"?"lost":"searching", emoji:EMO[p.species]||"🐾", owner_id:(user&&user.id)||(conn==="cloud"?null:"local"), contactName:(user&&user.name)||"Vecino/a" };
     if(conn==="cloud"){ try{ const c=await getClient(); let photo=p.photo; if(photo&&photo.startsWith("data:"))photo=await uploadPhoto(c,photo); const {data,error}=await c.from("publicaciones").insert(toRow({...partial,photo})).select().single(); if(error)throw error; const np=fromRow(data); setRealPosts(prev=>[np,...prev]); setCurrent(np); return np; }catch(e){ flash("No se pudo guardar en la nube."); return null; } }
     const id=Math.max(1000,...realPosts.filter(x=>typeof x.id==="number").map(x=>x.id))+1; const np={...partial,id,createdAt:new Date().toISOString()}; const next=[np,...realPosts]; setRealPosts(next); Local.set(KEYS.posts,next); setCurrent(np); return np;
   };
@@ -465,6 +467,11 @@ export default function App(){
   const visible=posts.filter(p=>p.approved!==false&&(reportesPorPost[String(p.id)]||0)<3);
   // Avisos que dejaron personas que escanearon el QR de MIS mascotas y que todavía no vi
   const misCodigos=user?misMascotas.filter(m=>m.owner_id===user.id).map(m=>m.codigo):[];
+  // Coincidencias nuevas para MIS mascotas perdidas (se calculan en este celular)
+  const [coincVistas,setCoincVistas]=useState(()=>{ try{ return JSON.parse(window.localStorage.getItem("mp_coinc_vistas")||"[]"); }catch{ return []; } });
+  const misPerdidas=user?realPosts.filter(p=>p.owner_id===user.id&&p.type==="lost"&&p.status!=="reunited"):[];
+  const coincNuevas=misPerdidas.flatMap(mp=>MatchEngine.rank(mp,visible).filter(m=>m.score>=60).map(m=>({mia:mp,...m}))).filter(c=>!coincVistas.includes(`${c.mia.id}:${c.post.id}`));
+  const verCoincidencia=(c)=>{ const n=[...coincVistas,`${c.mia.id}:${c.post.id}`]; setCoincVistas(n); try{ window.localStorage.setItem("mp_coinc_vistas",JSON.stringify(n)); }catch{} go("detail",{post:c.post}); };
   const avisosNuevos=avistamientos.filter(a=>misCodigos.includes(a.mascota_codigo)&&(!avisosVistos[a.mascota_codigo]||new Date(a.created_at)>new Date(avisosVistos[a.mascota_codigo])));
 
   return (
@@ -493,8 +500,9 @@ export default function App(){
         .inp{width:100%;padding:11px 13px;border-radius:14px;border:1px solid ${C.line};background:${C.surface};font-size:14px;outline:none;color:${C.ink}}`}</style>
 
       <div className="mx-auto max-w-[480px] md:max-w-[680px] relative pb-24" style={{background:C.bg}}>
-        <Header abrirGuia={()=>setGuia(true)} go={go} count={avisosNuevos.length} conn={conn} />
+        <Header abrirGuia={()=>setGuia(true)} go={go} count={avisosNuevos.length+coincNuevas.length} conn={conn} />
 
+        {view==="home" && coincNuevas.slice(0,2).map(c=>(<button key={`${c.mia.id}:${c.post.id}`} onClick={()=>verCoincidencia(c)} className="mx-4 mt-3 w-[calc(100%-2rem)] rounded-2xl p-3 flex items-center gap-3 text-left" style={{background:C.surface,border:`2px solid ${C.reunited}`}}><div className="w-14 h-14 rounded-xl overflow-hidden shrink-0"><Thumb post={c.post} h={56}/></div><div className="flex-1 min-w-0"><div className="font-extrabold text-[13px]" style={{color:C.reunited}}>¿Es {c.mia.petName||"tu mascota"}?</div><div className="text-[12px]" style={{color:C.ink}}>{c.post.type==="found"?"Encontraron":"Vieron"} una mascota parecida en {ubicTxt(c.post)}.</div><div className="text-[11px] font-semibold" style={{color:C.muted}}>Tocá para ver la foto{c.visualScore!=null&&c.visualScore>=70?" · Foto muy parecida":""}</div></div><ChevronRight size={18} color={C.muted}/></button>))}
         {view==="home" && avisosNuevos.length>0 && (<button onClick={()=>go("mis_mascotas")} className="mx-4 mt-3 w-[calc(100%-2rem)] rounded-2xl p-3.5 flex items-center gap-3 text-left text-white" style={{background:C.lost}}><Bell size={22} className="shrink-0"/><div className="flex-1"><div className="font-extrabold text-[14px]">¡Tenés {avisosNuevos.length} aviso{avisosNuevos.length>1?"s":""} nuevo{avisosNuevos.length>1?"s":""}!</div><div className="text-[12px] opacity-95">Alguien escaneó el QR de tu mascota. Tocá para ver dónde la vieron.</div></div><ChevronRight size={18}/></button>)}
         {view==="home"    && <HomeView posts={visible} go={go} conn={conn} user={user} realPosts={realPosts} />}
         {view==="map"     && <MapView posts={visible} go={go} />}
@@ -837,7 +845,7 @@ function DetailView({ post, all, go, setStatus, flash, onReport, user, onDelete 
         <div className="rounded-2xl p-3.5 mt-3 flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><Shield size={18} color={C.brand}/><div className="flex-1"><div className="text-[12px] font-bold">Contacto: {post.contactName}</div><div className="text-[11px]" style={{color:C.muted}}>{maskPhone(post.whatsapp)} — protegido</div></div></div>
         <button onClick={wa} className="mt-3 w-full py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2" style={{background:C.found}}><Phone size={18}/> Contactar por WhatsApp</button>
 
-        {matches.length>0&&(<div className="mt-4"><div className="flex items-center gap-2 font-extrabold text-sm"><Sparkles size={16} color={C.reunited}/> Posibles coincidencias <Tag t="PARCIAL"/></div><p className="text-[11px] mb-2" style={{color:C.muted}}>Sugerencias por características. No es una identificación segura.</p><div className="space-y-2">{matches.map(({post:p,score,distanceKm,ago})=>(<button key={p.id} onClick={()=>go("detail",{post:p})} className="w-full flex items-center gap-3 p-2.5 rounded-2xl text-left" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-14 h-14 rounded-xl overflow-hidden shrink-0"><Thumb post={p} h={56}/></div><div className="flex-1 min-w-0"><div className="text-[10px] font-bold" style={{color:TYPE[p.type].dot}}><Punto e={TYPE[p.type].ico}/> Posible coincidencia · {TYPE[p.type].label}</div><div className="font-bold text-sm truncate">{p.petName||p.species} · {ubicTxt(p)}</div><div className="text-[11px] flex items-center gap-2" style={{color:C.muted}}>{distanceKm!=null&&<span className="flex items-center gap-0.5"><Ruler size={10}/> {distanceKm.toFixed(1)} km</span>}<span className="flex items-center gap-0.5"><Clock size={10}/> {timeAgo(ago)}</span></div></div><div className="text-right shrink-0"><div className="font-extrabold text-sm" style={{color:C.reunited}}>{score}%</div><div className="text-[9px]" style={{color:C.muted}}>similitud</div></div></button>))}</div></div>)}
+        {matches.length>0&&(<div className="mt-4"><div className="flex items-center gap-2 font-extrabold text-sm"><Sparkles size={16} color={C.reunited}/> Posibles coincidencias</div><p className="text-[11px] mb-2" style={{color:C.muted}}>Sugerencias por características y parecido de la foto. No es una identificación segura: mirá bien las fotos.</p><div className="space-y-2">{matches.map(({post:p,score,distanceKm,ago,visualScore})=>(<button key={p.id} onClick={()=>go("detail",{post:p})} className="w-full flex items-center gap-3 p-2.5 rounded-2xl text-left" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-14 h-14 rounded-xl overflow-hidden shrink-0"><Thumb post={p} h={56}/></div><div className="flex-1 min-w-0"><div className="text-[10px] font-bold" style={{color:TYPE[p.type].dot}}><Punto e={TYPE[p.type].ico}/> Posible coincidencia · {TYPE[p.type].label}{visualScore!=null&&visualScore>=70&&<span className="ml-1 px-1.5 py-0.5 rounded-full text-white" style={{background:C.reunited}}>Foto muy parecida</span>}</div><div className="font-bold text-sm truncate">{p.petName||p.species} · {ubicTxt(p)}</div><div className="text-[11px] flex items-center gap-2" style={{color:C.muted}}>{distanceKm!=null&&<span className="flex items-center gap-0.5"><Ruler size={10}/> {distanceKm.toFixed(1)} km</span>}<span className="flex items-center gap-0.5"><Clock size={10}/> {timeAgo(ago)}</span></div></div><div className="text-right shrink-0"><div className="font-extrabold text-sm" style={{color:C.reunited}}>{score}%</div><div className="text-[9px]" style={{color:C.muted}}>similitud</div></div></button>))}</div></div>)}
 
         {canManage&&(<div className="mt-4 rounded-2xl p-3.5" style={{background:C.surface,border:`1px solid ${C.line}`}}>
           <div className="text-[12px] font-bold mb-2">Gestionar {owner?"(tu publicación)":"(admin)"}</div>
@@ -1039,6 +1047,24 @@ const conTiempo=(prom,ms)=>Promise.race([prom,new Promise(r=>setTimeout(()=>r("_
 const cargarImagen=(src)=>new Promise((ok,mal)=>{ const im=new Image(); im.crossOrigin="anonymous"; im.onload=()=>ok(im); im.onerror=()=>mal(new Error("img")); im.src=src; });
 const huellaImagen=async(src)=>{ const im=await cargarImagen(src); const cv=document.createElement("canvas"); cv.width=9; cv.height=8; const x=cv.getContext("2d"); x.drawImage(im,0,0,9,8); const d=x.getImageData(0,0,9,8).data; let bits=""; for(let y=0;y<8;y++)for(let c=0;c<8;c++){ const i=(y*9+c)*4, j=(y*9+c+1)*4; const a=d[i]*.3+d[i+1]*.59+d[i+2]*.11, b=d[j]*.3+d[j+1]*.59+d[j+2]*.11; bits+=a>b?"1":"0"; } return bits; };
 const distancia=(a,b)=>{ let n=0; for(let i=0;i<a.length;i++)if(a[i]!==b[i])n++; return n; };
+// Huella visual de una foto: vector de MobileNet, normalizado y comprimido en texto ("v1:..."). Gratis, en el celular.
+let _mobilenetPromesa=null;
+const cargarMobilenet=()=>{ if(typeof window==="undefined")return Promise.resolve(null);
+  if(!_mobilenetPromesa){ _mobilenetPromesa=(async()=>{ await cargarScript("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"); await cargarScript("https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"); return await window.mobilenet.load({version:2,alpha:1.0}); })().catch(()=>{ _mobilenetPromesa=null; return null; }); }
+  return _mobilenetPromesa; };
+async function huellaFoto(src){
+  try{ const m=await conTiempo(cargarMobilenet(),25000); if(!m||m==="__timeout")return null;
+    const im=await cargarImagen(src); const t=m.infer(im,true); const v=Array.from(await t.data()); t.dispose();
+    const norma=Math.sqrt(v.reduce((a,b)=>a+b*b,0))||1; const n=v.map(x=>x/norma); const max=Math.max(...n.map(Math.abs))||1;
+    const q=new Int8Array(n.map(x=>Math.round(x/max*127))); let bin=""; q.forEach(b=>{ bin+=String.fromCharCode(b&255); });
+    return `v1:${max.toFixed(6)}:${btoa(bin)}`;
+  }catch{ return null; } }
+const leerHuella=(h)=>{ try{ if(!h||!h.startsWith("v1:"))return null; const [,max,b64]=h.split(":"); const bin=atob(b64); const out=new Float32Array(bin.length); for(let i=0;i<bin.length;i++){ let b=bin.charCodeAt(i); if(b>127)b-=256; out[i]=b/127*parseFloat(max); } return out; }catch{ return null; } };
+const _cacheHuellas=new Map();
+const similitudFotos=(ha,hb)=>{ if(!ha||!hb)return null; const get=(h)=>{ if(!_cacheHuellas.has(h))_cacheHuellas.set(h,leerHuella(h)); return _cacheHuellas.get(h); };
+  const a=get(ha), b=get(hb); if(!a||!b||a.length!==b.length)return null; let d=0,na=0,nb=0; for(let i=0;i<a.length;i++){ d+=a[i]*b[i]; na+=a[i]*a[i]; nb+=b[i]*b[i]; } return d/(Math.sqrt(na*nb)||1); };
+// Parecido de foto en 0..100 (0,55 o menos = nada parecido; 0,90 o más = muy parecido)
+const puntajeFoto=(sim)=>sim==null?null:Math.round(Math.max(0,Math.min(1,(sim-0.55)/0.35))*100);
 async function revisarFoto(foto, otrasPublicaciones=[]){
   const r={ animal:true, repetida:false };
   if(!foto)return r;
@@ -1580,7 +1606,7 @@ function AdminView({ posts, reports, approve, removePost, go, clearReport, conn,
 
       {tab==="lugares"&&<LugaresAdmin lugares={lugares} guardarLugar={guardarLugar} borrarLugar={borrarLugar}/>}
 
-      {tab==="estado"&&<AuditPanel conn={conn}/>}
+      {tab==="estado"&&<AuditPanel conn={conn} posts={posts}/>}
     </div>
   );
 }
@@ -1651,12 +1677,18 @@ function LugaresAdmin({ lugares=[], guardarLugar, borrarLugar }){
 }
 function Bars({ data, max, color }){ return <div className="space-y-2">{data.map(x=><div key={x.b} className="flex items-center gap-2"><div className="w-24 text-[11px] truncate" style={{color:C.muted}}>{x.b}</div><div className="flex-1 h-3 rounded-full overflow-hidden" style={{background:C.bg}}><div style={{width:`${x.n/max*100}%`,background:color,height:"100%"}}/></div><div className="w-5 text-right text-[11px] font-bold">{x.n}</div></div>)}</div>; }
 function Kpi({ n, l, c }){ return <div className="rounded-2xl p-3.5" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="text-2xl font-extrabold" style={{color:c}}>{n}</div><div className="text-[11px] font-semibold" style={{color:C.muted}}>{l}</div></div>; }
-function AuditPanel({ conn }){
-  const green=["Publicar (perdida/encontrada/vista) con foto","Buscador sin tildes y filtros","Mapa con publicaciones reales, agrupadas y en zona aproximada","Coincidencias por características, distancia y tiempo","WhatsApp al dueño con el anuncio y su enlace","Compartir con enlace directo y vista previa con foto","Botón atrás dentro de la página","Multiusuario en la nube (Supabase + Netlify)","Moderación, reportes y ocultado automático con 3 reportes","Revisión automática de fotos: sin animal o repetida queda en revisión (gratis)","Registro de mascotas con QR y avisos al dueño (campanita)","Blog con notas y enlaces directos","Todo sin costo ($0)"];
+function AuditPanel({ conn, posts=[] }){
+  const [hBusy,setHBusy]=useState(false); const [hMsg,setHMsg]=useState("");
+  const pendientes=posts.filter(p=>!p.demo&&!p.huella&&typeof p.photo==="string"&&p.photo.startsWith("http"));
+  const calcularHuellas=async()=>{ setHBusy(true); let ok=0; const c=await getClient();
+    for(let i=0;i<pendientes.length;i++){ const p=pendientes[i]; setHMsg(`Calculando ${i+1} de ${pendientes.length}…`);
+      const h=await huellaFoto(p.photo); if(h&&c){ const {error}=await c.from("publicaciones").update({huella_foto:h}).eq("id",p.id); if(!error){ ok++; p.huella=h; } } }
+    setHMsg(`Listo: ${ok} de ${pendientes.length} fotos con huella.`); setHBusy(false); };
+  const green=["Publicar (perdida/encontrada/vista) con foto","Buscador sin tildes y filtros","Mapa con publicaciones reales, agrupadas y en zona aproximada","Coincidencias por características, distancia y tiempo","WhatsApp al dueño con el anuncio y su enlace","Compartir con enlace directo y vista previa con foto","Botón atrás dentro de la página","Multiusuario en la nube (Supabase + Netlify)","Moderación, reportes y ocultado automático con 3 reportes","Revisión automática de fotos: sin animal o repetida queda en revisión (gratis)","Coincidencia por parecido de foto y aviso al dueño (gratis, en el celular)","Registro de mascotas con QR y avisos al dueño (campanita)","Blog con notas y enlaces directos","Todo sin costo ($0)"];
   const yellow=["Notificaciones en el celular con la página cerrada: se puede sumar gratis, requiere configuración","Avisos al dueño: se ven al abrir la página"];
-  const red=["Comparar fotos entre sí para encontrar coincidencias: requiere servicio pago, no activar","Cobro a negocios: no implementar"];
+  const red=["Reconocimiento exacto de un animal individual: requiere servicio pago, no activar","Cobro a negocios: no implementar"];
   const Block=({t,items,c})=><div className="rounded-2xl p-3.5 mb-2.5" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-extrabold text-sm mb-2" style={{color:c}}>{t}</div><ul className="space-y-1">{items.map(i=><li key={i} className="text-[12px] flex gap-1.5"><span style={{color:c}}>•</span> {i}</li>)}</ul></div>;
-  return (<div className="mb-2"><div className="rounded-2xl p-3 mb-2.5 text-[12px] flex items-center gap-2" style={{background:conn==="cloud"?C.brandSoft:"#FFF7E6",border:`1px solid ${conn==="cloud"?C.brand:"#F3E1B5"}`}}>{conn==="cloud"?<Cloud size={16} color={C.brand}/>:<CloudOff size={16} color={C.seen}/>}<b style={{color:conn==="cloud"?C.brandDeep:"#7A5B14"}}>Modo actual: {conn==="cloud"?"NUBE (multiusuario)":"LOCAL (este dispositivo)"}</b></div><Block t="🟢 Funcional" items={green} c={C.found}/><Block t="🟡 Parcial" items={yellow} c={C.seen}/><Block t="🔴 Requiere pago / no activar" items={red} c={C.lost}/></div>);
+  return (<div className="mb-2"><div className="rounded-2xl p-3 mb-2.5 text-[12px] flex items-center gap-2" style={{background:conn==="cloud"?C.brandSoft:"#FFF7E6",border:`1px solid ${conn==="cloud"?C.brand:"#F3E1B5"}`}}>{conn==="cloud"?<Cloud size={16} color={C.brand}/>:<CloudOff size={16} color={C.seen}/>}<b style={{color:conn==="cloud"?C.brandDeep:"#7A5B14"}}>Modo actual: {conn==="cloud"?"NUBE (multiusuario)":"LOCAL (este dispositivo)"}</b></div><div className="rounded-2xl p-3 mb-2 text-[12px]" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold mb-1">Huellas de fotos (coincidencia por foto)</div><div style={{color:C.muted}}>{pendientes.length} publicaciones con foto sin huella.</div>{pendientes.length>0&&<button onClick={calcularHuellas} disabled={hBusy} className="mt-2 w-full py-2 rounded-xl font-bold text-white" style={{background:C.brand}}>{hBusy?"Calculando…":"Calcular huellas de fotos"}</button>}{hMsg&&<div className="mt-1 font-semibold" style={{color:C.brandDeep}}>{hMsg}</div>}</div><Block t="🟢 Funcional" items={green} c={C.found}/><Block t="🟡 Parcial" items={yellow} c={C.seen}/><Block t="🔴 Requiere pago / no activar" items={red} c={C.lost}/></div>);
 }
 
 /* ------------------------ Asistente de ayuda (sin costo) ------------------------
