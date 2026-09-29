@@ -1157,7 +1157,8 @@ function DNIMascotaView({ go, user, mascotas=[], inicial=null, flash }){
     <Field label="Tutor responsable"><input value={d.tutor||""} onChange={e=>set("tutor",e.target.value.slice(0,32))} className="inp" placeholder="Tu nombre"/></Field>
     <p className="text-[11px] mb-3" style={{color:C.muted}}>El número de DNI es el <b>legajo del registro</b> ({legajoDe(sel)}) y el QR abre la ficha de {sel.pet_name||"tu mascota"}: si se pierde, quien lo escanee te avisa.</p>
     <button onClick={descargar} disabled={!img} className="w-full py-3.5 rounded-2xl font-bold text-white mb-2" style={{background:C.brand}}>Descargar DNI</button>
-    <div className="grid grid-cols-2 gap-2"><button onClick={imprimir} disabled={!img} className="py-3 rounded-2xl font-bold text-sm" style={{background:C.brandSoft,color:C.brandDeep}}>Imprimir tamaño tarjeta</button><button onClick={enviarMail} disabled={!img||busy} className="py-3 rounded-2xl font-bold text-sm" style={{background:C.brandSoft,color:C.brandDeep}}>{busy?"Enviando…":"Enviármelo por mail"}</button></div>
+    {/* Envío por mail desactivado temporalmente (falta configurar Brevo) */}
+    <button onClick={imprimir} disabled={!img} className="w-full py-3 rounded-2xl font-bold text-sm" style={{background:C.brandSoft,color:C.brandDeep}}>Imprimir tamaño tarjeta</button>
   </div>);
 }
 
@@ -1671,7 +1672,7 @@ const AYUDA=[
     pasos:["Si se pierde, quien la encuentre escanea el código con la cámara del celular.","Ve la ficha de tu mascota y te deja un aviso con su WhatsApp y dónde la vio.","Vos lo ves en la campanita, sin que tu teléfono quede a la vista."],
     acciones:[["Registrar mi mascota","go:registrar_mascota"],["Leer más sobre la chapita QR","nota:qr"]] },
   { k:"dni", t:"🪪 ¿Cómo funciona el DNI de mi mascota?", intro:"Es una tarjeta con la foto, los datos y el QR de tu mascota, para guardar o imprimir. Es gratis.",
-    pasos:["Ingresá con tu cuenta y registrá a tu mascota (si todavía no lo hiciste).","Tocá \"¡Descargá el DNI de tu mascota!\", completá raza, fecha de nacimiento y residencia, y mirá la vista previa.","Descargalo, imprimilo en tamaño tarjeta o recibilo por mail. El número de DNI es el legajo del registro y el QR abre su ficha: si se pierde, quien lo escanee te avisa."],
+    pasos:["Ingresá con tu cuenta y registrá a tu mascota (si todavía no lo hiciste).","Tocá \"¡Descargá el DNI de tu mascota!\", completá raza, fecha de nacimiento y residencia, y mirá la vista previa.","Descargalo o imprimilo en tamaño tarjeta. El número de DNI es el legajo del registro y el QR abre su ficha: si se pierde, quien lo escanee te avisa."],
     acciones:[["Crear el DNI de mi mascota","go:dni_mascota"],["Registrar mi mascota","go:registrar_mascota"]] },
   { k:"plata", t:"⚠️ Me piden plata", intro:"Cuidado: es una estafa común con mascotas perdidas.",
     pasos:["No pagues nada antes de ver a tu mascota. Pedí una foto o un video actual, con algo que pruebe que es de hoy.","Si se encuentran, que sea en un lugar público y acompañado/a.","Reportá la publicación desde el botón de reporte del anuncio. Si hay amenazas o extorsión, hacé la denuncia policial."],
