@@ -48,6 +48,28 @@ export default async (request, context) => {
     html = html.replace(/\s*<meta\s+property="og:image:(width|height)"[^>]*>/gi, "");
     return new Response(html, { status: response.status, headers });
   }
+  // Notas del blog cargadas desde el panel: se buscan en la base para mostrar su título y su portada
+  const nota = url.searchParams.get("nota");
+  if (!id && nota && /^[\w-]{1,64}$/.test(nota)) {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/blog?id=eq.${encodeURIComponent(nota)}&select=titulo,texto,foto`, { headers: { apikey: SUPABASE_KEY } });
+      const rows = r.ok ? await r.json() : [];
+      const n = rows && rows[0];
+      if (n && n.titulo) {
+        const txt = String(n.texto || "").replace(/\s+/g, " ").trim();
+        const d = txt ? (txt.length > 150 ? txt.slice(0, 147) + "…" : txt) : "Consejos de Mascotas Perdidas Misiones.";
+        const f = typeof n.foto === "string" ? n.foto : "";
+        const img = f.startsWith("https://") ? f : f.startsWith("/") ? SITE + f : SITE + "/portada.png";
+        const setP = (attr, key, val) => { const re = new RegExp(`(<meta\\s+${attr}="${key}"\\s+content=")[^"]*(")`, "i"); html = html.replace(re, `$1${esc(val)}$2`); };
+        setP("property", "og:type", "article");
+        setP("property", "og:title", n.titulo); setP("property", "og:description", d); setP("property", "og:image", img); setP("property", "og:url", `${SITE}/?nota=${encodeURIComponent(nota)}`);
+        setP("name", "twitter:title", n.titulo); setP("name", "twitter:description", d); setP("name", "twitter:image", img);
+        html = html.replace(/\s*<meta\s+property="og:image:(width|height)"[^>]*>/gi, "");
+        html = html.replace(/<title>[^<]*<\/title>/i, `<title>${esc(n.titulo)} · Mascotas Perdidas Misiones</title>`);
+      }
+    } catch {}
+    return new Response(html, { status: response.status, headers });
+  }
   if (!id || !/^[\w-]{1,64}$/.test(id)) return new Response(html, { status: response.status, headers });
 
   try {
