@@ -449,7 +449,7 @@ export default function App(){
     const rec={ titulo:clean(entrada.titulo,120), texto:cleanText(entrada.texto,6000), foto:entrada.foto||null };
     if(conn==="cloud"){ try{ const c=await getClient(); let foto=rec.foto; if(foto&&foto.startsWith("data:"))foto=await uploadPhoto(c,foto);
       if(entrada.id){ const {error}=await c.from("blog").update({...rec,foto}).eq("id",entrada.id); if(error)throw error; setBlog(prev=>prev.map(b=>b.id===entrada.id?{...b,...rec,foto}:b)); }
-      else { const {error}=await c.from("blog").insert({...rec,foto}); if(error)throw error; const full={...rec,foto,id:Date.now(),created_at:new Date().toISOString()}; setBlog(prev=>[full,...prev]); }
+      else { const {data:nueva,error}=await c.from("blog").insert({...rec,foto}).select().single(); if(error)throw error; const full=nueva||{...rec,foto,id:Date.now(),created_at:new Date().toISOString()}; setBlog(prev=>[full,...prev]); }
       return true; }catch(e){ flash("No se pudo guardar la entrada."); return false; } }
     if(entrada.id){ const nb=blog.map(b=>b.id===entrada.id?{...b,...rec}:b); setBlog(nb); Local.set(KEYS.blog,nb); }
     else { const full={...rec,id:Date.now(),created_at:new Date().toISOString()}; const nb=[full,...blog]; setBlog(nb); Local.set(KEYS.blog,nb); }
@@ -505,7 +505,7 @@ export default function App(){
         {view==="help"    && <HelpView go={go} lugares={lugares} />}
         {view==="business"&& <BusinessView go={go} />}
         {view==="contacto"&& <ContactoView go={go} onSend={enviarMensaje} />}
-        {view==="blog"&& <BlogView go={go} notaInicial={notaInicial} entradas={[...blog,...BLOG_FIJO.filter(f=>!blog.some(b=>b.titulo===f.titulo))].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))} />}
+        {view==="blog"&& <BlogView go={go} flash={flash} notaInicial={notaInicial} entradas={[...blog,...BLOG_FIJO.filter(f=>!blog.some(b=>b.titulo===f.titulo))].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))} />}
         {view==="registrar_mascota"&& (requireAuthToPublish ? <AuthGate go={go} /> : <RegistrarMascotaView go={go} onSave={async(f)=>{ const m=await registrarMascota(f); if(m){ setQrMascota(m); } return m; }} flash={flash} />)}
         {view==="mis_mascotas"&& <MisMascotasView go={go} mascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} user={user} onDelete={borrarMascota} avistamientos={avistamientos} avisosVistos={avisosVistos} marcarVistos={marcarAvisosVistos} setQr={setQrMascota} irQr={(m)=>{setQrMascota(m);go("qr_mascota");}} irDni={(m)=>{setDniMascota(m);go("dni_mascota");}} />}
         {view==="dni_mascota"&& <DNIMascotaView go={go} user={user} mascotas={misMascotas} inicial={dniMascota} flash={flash} />}
@@ -1427,12 +1427,27 @@ const BLOG_FIJO = [
 "created_at": "2026-09-29T15:09:00Z",
 "fija": true
 }
-];function BlogView({ go, entradas=[], notaInicial=null }){
-  const [abierta,setAbierta]=useState(()=>notaInicial?entradas.find(e=>String(e.id)===String(notaInicial))||null:null);
+];
+// Compartir una nota del blog: enlace directo a la nota (con vista previa de su portada)
+const linkNota = (e)=>`${SITE_URL}/?nota=${encodeURIComponent(e.id)}`;
+const textoNota = (e)=>`📝 ${e.titulo}\n\nLeelo en Mascotas Perdidas Misiones 🐾 ${linkNota(e)}`;
+const compartirNota = (e,net,flash)=>{ const link=linkNota(e); const text=textoNota(e);
+  if(net==="wa") window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
+  else if(net==="fb") window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`,"_blank");
+  else if(net==="x") window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent("📝 "+e.titulo+" 🐾")}&url=${encodeURIComponent(link)}`,"_blank");
+  else if(net==="native"){ if(navigator.share) navigator.share({title:e.titulo,text:`📝 ${e.titulo} 🐾`,url:link}).catch(()=>{}); else { navigator.clipboard&&navigator.clipboard.writeText(link); flash&&flash("Enlace copiado."); } }
+  else { navigator.clipboard&&navigator.clipboard.writeText(link); flash&&flash("Enlace copiado. Pegalo en Instagram, TikTok o donde quieras."); } };
+function BlogView({ go, entradas=[], notaInicial=null, flash }){
+  const [abierta,setAbiertaRaw]=useState(()=>notaInicial?entradas.find(e=>String(e.id)===String(notaInicial))||null:null);
+  // Si la nota compartida todavía no había cargado, se abre apenas llega
+  const yaAbrio=useRef(!!abierta);
+  useEffect(()=>{ if(yaAbrio.current||!notaInicial)return; const e=entradas.find(x=>String(x.id)===String(notaInicial)); if(e){ yaAbrio.current=true; setAbiertaRaw(e); } },[entradas,notaInicial]);
+  // La dirección del navegador muestra el enlace de la nota abierta (para copiarlo o compartirlo)
+  const setAbierta=(e)=>{ setAbiertaRaw(e); try{ window.history.replaceState({v:"blog"},"",e?`/?nota=${encodeURIComponent(e.id)}`:"/?v=blog"); }catch{} window.scrollTo(0,0); };
   const fmtFecha=(f)=>{ try{ return new Date(f).toLocaleDateString("es-AR",{day:"numeric",month:"long",year:"numeric"}); }catch{ return ""; } };
   if(abierta){
     return (<div className="px-4 pb-6">
-      <Title back={()=>setAbierta(null)} title="Blog" tag="FUNCIONAL"/>
+      <div className="flex items-center gap-3 mt-4 mb-3"><button onClick={()=>setAbierta(null)} aria-label="Volver" className="w-9 h-9 rounded-xl flex items-center justify-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><ChevronLeft size={19}/></button><h2 className="text-lg font-extrabold flex-1">Blog</h2><button onClick={()=>compartirNota(abierta,"native",flash)} aria-label="Compartir nota" className="h-9 px-3 rounded-xl flex items-center gap-1.5 text-xs font-bold text-white" style={{background:C.brand}}><Share2 size={15}/> Compartir</button></div>
       <div className="rounded-2xl overflow-hidden" style={{background:C.surface,border:`1px solid ${C.line}`}}>
         {abierta.foto && <img src={abierta.foto} alt={abierta.titulo||""} className="w-full h-auto block"/>}
         <div className="p-4">
@@ -1441,6 +1456,17 @@ const BLOG_FIJO = [
           <div className="text-[14px] mt-2 leading-relaxed space-y-3" style={{color:C.ink}}>{parrafos(abierta.texto).split(/\n{2,}/).map((par,i)=><p key={i} className="whitespace-pre-wrap">{par}</p>)}</div>
         </div>
       </div>
+      <div className="rounded-2xl p-3.5 mt-3" style={{background:C.brandSoft}}>
+        <div className="font-extrabold text-sm" style={{color:C.brandDeep}}>¿Te sirvió? Compartila 🐾</div>
+        <div className="text-[11px] mt-0.5" style={{color:C.muted}}>Puede ayudar a que otra mascota vuelva a casa.</div>
+        <div className="grid grid-cols-4 gap-2 mt-2.5">
+          <ShareBtn onClick={()=>compartirNota(abierta,"wa",flash)} label="WhatsApp" color={C.found} ico={<Phone size={17}/>}/>
+          <ShareBtn onClick={()=>compartirNota(abierta,"fb",flash)} label="Facebook" color="#1877F2" ico={<Share2 size={17}/>}/>
+          <ShareBtn onClick={()=>compartirNota(abierta,"copy",flash)} label="Copiar link" color={C.brand} ico={<Copy size={17}/>}/>
+          <ShareBtn onClick={()=>compartirNota(abierta,"native",flash)} label="Más" color={C.ink} ico={<Send size={17}/>}/>
+        </div>
+      </div>
+      <button onClick={()=>setAbierta(null)} className="mt-3 w-full py-3 rounded-2xl font-bold" style={{background:C.surface,border:`1px solid ${C.line}`}}>← Ver más notas</button>
     </div>);
   }
   return (<div className="px-4 pb-6">
