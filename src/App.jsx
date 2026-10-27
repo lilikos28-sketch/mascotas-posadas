@@ -302,6 +302,10 @@ export default function App(){
   const currentRef=useRef(current); currentRef.current=current;
   const go=(v,extra)=>{ if(extra&&extra.post)setCurrent(extra.post); if(extra&&extra.type)setNewType(extra.type); if(extra&&"edit" in extra)setEditPost(extra.edit); setView(v); if(typeof window!=="undefined"){ window.scrollTo(0,0);
     try{ const post=(extra&&extra.post)||(v==="detail"||v==="share"?currentRef.current:null); const st={v,postId:post?post.id:null}; const url=(v==="detail"&&post&&!post.demo)?`/?post=${post.id}`:"/"; window.history.pushState(st,"",url); }catch{} } };
+  // ===== Pantalla de BIENVENIDA (solo la primera visita, nunca en links compartidos) =====
+  const [bienvenida,setBienvenida]=useState(()=>{ try{ if(typeof window==="undefined")return false; if(window.location.search)return false; return !window.localStorage.getItem("mp_bienvenida_vista"); }catch{ return false; } });
+  const cerrarBienvenida=(v,extra)=>{ try{ window.localStorage.setItem("mp_bienvenida_vista","1"); }catch{} setBienvenida(false); if(v)go(v,extra); };
+
   // Botón "atrás" del celular o del navegador: vuelve a la pantalla anterior de la app
   useEffect(()=>{ if(typeof window==="undefined")return;
     try{ if(!window.history.state)window.history.replaceState({v:"home"},"",window.location.pathname+window.location.search); }catch{}
@@ -469,6 +473,43 @@ export default function App(){
 
   return (
     <div style={{background:C.bg,color:C.ink,fontFamily:"'Plus Jakarta Sans', system-ui, -apple-system, Segoe UI, Roboto, sans-serif"}} className="min-h-screen w-full">
+      {bienvenida&&<div className="fixed inset-0 z-[9999] overflow-y-auto" style={{background:C.bg}}>
+        <div className="max-w-md mx-auto min-h-full relative pb-8">
+          <div className="relative overflow-hidden text-center text-white px-6 pt-12" style={{height:340,background:"linear-gradient(160deg,#12927E 0%,"+C.brand+" 55%,"+C.brandDeep+" 100%)"}}>
+            <PawPrint size={90} color="#fff" className="absolute" style={{left:-10,top:30,opacity:.1}}/>
+            <PawPrint size={110} color="#fff" className="absolute" style={{right:-14,top:150,opacity:.1,transform:"rotate(25deg)"}}/>
+            <div className="mx-auto mb-3.5 w-[76px] h-[76px] rounded-full bg-white flex items-center justify-center shadow-xl"><PawPrint size={42} color={C.brand} fill={C.brand}/></div>
+            <div className="text-[13px] font-bold tracking-[3px] opacity-85">MASCOTAS PERDIDAS MISIONES</div>
+            <h1 className="text-[30px] font-extrabold mt-1.5 leading-tight">¡Bienvenido/a! 💚</h1>
+            <p className="text-[14.5px] font-medium leading-snug mt-3 opacity-95">Somos una página <b>gratuita y comunitaria</b> para que las mascotas perdidas de Misiones vuelvan a casa.</p>
+          </div>
+          <div className="relative -mt-7 mx-4 bg-white rounded-3xl px-[18px] pt-5 pb-4" style={{boxShadow:"0 12px 32px rgba(14,124,107,.15)"}}>
+            <div className="text-[13px] font-extrabold tracking-[1.5px] mb-3" style={{color:C.brand}}>¿QUÉ PODÉS HACER ACÁ?</div>
+            {[
+              [<svg key="a" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.brand} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>,"Publicar gratis","si perdiste o encontraste una mascota"],
+              [<QrCode key="b" size={22} color={C.brand} strokeWidth={2.2}/>,"Registrar a tu mascota","y obtener su código QR gratis para el collar"],
+              [<svg key="c" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.brand} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>,"Avisar si la viste","tu aviso le llega directo a la familia"],
+              [<MapPin key="d" size={22} color={C.brand} strokeWidth={2.2}/>,"Buscar por zona y en el mapa","en 26 localidades de Misiones"],
+            ].map(([ico,t,sub],i)=>(
+              <div key={i} className="flex gap-3 items-center mb-3">
+                <div className="shrink-0 w-[42px] h-[42px] rounded-[13px] flex items-center justify-center" style={{background:C.brandSoft}}>{ico}</div>
+                <div><div className="text-[14.5px] font-bold" style={{color:C.ink}}>{t}</div><div className="text-[12.5px] font-medium leading-tight" style={{color:C.muted}}>{sub}</div></div>
+              </div>
+            ))}
+            <div className="flex justify-center gap-2 mt-1 mb-3.5">
+              <span className="text-[11.5px] font-bold px-2.5 py-1.5 rounded-full" style={{color:C.brand,background:C.brandSoft}}>✓ 100% gratis</span>
+              <span className="text-[11.5px] font-bold px-2.5 py-1.5 rounded-full" style={{color:C.brand,background:C.brandSoft}}>✓ Hecho por vecinos</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button onClick={()=>cerrarBienvenida("new",{type:"lost",edit:null})} className="rounded-2xl py-3.5 px-1.5 font-extrabold text-sm text-white" style={{background:C.lost}}>Perdí mi mascota</button>
+              <button onClick={()=>cerrarBienvenida("new",{type:"found",edit:null})} className="rounded-2xl py-3.5 px-1.5 font-extrabold text-sm text-white" style={{background:C.found}}>Encontré una</button>
+              <button onClick={()=>cerrarBienvenida("registrar_mascota")} className="col-span-2 rounded-2xl py-3.5 px-1.5 font-extrabold text-sm text-white" style={{background:C.brand}}>Registrar mi mascota · QR gratis</button>
+            </div>
+            <button onClick={()=>cerrarBienvenida()} className="block w-full text-center mt-3 text-[13.5px] font-bold" style={{color:C.brand}}>Entrar a la página →</button>
+          </div>
+        </div>
+      </div>}
+
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         *{box-sizing:border-box}.mp-scroll::-webkit-scrollbar{height:6px}.leaflet-container{font:inherit}
         @keyframes pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
