@@ -554,7 +554,7 @@ export default function App(){
         {view==="help"    && <HelpView go={go} lugares={lugares} />}
         {view==="business"&& <BusinessView go={go} />}
         {view==="contacto"&& <ContactoView go={go} onSend={enviarMensaje} />}
-        {view==="blog"&& <BlogView go={go} flash={flash} notaInicial={notaInicial} entradas={[...blog,...BLOG_FIJO.filter(f=>!blog.some(b=>b.titulo===f.titulo))].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))} />}
+        {view==="blog"&& <BlogView go={go} flash={flash} notaInicial={notaInicial} entradas={[...blog,...BLOG_FIJO.filter(f=>!blog.some(b=>b.titulo===f.titulo))].filter(e=>!e.created_at||new Date(e.created_at)<=new Date()).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))} />}
         {view==="registrar_mascota"&& (requireAuthToPublish ? <AuthGate go={go} /> : <RegistrarMascotaView go={go} onSave={async(f)=>{ const m=await registrarMascota(f); if(m){ setQrMascota(m); } return m; }} flash={flash} />)}
         {view==="mis_mascotas"&& <MisMascotasView go={go} mascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} user={user} onDelete={borrarMascota} avistamientos={avistamientos} avisosVistos={avisosVistos} marcarVistos={marcarAvisosVistos} setQr={setQrMascota} irQr={(m)=>{setQrMascota(m);go("qr_mascota");}} irDni={(m)=>{setDniMascota(m);go("dni_mascota");}} irVacunas={(m)=>{setVacMascota(m);go("vacunas");}} />}
         {view==="vacunas"&& (vacMascota ? <VacunasView key={vacMascota.codigo} go={go} mascota={vacMascota} onSave={(lista)=>guardarVacunas(vacMascota,lista)} flash={flash} /> : <VistaVacia go={go} texto="Elegí una mascota desde Mis mascotas." />)}
@@ -612,6 +612,30 @@ function HomeView({ posts, go, conn, user, realPosts=[], abrirVacunas=()=>{} }){
         </div>
       )}
 
+      {/* Botón PROTAGONISTA: registrar mascota (el fuerte de la app) */}
+      <button onClick={()=>go("registrar_mascota")} className="mp-registro mt-4 w-full rounded-3xl p-5 pb-3 text-left text-white relative overflow-hidden shadow-lg" style={{background:`linear-gradient(135deg, #0E7C6B, #0A5C50)`,boxShadow:"0 8px 24px rgba(14,124,107,.35)"}}>
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center shrink-0" style={{background:"rgba(255,255,255,.2)"}}><QrCode size={32}/></div>
+          <div className="flex-1">
+            <div className="text-[10px] font-extrabold tracking-wide opacity-90 mb-0.5">⭐ LO MÁS IMPORTANTE</div>
+            <div className="font-extrabold text-lg leading-tight">Registrá tu mascota 🐾</div>
+            <div className="text-[12px] opacity-90 mt-0.5 leading-snug">Creá su ficha con QR para el collar. Si se pierde, quien la encuentre te avisa al instante.</div>
+          </div>
+          <ChevronRight size={22} className="opacity-90 shrink-0"/>
+        </div>
+        {/* Patitas caminando (franja visible) */}
+        <div className="flex items-center justify-center gap-4 mt-2.5 pt-2" style={{borderTop:"1px solid rgba(255,255,255,.15)"}}>
+          <span className="mp-huella text-lg" style={{transform:"rotate(20deg)"}}>🐾</span>
+          <span className="mp-huella text-lg" style={{transform:"rotate(-12deg) translateY(4px)"}}>🐾</span>
+          <span className="mp-huella text-lg" style={{transform:"rotate(20deg)"}}>🐾</span>
+          <span className="mp-huella text-lg" style={{transform:"rotate(-12deg) translateY(4px)"}}>🐾</span>
+          <span className="mp-huella text-lg" style={{transform:"rotate(20deg)"}}>🐾</span>
+          <span className="mp-huella text-lg" style={{transform:"rotate(-12deg) translateY(4px)"}}>🐾</span>
+        </div>
+      </button>
+      <button onClick={()=>go("mis_mascotas")} className="mt-2 w-full text-center text-[12px] font-bold py-1" style={{color:C.brand}}>Ver mis mascotas registradas →</button>
+      <div className="mt-2"><BotonVacunasHome onClick={abrirVacunas}/></div>
+      <div className="mt-2"><BotonDNI onClick={()=>go("dni_mascota")}/></div>
       {misActivas.length>0 && <style>{`@keyframes mpActPulso{0%,100%{box-shadow:0 0 0 0 rgba(229,57,53,.45)}50%{box-shadow:0 0 0 9px rgba(229,57,53,0)}}
 @keyframes mpActCampana{0%,70%,100%{transform:rotate(0)}75%{transform:rotate(-16deg)}80%{transform:rotate(14deg)}85%{transform:rotate(-10deg)}90%{transform:rotate(6deg)}}
 @keyframes mpActAbre{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
@@ -641,31 +665,6 @@ function HomeView({ posts, go, conn, user, realPosts=[], abrirVacunas=()=>{} }){
         ))}</div>
       </div>}
       </div>}
-
-      {/* Botón PROTAGONISTA: registrar mascota (el fuerte de la app) */}
-      <button onClick={()=>go("registrar_mascota")} className="mp-registro mt-4 w-full rounded-3xl p-5 pb-3 text-left text-white relative overflow-hidden shadow-lg" style={{background:`linear-gradient(135deg, #0E7C6B, #0A5C50)`,boxShadow:"0 8px 24px rgba(14,124,107,.35)"}}>
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center shrink-0" style={{background:"rgba(255,255,255,.2)"}}><QrCode size={32}/></div>
-          <div className="flex-1">
-            <div className="text-[10px] font-extrabold tracking-wide opacity-90 mb-0.5">⭐ LO MÁS IMPORTANTE</div>
-            <div className="font-extrabold text-lg leading-tight">Registrá tu mascota 🐾</div>
-            <div className="text-[12px] opacity-90 mt-0.5 leading-snug">Creá su ficha con QR para el collar. Si se pierde, quien la encuentre te avisa al instante.</div>
-          </div>
-          <ChevronRight size={22} className="opacity-90 shrink-0"/>
-        </div>
-        {/* Patitas caminando (franja visible) */}
-        <div className="flex items-center justify-center gap-4 mt-2.5 pt-2" style={{borderTop:"1px solid rgba(255,255,255,.15)"}}>
-          <span className="mp-huella text-lg" style={{transform:"rotate(20deg)"}}>🐾</span>
-          <span className="mp-huella text-lg" style={{transform:"rotate(-12deg) translateY(4px)"}}>🐾</span>
-          <span className="mp-huella text-lg" style={{transform:"rotate(20deg)"}}>🐾</span>
-          <span className="mp-huella text-lg" style={{transform:"rotate(-12deg) translateY(4px)"}}>🐾</span>
-          <span className="mp-huella text-lg" style={{transform:"rotate(20deg)"}}>🐾</span>
-          <span className="mp-huella text-lg" style={{transform:"rotate(-12deg) translateY(4px)"}}>🐾</span>
-        </div>
-      </button>
-      <button onClick={()=>go("mis_mascotas")} className="mt-2 w-full text-center text-[12px] font-bold py-1" style={{color:C.brand}}>Ver mis mascotas registradas →</button>
-      <div className="mt-2"><BotonVacunasHome onClick={abrirVacunas}/></div>
-      <div className="mt-2"><BotonDNI onClick={()=>go("dni_mascota")}/></div>
 
       <div className="mt-5 mb-1 text-[13px] font-bold" style={{color:C.muted}}>¿Perdiste o encontraste una mascota?</div>
       <div className="grid grid-cols-3 gap-2.5 mt-4"><BigBtn color={C.lost} label="Perdí mi mascota" sub="Se escapó o no aparece" ico="🔴" onClick={()=>go("new",{type:"lost",edit:null})}/><BigBtn color={C.found} label="Encontré una" sub="La tengo conmigo" ico="🟢" onClick={()=>go("new",{type:"found",edit:null})}/><BigBtn color={C.seen} label="Vi una mascota" sub="La vi en la calle" ico="🟡" onClick={()=>go("new",{type:"seen",edit:null})}/></div>
@@ -1685,6 +1684,102 @@ const BLOG_FIJO = [
 "texto": "¡Tenemos novedad! En Mascotas Perdidas Misiones ya podés crear y descargar el DNI de tu mascota, gratis.\n\nEs una tarjeta con su foto, su nombre, especie, raza, sexo, color, fecha de nacimiento, lugar de residencia y tu contacto. En lugar de huella digital tiene su patita, y el número de DNI es el número de legajo de su registro en la página.\n\nPero lo más importante es su código QR: abre la ficha de tu mascota. Si algún día se pierde, quien la encuentre lo escanea con la cámara del celular y te deja un aviso con su WhatsApp y dónde la vio, sin que tu teléfono quede a la vista.\n\nCómo sacarlo:\n\nIngresá con tu cuenta y registrá a tu mascota, si todavía no lo hiciste.\n\nTocá \"¡Descargá el DNI de tu mascota!\", completá los datos y mirá la vista previa.\n\nDescargalo o imprimilo en tamaño tarjeta.\n\nEs un documento de fantasía, pero puede ayudar muchísimo el día que más lo necesites.",
 "foto": "/blog/dni.jpg",
 "created_at": "2026-09-29T15:09:00Z",
+"fija": true
+},
+{
+"id": "vacunas",
+"titulo": "Nuevo: el calendario de vacunas de tu mascota, con alertas",
+"texto": "¡Sumamos algo nuevo a Mascotas Perdidas Misiones! Ahora podés armar el calendario de vacunas de tu mascota y recibir alertas en tu celular para que no se te pase ninguna.\n\nMuchas veces nos acordamos de la vacuna cuando ya pasó la fecha, o perdemos la libreta. Con el calendario, todo queda guardado en la ficha de tu mascota.\n\nCómo usarlo:\n\nIngresá con tu cuenta y registrá a tu mascota, si todavía no lo hiciste.\n\nEn la página de inicio tocá \"Calendario de vacunas\", o entrá a \"Mis mascotas\" y tocá el botón de vacunas de cada una.\n\nPodés armar un plan sugerido para gatos, cachorros o adultos, o agregar una por una las vacunas que te indicó tu veterinario/a.\n\nAgendalas en tu celular: te avisa una semana antes, el día anterior y el mismo día.\n\nEl calendario es una ayuda para organizarte: las vacunas y las fechas siempre las define tu veterinario/a.\n\nY si estás en Posadas, recordá que el IMUSA aplica la antirrábica gratis: en la página de inicio tenés el enlace directo.",
+"foto": "/blog/vacunas.jpg",
+"created_at": "2026-11-07T22:55:00Z",
+"fija": true
+},
+{
+"id": "calor",
+"titulo": "Calor en Misiones: cómo cuidar a tu mascota",
+"texto": "En Misiones el calor llega fuerte, y los perros y gatos lo sufren tanto como nosotros. Con algunos cuidados simples podés evitar un mal momento.\n\nAgua fresca siempre. Dejá más de un recipiente, a la sombra, y cambiala varias veces por día.\n\nSombra y lugares frescos. Si pasa tiempo en el patio, asegurate de que tenga sombra durante todo el día, no solo a la mañana.\n\nPaseos temprano o de noche. A la siesta el piso quema: apoyá la mano en la vereda, y si no aguantás cinco segundos, tampoco sus patitas.\n\nNunca la dejes dentro del auto, ni siquiera \"un ratito\" con la ventana baja. La temperatura sube muy rápido.\n\nAtención con los de nariz chata, los cachorros, los mayores y los de pelo largo: son los que más sufren el calor.\n\nSi la ves jadear mucho, babear, tambalearse o muy decaída, llevala a la sombra, mojale las patas y el cuerpo con agua fresca (no helada) y consultá enseguida a tu veterinario/a.\n\nY un dato: con el calor quedan más puertas y ventanas abiertas. Revisá que no tenga por dónde escaparse y que lleve su chapita con QR.",
+"foto": "/blog/calor.jpg",
+"created_at": "2026-11-09T22:55:00Z",
+"fija": true
+},
+{
+"id": "garrapatas",
+"titulo": "Pulgas y garrapatas: revisala después de cada paseo",
+"texto": "Con el calor y la humedad de Misiones, las pulgas y las garrapatas aparecen por todos lados. Además de molestar, pueden transmitir enfermedades, así que conviene estar atentos.\n\nRevisala después de cada paseo. Pasá la mano a contrapelo y mirá bien en las orejas, el cuello, las axilas, la panza y entre los dedos, que es donde más se esconden.\n\nSi encontrás una garrapata, no la aprietes ni le pongas productos caseros. Lo mejor es que te muestren en la veterinaria cómo sacarla bien.\n\nMantené el patio con el pasto corto y limpiá seguido su cama y su manta.\n\nLos gatos que salen a la calle también se las traen: revisalos igual.\n\nPara prevenir, hay pipetas, collares y comprimidos, pero cada uno tiene su indicación según la edad, el peso y la especie. Consultá siempre a tu veterinario/a antes de usar uno, y nunca le pongas a un gato un producto para perros.\n\n¿Ya armaste su calendario de vacunas en la página? Podés sumar ahí también la fecha de sus desparasitaciones para que te llegue el aviso.",
+"foto": "/blog/garrapatas.jpg",
+"created_at": "2026-11-11T22:55:00Z",
+"fija": true
+},
+{
+"id": "paseos",
+"titulo": "Paseos seguros: correa, collar y chapita",
+"texto": "Muchas mascotas se pierden justo durante el paseo: un susto, otro perro, una moto que pasa fuerte, y en un segundo se sueltan.\n\nPara que el paseo sea seguro:\n\nRevisá el collar o el arnés. Tiene que quedar firme: si podés pasar dos dedos está bien, pero no tiene que poder sacarse por la cabeza tirando para atrás.\n\nUsá correa, sobre todo cerca de calles y avenidas. Aunque sea muy obediente, un susto le puede ganar.\n\nRevisá la correa y el mosquetón cada tanto: se gastan y se rompen.\n\nQue lleve su chapita con QR siempre puesta. Si se suelta, quien la encuentre puede avisarte al instante.\n\nEvitá horarios y lugares con mucho ruido, como cuando hay pirotecnia o tránsito pesado.\n\nY si sos de soltarlo en una plaza, que sea en un lugar cerrado y lejos de la calle.\n\nSi algún día se te escapa, no corras detrás de él: muchas veces corren más. Agachate, llamalo con voz alegre y, si no vuelve, publicalo enseguida en la página.",
+"foto": "/blog/paseos.jpg",
+"created_at": "2026-11-13T22:55:00Z",
+"fija": true
+},
+{
+"id": "adopcion",
+"titulo": "Adoptaste una mascota: sus primeros días en casa",
+"texto": "¡Felicitaciones por adoptar! Los primeros días son muy lindos, pero también son el momento en que más mascotas se escapan: todavía no conocen su nueva casa y, si se asustan, no saben volver.\n\nAntes de que llegue, revisá rejas, portones, cercos y huecos por donde pueda pasar.\n\nLos primeros días, tenela adentro o en un espacio cerrado, y sacala siempre con correa.\n\nDale un rincón tranquilo con su cama, agua y algo con tu olor. Dejá que explore de a poco, sin forzarla.\n\nSi es un gato, conviene que no salga de la casa por lo menos las primeras dos o tres semanas.\n\nPonele collar con identificación desde el primer día. Podés registrarla gratis en mascotasperdidasmisiones.netlify.app y generar su chapita con QR y su DNI.\n\nSacale buenas fotos ahora: de frente, de costado y de sus señas particulares.\n\nY llevala a un control con tu veterinario/a para arrancar su calendario de vacunas, que también podés guardar en la página.\n\nGracias por darle un hogar 💚",
+"foto": "/blog/adopcion.jpg",
+"created_at": "2026-11-15T22:55:00Z",
+"fija": true
+},
+{
+"id": "vecinos",
+"titulo": "Cómo ayudar a tu barrio a encontrar mascotas",
+"texto": "La mayoría de las mascotas que vuelven a casa lo hacen gracias a un vecino que la vio y avisó. No hace falta mucho para ayudar.\n\nCompartí. Cuando veas una mascota perdida de tu barrio en la página, compartila en tus grupos de WhatsApp y en Facebook. Un solo compartido puede llegar a la persona indicada.\n\nMirá el mapa antes de salir. En la página podés ver qué mascotas se perdieron cerca tuyo, así las reconocés si te cruzás con alguna.\n\nSi ves una, avisá en el momento. Sacale una foto y publicala como \"Vi una mascota\", con el lugar exacto. Aunque no puedas agarrarla, ese dato ayuda muchísimo.\n\nSi tiene chapita con QR, escaneala con la cámara del celular: le avisás a su familia al instante.\n\nDejá que los comercios del barrio peguen carteles y ofrecé tu vidriera si tenés un local.\n\nY contale a tus vecinos que la página existe y que es gratis. Cuantos más la usen, más rápido vuelven las mascotas a casa.",
+"foto": "/blog/vecinos.jpg",
+"created_at": "2026-11-17T22:55:00Z",
+"fija": true
+},
+{
+"id": "mayores",
+"titulo": "Mascotas mayores: cuidados para que no se desorienten",
+"texto": "Con los años, nuestras mascotas cambian: ven y oyen menos, se cansan antes y algunas se desorientan. Por eso, una mascota mayor que se escapa puede tener más dificultad para volver.\n\nAlgunos cuidados que ayudan:\n\nMantené la casa ordenada y sin cambios bruscos de muebles: se guían mucho por la memoria.\n\nRevisá que no haya portones o puertas que queden abiertos, porque a veces salen sin darse cuenta y se pierden a pocas cuadras.\n\nSi no escucha bien, no te va a oír cuando la llames: acercate de frente para no asustarla.\n\nPaseos más cortos, con correa y en horarios frescos.\n\nIdentificación siempre al día: chapita con QR y una foto actual. Con los años cambian el color del pelo y el peso.\n\nSi notás que se desorienta, se queda mirando la pared o se pierde dentro de la casa, contalo en la consulta con tu veterinario/a.\n\nLas mascotas mayores nos dieron sus mejores años. Cuidarlas en esta etapa es devolverles un poco de todo ese amor.",
+"foto": "/blog/mayores.jpg",
+"created_at": "2026-11-19T22:55:00Z",
+"fija": true
+},
+{
+"id": "vacaciones",
+"titulo": "Vacaciones: qué hacer con tu mascota si viajás",
+"texto": "Se acercan las vacaciones y muchas mascotas se pierden mientras sus familias están de viaje: quedan con alguien que no conocen, en un lugar nuevo, o con un portón que alguien dejó abierto.\n\nOrganizalo con tiempo:\n\nSi la dejás con alguien, que sea una persona de confianza y que la conozca. Si puede ir unos días antes, mejor.\n\nSi queda en tu casa y alguien pasa a darle de comer, pedile que revise siempre que puertas y portones queden cerrados.\n\nDejá por escrito su comida, sus horarios, el contacto de su veterinario/a y tu teléfono.\n\nAntes de irte, chequeá que tenga su chapita con QR y que tus datos estén actualizados en la página.\n\nDejale a quien la cuida una foto actual de tu mascota y el enlace de la página por si pasa algo.\n\nSi viaja con vos, llevá correa, su manta y agua, y no la sueltes en lugares que no conoce.\n\nY si se pierde mientras no estás, quien la cuida puede publicarla enseguida en la página. Cada hora cuenta.",
+"foto": "/blog/vacaciones.jpg",
+"created_at": "2026-11-21T22:55:00Z",
+"fija": true
+},
+{
+"id": "reencuentro",
+"titulo": "Apareció tu mascota: qué hacer después",
+"texto": "¡Qué alegría cuando vuelve a casa! Después del abrazo, hay algunos pasos que ayudan a tu mascota y a toda la comunidad.\n\nMarcá tu publicación como reencontrada en la página. Así nadie sigue buscándola y suma a la cuenta de mascotas que volvieron a casa 🎉\n\nAvisá en los grupos donde la compartiste y agradecé a quienes ayudaron.\n\nSacá los carteles que pegaste. Así la gente sigue confiando en los carteles de mascotas perdidas.\n\nRevisala bien: heridas, garrapatas, si comió o tomó agua. Si la ves decaída o estuvo varios días afuera, llevala a un control con tu veterinario/a.\n\nDale tranquilidad: comida, agua y un lugar calmo. Puede estar asustada unos días.\n\nBuscá por dónde se escapó y arreglalo: un portón, un hueco en el cerco, una ventana.\n\nY si todavía no la registraste, este es el momento: generá su chapita con QR, así si vuelve a pasar, quien la encuentre te avisa al instante.\n\n¿Querés contarnos tu historia? Escribinos desde \"Contacto\" en la página: nos encanta compartir reencuentros.",
+"foto": "/blog/reencuentro.jpg",
+"created_at": "2026-11-23T22:55:00Z",
+"fija": true
+},
+{
+"id": "identificacion",
+"titulo": "Chapita, QR o microchip: cuál conviene",
+"texto": "Hay varias formas de identificar a tu mascota, y no compiten entre sí: cada una sirve para algo distinto.\n\nLa chapita con nombre y teléfono es la más simple. Cualquiera la ve. La desventaja es que tu número queda a la vista de todos, y si cambiás de teléfono hay que hacer otra.\n\nLa chapita con QR la escanea cualquiera con la cámara del celular. Abre la ficha de tu mascota con su foto, y quien la encontró te deja un aviso con su contacto y dónde la vio. Tu teléfono no queda expuesto, y si cambian tus datos, los actualizás en la página sin cambiar la chapita. En Mascotas Perdidas Misiones la generás gratis.\n\nEl microchip va debajo de la piel y no se pierde. Pero solo se puede leer con un lector, que tienen algunas veterinarias, y hay que tener los datos actualizados en el registro donde se cargó. Lo coloca un veterinario/a.\n\nNuestra recomendación: collar con chapita con QR siempre puesto, y si podés, sumale el microchip.\n\nNinguna sirve si los datos no están al día. Revisalos cada tanto.",
+"foto": "/blog/identificacion.jpg",
+"created_at": "2026-11-25T22:55:00Z",
+"fija": true
+},
+{
+"id": "fiestas",
+"titulo": "Se vienen las fiestas: prepará a tu mascota desde ahora",
+"texto": "Faltan pocas semanas para Navidad y Año Nuevo, y para muchas mascotas son las noches más difíciles del año. Los días después de las fiestas, los grupos de mascotas perdidas se llenan de casos. Lo mejor es prepararse desde ahora.\n\nArmale un refugio. Un rincón adentro de la casa, con su cama, una manta y algo tuyo. Que lo use desde ahora, para que lo asocie con un lugar seguro.\n\nRevisá rejas, portones y cercos. Un perro asustado puede saltar o pasar por huecos que nunca usaría.\n\nChequeá su collar y su chapita con QR. Que el collar esté firme y que tus datos estén al día en la página.\n\nSacale una foto actual por si la necesitás.\n\nSi los ruidos la asustan mucho, consultá ahora con tu veterinario/a. Hay formas de ayudarla, pero llevan tiempo y deben indicarlas un profesional: no le des nada por tu cuenta.\n\nY compartí esta nota con tus vecinos: cuantas más familias se preparen, menos mascotas se pierden en las fiestas.",
+"foto": "/blog/fiestas.jpg",
+"created_at": "2026-11-27T22:55:00Z",
+"fija": true
+},
+{
+"id": "chicos",
+"titulo": "Los chicos también pueden ayudar a cuidarla",
+"texto": "Muchas mascotas se escapan por un portón que quedó abierto mientras los chicos jugaban. Enseñarles algunas cosas simples evita grandes sustos y los hace parte del cuidado.\n\nCerrar siempre. Que sea una regla de la casa: el portón y la puerta se cierran siempre, aunque sea \"un segundito\".\n\nAvisar a un adulto. Si ven que la mascota salió, que no corran detrás de ella hacia la calle: que avisen enseguida a un grande.\n\nRespetar sus espacios. Cuando come, duerme o está asustada, se la deja tranquila.\n\nAyudar con tareas a su medida: cambiar el agua, acompañar el paseo con un adulto, revisar que tenga su collar puesto.\n\nHacer juntos su DNI. En la página pueden crear el DNI de la mascota con su foto y su QR: a los chicos les encanta, y de paso aprenden para qué sirve.\n\nCuidar a una mascota en familia enseña responsabilidad y cariño. Y una casa donde todos cuidan, es una casa de donde es más difícil escaparse.",
+"foto": "/blog/chicos.jpg",
+"created_at": "2026-11-29T22:55:00Z",
 "fija": true
 }
 ];
