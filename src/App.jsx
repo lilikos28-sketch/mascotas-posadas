@@ -545,7 +545,7 @@ export default function App(){
 
         {view==="home" && avisosNuevos.length>0 && (<button onClick={()=>go("mis_mascotas")} className="mx-4 mt-3 w-[calc(100%-2rem)] rounded-2xl p-3.5 flex items-center gap-3 text-left text-white" style={{background:C.lost}}><Bell size={22} className="shrink-0"/><div className="flex-1"><div className="font-extrabold text-[14px]">¡Tenés {avisosNuevos.length} aviso{avisosNuevos.length>1?"s":""} nuevo{avisosNuevos.length>1?"s":""}!</div><div className="text-[12px] opacity-95">Alguien escaneó el QR de tu mascota. Tocá para ver dónde la vieron.</div></div><ChevronRight size={18}/></button>)}
         {view==="home" && user && <BannerVacunas urgentes={vacunasUrgentes(misMascotas.filter(m=>m.owner_id===user.id))} onOpen={(m)=>{setVacMascota(m);go("vacunas");}} />}
-        {view==="home"    && <HomeView posts={visible} go={go} conn={conn} user={user} realPosts={realPosts} />}
+        {view==="home"    && <HomeView posts={visible} go={go} conn={conn} user={user} realPosts={realPosts} abrirVacunas={()=>{ const mias=user?misMascotas.filter(m=>m.owner_id===user.id):[]; if(mias.length===1){ setVacMascota(mias[0]); go("vacunas"); } else { go("mis_mascotas"); } }} />}
         {view==="map"     && <MapView posts={visible} go={go} />}
         {view==="search"  && <SearchView posts={visible} go={go} qInicial={busquedaInicial} tipoInicial={busquedaInicial?"lost":"all"} />}
         {view==="new"     && (requireAuthToPublish ? <AuthGate go={go} /> : <NewView type={newType} setType={setNewType} onSubmit={submitPost} go={go} flash={flash} editPost={editPost} esAdmin={isAdmin(user)} misMascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} />)}
@@ -596,7 +596,7 @@ function Header({ go, count, conn, abrirGuia=()=>{} }){
 }
 
 /* -------------------------------- Home ----------------------------------- */
-function HomeView({ posts, go, conn, user, realPosts=[] }){
+function HomeView({ posts, go, conn, user, realPosts=[], abrirVacunas=()=>{} }){
   const lost=posts.filter(p=>p.type==="lost"&&p.status!=="reunited").slice(0,6);
   const found=posts.filter(p=>p.type==="found").slice(0,6);
   const reunited=posts.filter(p=>p.status==="reunited").length;
@@ -650,6 +650,7 @@ function HomeView({ posts, go, conn, user, realPosts=[] }){
         </div>
       </button>
       <button onClick={()=>go("mis_mascotas")} className="mt-2 w-full text-center text-[12px] font-bold py-1" style={{color:C.brand}}>Ver mis mascotas registradas →</button>
+      <div className="mt-2"><BotonVacunasHome onClick={abrirVacunas}/></div>
       <div className="mt-2"><BotonDNI onClick={()=>go("dni_mascota")}/></div>
 
       <div className="mt-5 mb-1 text-[13px] font-bold" style={{color:C.muted}}>¿Perdiste o encontraste una mascota?</div>
@@ -1159,6 +1160,13 @@ async function generarDNI(m, d){
   // pie
   x.textAlign="center"; x.font=`500 22px ${F}`; x.fillStyle="#3B556B"; x.fillText("VÁLIDO SOLO COMO IDENTIFICACIÓN DE FANTASÍA · mascotasperdidasmisiones.netlify.app",W/2,H-40);
   return cv;
+}
+function BotonVacunasHome({ onClick }){
+  return (<button onClick={onClick} className="w-full rounded-2xl text-white text-left flex items-center gap-3 px-4 py-3.5 shadow-md" style={{background:"linear-gradient(120deg,#7C4DDB,#5B3BB8)"}}>
+    <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{background:"rgba(255,255,255,.2)"}}><Syringe size={20}/></span>
+    <span className="flex-1"><span className="block font-extrabold text-[15px]">Calendario de vacunas 💉</span><span className="block text-[11px] opacity-95">Anotá sus vacunas y recibí alertas en tu celular</span></span>
+    <ChevronRight size={18}/>
+  </button>);
 }
 function BotonDNI({ onClick, compacto=false }){
   return (<>
