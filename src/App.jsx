@@ -4,7 +4,7 @@ import {
   Home, Check, X, Camera, ChevronLeft, ChevronRight, Sparkles, Trash2, EyeOff,
   PartyPopper, Copy, Store, Stethoscope, Settings2, Flag, Info, Navigation, Crosshair,
   Clock, Ruler, Ban, Loader2, Send, MapPinned, ListChecks, AlertTriangle, LogOut,
-  LogIn, Pencil, Wallet, Cloud, CloudOff, Mail, KeyRound, CircleUserRound, QrCode, BookOpen, HelpCircle
+  LogIn, Pencil, Wallet, Cloud, CloudOff, Mail, KeyRound, CircleUserRound, QrCode, BookOpen, HelpCircle, Syringe, CalendarDays, Download
 } from "lucide-react";
 
 /* =========================================================================
@@ -294,6 +294,7 @@ export default function App(){
   const [notaInicial,setNotaInicial]=useState(null);
   const [busquedaInicial,setBusquedaInicial]=useState("");
   const [dniMascota,setDniMascota]=useState(null);
+  const [vacMascota,setVacMascota]=useState(null); // mascota cuyo calendario de vacunas se está viendo
   const [guia,setGuia]=useState(false); // mascota abierta desde un QR
 
   const posts = useMemo(()=>[...realPosts,...demoPosts],[realPosts,demoPosts]);
@@ -441,6 +442,12 @@ export default function App(){
   };
   const borrarMascota=async(id)=>{ if(conn==="cloud"){try{const c=await getClient();await c.from("mascotas").delete().eq("id",id);}catch{}} const nm=misMascotas.filter(x=>x.id!==id); setMisMascotas(nm); if(conn!=="cloud")Local.set(KEYS.mascotas,nm); };
 
+  // Guarda el calendario de vacunas dentro de la ficha de la mascota (columna jsonb "vacunas" en Supabase)
+  const guardarVacunas=async(m,lista)=>{
+    if(conn==="cloud"){ try{ const c=await getClient(); const {error}=await c.from("mascotas").update({vacunas:lista}).eq("codigo",m.codigo); if(error)throw error; }catch(e){ flash("No se pudo guardar. Revisá tu conexión."); return false; } }
+    const nm=misMascotas.map(x=>x.codigo===m.codigo?{...x,vacunas:lista}:x); setMisMascotas(nm); if(conn!=="cloud")Local.set(KEYS.mascotas,nm);
+    setVacMascota(prev=>prev&&prev.codigo===m.codigo?{...prev,vacunas:lista}:prev); return true;
+  };
   const reportarAvistamiento=async(mascota,a)=>{
     const rec={ mascota_id:mascota.id, mascota_codigo:mascota.codigo, mascota_nombre:mascota.pet_name||mascota.petName, owner_id:mascota.owner_id||null, quien:clean(a.quien,60), contacto:clean(a.contacto,60), zona:clean(a.zona,60), nota:cleanText(a.nota,400) };
     if(conn==="cloud"){ try{ const c=await getClient(); const {error}=await c.from("avistamientos").insert(rec); if(error)throw error; return true; }catch{ flash("No se pudo enviar el aviso."); return false; } }
@@ -537,6 +544,7 @@ export default function App(){
         <Header abrirGuia={()=>setGuia(true)} go={go} count={avisosNuevos.length} conn={conn} />
 
         {view==="home" && avisosNuevos.length>0 && (<button onClick={()=>go("mis_mascotas")} className="mx-4 mt-3 w-[calc(100%-2rem)] rounded-2xl p-3.5 flex items-center gap-3 text-left text-white" style={{background:C.lost}}><Bell size={22} className="shrink-0"/><div className="flex-1"><div className="font-extrabold text-[14px]">¡Tenés {avisosNuevos.length} aviso{avisosNuevos.length>1?"s":""} nuevo{avisosNuevos.length>1?"s":""}!</div><div className="text-[12px] opacity-95">Alguien escaneó el QR de tu mascota. Tocá para ver dónde la vieron.</div></div><ChevronRight size={18}/></button>)}
+        {view==="home" && user && <BannerVacunas urgentes={vacunasUrgentes(misMascotas.filter(m=>m.owner_id===user.id))} onOpen={(m)=>{setVacMascota(m);go("vacunas");}} />}
         {view==="home"    && <HomeView posts={visible} go={go} conn={conn} user={user} realPosts={realPosts} />}
         {view==="map"     && <MapView posts={visible} go={go} />}
         {view==="search"  && <SearchView posts={visible} go={go} qInicial={busquedaInicial} tipoInicial={busquedaInicial?"lost":"all"} />}
@@ -548,7 +556,8 @@ export default function App(){
         {view==="contacto"&& <ContactoView go={go} onSend={enviarMensaje} />}
         {view==="blog"&& <BlogView go={go} flash={flash} notaInicial={notaInicial} entradas={[...blog,...BLOG_FIJO.filter(f=>!blog.some(b=>b.titulo===f.titulo))].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))} />}
         {view==="registrar_mascota"&& (requireAuthToPublish ? <AuthGate go={go} /> : <RegistrarMascotaView go={go} onSave={async(f)=>{ const m=await registrarMascota(f); if(m){ setQrMascota(m); } return m; }} flash={flash} />)}
-        {view==="mis_mascotas"&& <MisMascotasView go={go} mascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} user={user} onDelete={borrarMascota} avistamientos={avistamientos} avisosVistos={avisosVistos} marcarVistos={marcarAvisosVistos} setQr={setQrMascota} irQr={(m)=>{setQrMascota(m);go("qr_mascota");}} irDni={(m)=>{setDniMascota(m);go("dni_mascota");}} />}
+        {view==="mis_mascotas"&& <MisMascotasView go={go} mascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} user={user} onDelete={borrarMascota} avistamientos={avistamientos} avisosVistos={avisosVistos} marcarVistos={marcarAvisosVistos} setQr={setQrMascota} irQr={(m)=>{setQrMascota(m);go("qr_mascota");}} irDni={(m)=>{setDniMascota(m);go("dni_mascota");}} irVacunas={(m)=>{setVacMascota(m);go("vacunas");}} />}
+        {view==="vacunas"&& (vacMascota ? <VacunasView key={vacMascota.codigo} go={go} mascota={vacMascota} onSave={(lista)=>guardarVacunas(vacMascota,lista)} flash={flash} /> : <VistaVacia go={go} texto="Elegí una mascota desde Mis mascotas." />)}
         {view==="dni_mascota"&& <DNIMascotaView go={go} user={user} mascotas={misMascotas} inicial={dniMascota} flash={flash} />}
         {view==="qr_mascota"&& (qrMascota ? <QRMascotaView go={go} mascota={qrMascota} flash={flash} /> : <VistaVacia go={go} texto="No se encontró la mascota. Volvé a Mis mascotas." />)}
         {view==="mascota_publica"&& (qrMascota ? <MascotaPublicaView go={go} mascota={qrMascota} onReport={reportarAvistamiento} flash={flash} /> : <VistaVacia go={go} texto="No se encontró esta mascota." />)}
@@ -1319,7 +1328,194 @@ function MascotaPublicaView({ go, mascota, onReport, flash }){
 }
 
 /* ------------------------- Mis mascotas registradas ----------------------- */
-function MisMascotasView({ go, mascotas=[], user, onDelete, avistamientos=[], irQr, irDni=()=>{}, avisosVistos={}, marcarVistos=()=>{} }){
+
+/* ===================== CALENDARIO DE VACUNACIÓN + ALERTAS ===================== */
+/* Plan orientativo usado en Argentina. Siempre aclarar: lo confirma el/la veterinario/a. */
+const VAC_PLANES = {
+  perro: {
+    cachorro: [
+      { nombre:"Séxtuple / Quíntuple (1ª dosis)", dias:45 },
+      { nombre:"Séxtuple / Quíntuple (2ª dosis)", dias:66 },
+      { nombre:"Séxtuple / Quíntuple (3ª dosis)", dias:87, repetir:"12m" },
+      { nombre:"Antirrábica", dias:120, repetir:"12m" },
+      { nombre:"Desparasitación interna", dias:30, repetir:"3m" },
+    ],
+    adulto: [
+      { nombre:"Séxtuple (refuerzo anual)", meses:12, repetir:"12m" },
+      { nombre:"Antirrábica", meses:12, repetir:"12m" },
+      { nombre:"Desparasitación interna", meses:3, repetir:"3m" },
+    ],
+  },
+  gato: {
+    cachorro: [
+      { nombre:"Triple felina (1ª dosis)", dias:60 },
+      { nombre:"Triple felina (2ª dosis)", dias:81, repetir:"12m" },
+      { nombre:"Antirrábica", dias:120, repetir:"12m" },
+      { nombre:"Desparasitación interna", dias:30, repetir:"3m" },
+    ],
+    adulto: [
+      { nombre:"Triple felina (refuerzo anual)", meses:12, repetir:"12m" },
+      { nombre:"Antirrábica", meses:12, repetir:"12m" },
+      { nombre:"Desparasitación interna", meses:3, repetir:"3m" },
+    ],
+  },
+};
+const VAC_NOMBRES = ["Antirrábica","Séxtuple","Quíntuple","Triple felina","Leucemia felina","Tos de las perreras","Leptospirosis","Desparasitación interna","Pipeta / antipulgas","Control veterinario"];
+const VAC_REPETIR = { no:"Una sola vez", "21d":"En 21 días", "3m":"Cada 3 meses", "6m":"Cada 6 meses", "12m":"Cada año" };
+const pad2 = (n)=>String(n).padStart(2,"0");
+const isoDia = (d)=>`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+const diaDe = (s)=>{ const [y,m,d]=(s||"").split("-").map(Number); return new Date(y||2000,(m||1)-1,d||1); };
+const hoyISO = ()=>isoDia(new Date());
+const sumarDias = (s,n)=>{ const d=diaDe(s); d.setDate(d.getDate()+n); return isoDia(d); };
+const sumarMeses = (s,n)=>{ const d=diaDe(s); const dia=d.getDate(); d.setDate(1); d.setMonth(d.getMonth()+n); const ult=new Date(d.getFullYear(),d.getMonth()+1,0).getDate(); d.setDate(Math.min(dia,ult)); return isoDia(d); };
+const proximaFecha = (desde,rep)=> rep==="21d"?sumarDias(desde,21) : rep==="3m"?sumarMeses(desde,3) : rep==="6m"?sumarMeses(desde,6) : rep==="12m"?sumarMeses(desde,12) : null;
+const diasHasta = (s)=>Math.round((diaDe(s)-diaDe(hoyISO()))/86400000);
+const fmtDia = (s)=>{ try{ return diaDe(s).toLocaleDateString("es-AR",{day:"numeric",month:"long",year:"numeric"}); }catch{ return s; } };
+const vacId = ()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const especieVac = (m)=> (m&&m.species==="gato") ? "gato" : "perro";
+const estadoVac = (v)=>{ if(v.hecha) return { t:"Aplicada", c:C.found, bg:"#E3F4EA" }; const d=diasHasta(v.fecha); if(d<0) return { t:`Vencida hace ${-d} día${d===-1?"":"s"}`, c:C.lost, bg:"#FBE7E7" }; if(d===0) return { t:"¡Es hoy!", c:C.lost, bg:"#FBE7E7" }; if(d<=14) return { t:`Faltan ${d} día${d===1?"":"s"}`, c:C.seen, bg:"#FBF0DA" }; return { t:`Faltan ${d} días`, c:C.brand, bg:C.brandSoft }; };
+const vacPendientes = (m)=> (Array.isArray(m&&m.vacunas)?m.vacunas:[]).filter(v=>!v.hecha).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+// Vacunas vencidas o que vencen en los próximos 7 días, de todas mis mascotas
+const vacunasUrgentes = (mascotas)=> mascotas.flatMap(m=>vacPendientes(m).filter(v=>diasHasta(v.fecha)<=7).map(v=>({m,v}))).sort((a,b)=>a.v.fecha.localeCompare(b.v.fecha));
+
+/* ---- Alertas en el celular: archivo de calendario (.ics) con 3 alarmas + link a Google Calendar ---- */
+const icsTxt = (s)=>(s||"").replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\n/g,"\\n");
+const icsFecha = (s,h)=>s.replace(/-/g,"")+"T"+h;
+function crearICS(mascota, items){
+  const nombre=mascota.pet_name||mascota.petName||"tu mascota";
+  const ahora=new Date(); const stamp=`${ahora.getUTCFullYear()}${pad2(ahora.getUTCMonth()+1)}${pad2(ahora.getUTCDate())}T${pad2(ahora.getUTCHours())}${pad2(ahora.getUTCMinutes())}00Z`;
+  const ev=items.map(v=>[
+    "BEGIN:VEVENT",
+    `UID:${v.id}-${mascota.codigo||"mp"}@mascotasperdidasmisiones`,
+    `DTSTAMP:${stamp}`,
+    `DTSTART:${icsFecha(v.fecha,"100000")}`,
+    `DTEND:${icsFecha(v.fecha,"103000")}`,
+    `SUMMARY:${icsTxt(`💉 ${v.nombre} de ${nombre}`)}`,
+    `DESCRIPTION:${icsTxt(`Recordatorio de Mascotas Perdidas Misiones.\nLlevá a ${nombre} a vacunar: ${v.nombre}.\nAl volver, marcala como aplicada en ${mascotaURL(mascota.codigo)}\nAntirrábica gratis en IMUSA Posadas.`)}`,
+    "BEGIN:VALARM","ACTION:DISPLAY",`DESCRIPTION:${icsTxt(`En 1 semana: ${v.nombre} de ${nombre}`)}`,"TRIGGER:-P7D","END:VALARM",
+    "BEGIN:VALARM","ACTION:DISPLAY",`DESCRIPTION:${icsTxt(`Mañana: ${v.nombre} de ${nombre}`)}`,"TRIGGER:-P1D","END:VALARM",
+    "BEGIN:VALARM","ACTION:DISPLAY",`DESCRIPTION:${icsTxt(`Hoy: ${v.nombre} de ${nombre}`)}`,"TRIGGER:-PT1H","END:VALARM",
+    "END:VEVENT"
+  ].join("\r\n"));
+  return ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Mascotas Perdidas Misiones//Vacunas//ES","CALSCALE:GREGORIAN","METHOD:PUBLISH",...ev,"END:VCALENDAR"].join("\r\n");
+}
+function descargarICS(mascota, items){
+  const blob=new Blob([crearICS(mascota,items)],{type:"text/calendar;charset=utf-8"});
+  const url=URL.createObjectURL(blob); const a=document.createElement("a");
+  a.href=url; a.download=`vacunas-${sinTildes(mascota.pet_name||"mascota").replace(/[^a-z0-9]+/g,"-")}.ics`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+const linkGoogleCal = (mascota,v)=>{ const nombre=mascota.pet_name||mascota.petName||"tu mascota"; const p=new URLSearchParams({ action:"TEMPLATE", text:`💉 ${v.nombre} de ${nombre}`, dates:`${icsFecha(v.fecha,"100000")}/${icsFecha(v.fecha,"103000")}`, ctz:"America/Argentina/Buenos_Aires", details:`Recordatorio de Mascotas Perdidas Misiones. Al volver, marcala como aplicada en ${mascotaURL(mascota.codigo)}` }); return `https://calendar.google.com/calendar/render?${p.toString()}`; };
+const esIOS = ()=>{ try{ return /iPhone|iPad|iPod/i.test(navigator.userAgent); }catch{ return false; } };
+
+function BannerVacunas({ urgentes, onOpen }){
+  if(!urgentes.length) return null;
+  const {m,v}=urgentes[0]; const d=diasHasta(v.fecha); const nombre=m.pet_name||m.petName;
+  const cuando = d<0?`venció hace ${-d} día${d===-1?"":"s"}`:d===0?"es HOY":d===1?"es mañana":`es en ${d} días`;
+  return (<button onClick={()=>onOpen(m)} className="mx-4 mt-3 w-[calc(100%-2rem)] rounded-2xl p-3.5 flex items-center gap-3 text-left text-white" style={{background:d<=0?C.lost:C.seen}}>
+    <span className="text-2xl shrink-0" aria-hidden="true">💉</span>
+    <div className="flex-1"><div className="font-extrabold text-[14px]">La {v.nombre} de {nombre} {cuando}</div><div className="text-[12px] opacity-95">{urgentes.length>1?`Y ${urgentes.length-1} recordatorio${urgentes.length>2?"s":""} más. `:""}Tocá para ver su calendario de vacunas.</div></div>
+    <ChevronRight size={18}/>
+  </button>);
+}
+
+function VacunasView({ go, mascota, onSave, flash }){
+  const nombre=mascota.pet_name||mascota.petName||"tu mascota";
+  const esp=especieVac(mascota);
+  const [lista,setLista]=useState(Array.isArray(mascota.vacunas)?mascota.vacunas:[]);
+  const [saving,setSaving]=useState(false);
+  const [modo,setModo]=useState(null); // "plan" | "manual"
+  const [etapa,setEtapa]=useState("cachorro");
+  const [base,setBase]=useState(hoyISO());
+  const [f,setF]=useState({ nombre:"Antirrábica", fecha:sumarDias(hoyISO(),7), repetir:"12m" });
+  const [agendar,setAgendar]=useState(false);
+
+  const guardar=async(nueva,msj)=>{ setSaving(true); const ok=await onSave(nueva); setSaving(false); if(ok){ setLista(nueva); if(msj)flash(msj); } return ok; };
+  const pendientes=[...lista].filter(v=>!v.hecha).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  const historial=[...lista].filter(v=>v.hecha).sort((a,b)=>(b.hechaEl||b.fecha).localeCompare(a.hechaEl||a.fecha));
+
+  const armarPlan=async()=>{
+    const plan=VAC_PLANES[esp][etapa];
+    let nuevos=plan.map(p=>({ id:vacId(), nombre:p.nombre, fecha: p.dias!=null?sumarDias(base,p.dias):sumarMeses(base,p.meses), repetir:p.repetir||"no", hecha:false }));
+    // Si es cachorro y alguna dosis ya pasó, la dejamos para que la marquen como aplicada o la reprogramen
+    nuevos=nuevos.filter(n=>!pendientes.some(p=>sinTildes(p.nombre)===sinTildes(n.nombre)&&!p.hecha));
+    if(!nuevos.length){ flash("Ese plan ya está cargado."); setModo(null); return; }
+    const ok=await guardar([...lista,...nuevos],`Calendario armado: ${nuevos.length} recordatorio${nuevos.length>1?"s":""} 💉`);
+    if(ok){ setModo(null); setAgendar(true); }
+  };
+  const agregarManual=async()=>{ if(!f.nombre.trim()||!f.fecha){ flash("Completá la vacuna y la fecha."); return; } const ok=await guardar([...lista,{ id:vacId(), nombre:clean(f.nombre,60), fecha:f.fecha, repetir:f.repetir, hecha:false }],"Recordatorio agregado 💉"); if(ok){ setModo(null); setAgendar(true); } };
+  const marcarHecha=async(v)=>{ const hoy=hoyISO(); let nueva=lista.map(x=>x.id===v.id?{...x,hecha:true,hechaEl:hoy}:x); const prox=proximaFecha(hoy,v.repetir); let msj=`¡Listo! ${v.nombre} aplicada ✅`; if(prox){ nueva=[...nueva,{ id:vacId(), nombre:(()=>{ const b=v.nombre.replace(/\s*\(\dª dosis\)/,"").replace(/\s*\(refuerzo anual\)/,""); return v.repetir==="12m"&&!/Antirr|Despar|Control|Pipeta/i.test(b)?b+" (refuerzo anual)":b; })(), fecha:prox, repetir:v.repetir, hecha:false }]; msj+=` · Próxima: ${fmtDia(prox)}`; } const ok=await guardar(nueva,msj); if(ok&&prox)setAgendar(true); };
+  const borrar=async(v)=>{ if(typeof window!=="undefined"&&!window.confirm(`¿Borrar "${v.nombre}"?`))return; await guardar(lista.filter(x=>x.id!==v.id),"Recordatorio borrado"); };
+  const cambiarFecha=async(v,fecha)=>{ if(!fecha)return; await guardar(lista.map(x=>x.id===v.id?{...x,fecha}:x),"Fecha actualizada. Volvé a agendarla en tu celular 📅"); };
+
+  const inp="w-full rounded-xl px-3 py-2.5 text-sm outline-none";
+  const inpSt={background:C.surface,border:`1px solid ${C.line}`};
+
+  return (<div className="px-4 pb-6">
+    <Title back={()=>go("mis_mascotas")} title={`Vacunas de ${nombre}`}/>
+    <div className="rounded-2xl p-3 mb-4 text-[12px] flex gap-2" style={{background:C.brandSoft,color:C.ink}}><Bell size={16} className="shrink-0 mt-0.5" style={{color:C.brand}}/><span>Armá el calendario de vacunas de {nombre} y agendalo en tu celular: <b>te avisa 1 semana antes, el día anterior y el mismo día</b>. Gratis y sin instalar nada.</span></div>
+
+    {pendientes.length>0 && <button onClick={()=>setAgendar(true)} className="w-full mb-4 py-3.5 rounded-2xl font-extrabold text-white flex items-center justify-center gap-2 shadow" style={{background:C.brand}}><CalendarDays size={18}/> Activar alertas en mi celular</button>}
+
+    <h3 className="font-extrabold text-[15px] mb-2">Próximas</h3>
+    {pendientes.length===0 ? <Empty text={`Todavía no hay vacunas agendadas para ${nombre}. Armá su calendario abajo 👇`}/> :
+    <div className="space-y-2.5">{pendientes.map(v=>{ const e=estadoVac(v); return (
+      <div key={v.id} className="rounded-2xl p-3.5" style={{background:C.surface,border:`1.5px solid ${e.c}55`}}>
+        <div className="flex items-start gap-3">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-xl" style={{background:e.bg}} aria-hidden="true">💉</div>
+          <div className="flex-1 min-w-0"><div className="font-bold text-sm">{v.nombre}</div><div className="text-[12px]" style={{color:C.muted}}>{fmtDia(v.fecha)}{v.repetir&&v.repetir!=="no"?` · ${VAC_REPETIR[v.repetir]}`:""}</div><span className="inline-block mt-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full" style={{background:e.bg,color:e.c}}>{e.t}</span></div>
+          <button onClick={()=>borrar(v)} aria-label="Borrar" className="p-1.5 rounded-lg" style={{color:C.muted}}><Trash2 size={15}/></button>
+        </div>
+        <div className="flex gap-2 mt-3">
+          <button onClick={()=>marcarHecha(v)} disabled={saving} className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-1" style={{background:C.found}}><Check size={14}/> Ya se la di</button>
+          <label className="py-2.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer" style={{background:C.brandSoft,color:C.brandDeep}}><Pencil size={13}/> Cambiar fecha<input type="date" className="sr-only" defaultValue={v.fecha} onChange={(ev)=>cambiarFecha(v,ev.target.value)}/></label>
+        </div>
+      </div>);})}</div>}
+
+    {/* Armar calendario */}
+    {!modo && <div className="grid grid-cols-2 gap-2 mt-4">
+      <button onClick={()=>setModo("plan")} className="rounded-2xl p-3.5 text-left" style={{background:C.surface,border:`1px solid ${C.line}`}}><Sparkles size={20} color={C.brand}/><div className="font-bold text-[13px] mt-1">Armar plan sugerido</div><div className="text-[10px]" style={{color:C.muted}}>Para {esp==="gato"?"gatos":"perros"}, cachorros o adultos</div></button>
+      <button onClick={()=>setModo("manual")} className="rounded-2xl p-3.5 text-left" style={{background:C.surface,border:`1px solid ${C.line}`}}><Plus size={20} color={C.brand}/><div className="font-bold text-[13px] mt-1">Agregar una vacuna</div><div className="text-[10px]" style={{color:C.muted}}>La que te indicó tu veterinario/a</div></button>
+    </div>}
+
+    {modo==="plan" && <div className="mt-4 rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}>
+      <div className="font-extrabold text-sm mb-2">Plan sugerido para {esp==="gato"?"gatos":"perros"}</div>
+      <div className="flex gap-2 mb-3">{[["cachorro",esp==="gato"?"Es gatito/a":"Es cachorro/a"],["adulto","Es adulto/a"]].map(([k,l])=><button key={k} onClick={()=>{setEtapa(k);setBase(hoyISO());}} className="flex-1 py-2.5 rounded-xl text-xs font-bold" style={{background:etapa===k?C.brand:C.bg,color:etapa===k?"#fff":C.muted,border:`1px solid ${etapa===k?C.brand:C.line}`}}>{l}</button>)}</div>
+      <Field label={etapa==="cachorro"?"Fecha de nacimiento (aproximada)":"¿Cuándo fue su última vacuna anual? (si no sabés, dejá hoy)"}><input type="date" value={base} max={hoyISO()} onChange={e=>setBase(e.target.value)} className={inp} style={inpSt}/></Field>
+      <div className="mt-3 space-y-1">{VAC_PLANES[esp][etapa].map(p=>{ const fe=p.dias!=null?sumarDias(base,p.dias):sumarMeses(base,p.meses); return <div key={p.nombre} className="flex justify-between text-[12px] py-1 border-b" style={{borderColor:C.line}}><span>💉 {p.nombre}</span><b style={{color:diasHasta(fe)<0?C.lost:C.ink}}>{fmtDia(fe)}</b></div>; })}</div>
+      <p className="text-[10px] mt-2" style={{color:C.muted}}>Es un plan orientativo. Las fechas finales las define tu veterinario/a. Si alguna fecha ya pasó, se marca en rojo: aplicala o tocá "Cambiar fecha".</p>
+      <div className="flex gap-2 mt-3"><button onClick={armarPlan} disabled={saving} className="flex-1 py-3 rounded-2xl font-bold text-white flex items-center justify-center gap-2" style={{background:C.brand}}>{saving&&<Loader2 size={16} className="animate-spin"/>}Armar calendario</button><button onClick={()=>setModo(null)} className="px-4 py-3 rounded-2xl font-bold" style={{background:C.bg,border:`1px solid ${C.line}`}}>Cancelar</button></div>
+    </div>}
+
+    {modo==="manual" && <div className="mt-4 rounded-2xl p-4 space-y-3" style={{background:C.surface,border:`1px solid ${C.line}`}}>
+      <div className="font-extrabold text-sm">Agregar vacuna o control</div>
+      <Field label="Vacuna"><input list="mp-vac-nombres" value={f.nombre} onChange={e=>setF({...f,nombre:e.target.value})} className={inp} style={inpSt} placeholder="Ej: Antirrábica"/><datalist id="mp-vac-nombres">{VAC_NOMBRES.map(n=><option key={n} value={n}/>)}</datalist></Field>
+      <Field label="¿Cuándo le toca?"><input type="date" value={f.fecha} onChange={e=>setF({...f,fecha:e.target.value})} className={inp} style={inpSt}/></Field>
+      <Field label="¿Se repite?"><select value={f.repetir} onChange={e=>setF({...f,repetir:e.target.value})} className={inp} style={inpSt}>{Object.entries(VAC_REPETIR).map(([k,l])=><option key={k} value={k}>{l}</option>)}</select></Field>
+      <div className="flex gap-2"><button onClick={agregarManual} disabled={saving} className="flex-1 py-3 rounded-2xl font-bold text-white flex items-center justify-center gap-2" style={{background:C.brand}}>{saving&&<Loader2 size={16} className="animate-spin"/>}Agregar</button><button onClick={()=>setModo(null)} className="px-4 py-3 rounded-2xl font-bold" style={{background:C.bg,border:`1px solid ${C.line}`}}>Cancelar</button></div>
+    </div>}
+
+    {historial.length>0 && <><h3 className="font-extrabold text-[15px] mt-6 mb-2">Libreta sanitaria</h3>
+      <div className="rounded-2xl overflow-hidden" style={{background:C.surface,border:`1px solid ${C.line}`}}>{historial.map(v=><div key={v.id} className="flex items-center gap-2 px-3.5 py-2.5 border-b last:border-0 text-[12px]" style={{borderColor:C.line}}><Check size={14} color={C.found}/><span className="flex-1 font-semibold">{v.nombre}</span><span style={{color:C.muted}}>{fmtDia(v.hechaEl||v.fecha)}</span></div>)}</div></>}
+
+    <a href="https://posadas.gov.ar/imusa" target="_blank" rel="noreferrer" className="mt-4 w-full rounded-2xl p-3 flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{background:C.brandSoft,color:C.brand}}><Stethoscope size={17}/></div><div className="flex-1"><div className="font-bold text-[13px]">Antirrábica gratis en IMUSA Posadas</div><div className="text-[10px]" style={{color:C.muted}}>Consultá días y lugares de vacunación</div></div><ChevronRight size={15} color={C.muted}/></a>
+
+    {/* Hoja: activar alertas en el celular */}
+    {agendar && pendientes.length>0 && <div className="fixed inset-0 z-50 flex items-end justify-center" style={{background:"rgba(0,0,0,.45)"}} onClick={()=>setAgendar(false)}>
+      <div className="w-full max-w-md rounded-t-3xl p-5 pb-7 max-h-[85vh] overflow-y-auto" style={{background:C.bg}} onClick={e=>e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-1"><div className="font-extrabold text-base">📅 Alertas en tu celular</div><button onClick={()=>setAgendar(false)} aria-label="Cerrar"><X size={20}/></button></div>
+        <p className="text-[12px] mb-4" style={{color:C.muted}}>Guardá las vacunas de {nombre} en el calendario de tu celular y te va a sonar la alarma aunque no abras la página.</p>
+        <button onClick={()=>{ descargarICS(mascota,pendientes); flash(esIOS()?"Tocá “Agregar todo” para guardarlas 📅":"Abrí el archivo descargado con tu Calendario 📅"); }} className="w-full py-3.5 rounded-2xl font-extrabold text-white flex items-center justify-center gap-2" style={{background:C.brand}}><Download size={18}/> Guardar todas ({pendientes.length}) con 3 alarmas</button>
+        <p className="text-[10px] mt-1.5 mb-4 text-center" style={{color:C.muted}}>{esIOS()?"iPhone: se abre el Calendario → tocá “Agregar todo”.":"Android: abrí el archivo .ics descargado y elegí Calendario."} Avisa 1 semana antes, el día anterior y 1 hora antes.</p>
+        <div className="text-[12px] font-bold mb-2">O agendalas una por una en Google Calendar:</div>
+        <div className="space-y-2">{pendientes.map(v=><a key={v.id} href={linkGoogleCal(mascota,v)} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-[12px]" style={{background:C.surface,border:`1px solid ${C.line}`}}><CalendarDays size={15} color={C.brand}/><span className="flex-1 font-semibold truncate">{v.nombre}</span><span style={{color:C.muted}}>{diaDe(v.fecha).toLocaleDateString("es-AR",{day:"numeric",month:"short"})}</span><ChevronRight size={14} color={C.muted}/></a>)}</div>
+        <p className="text-[10px] mt-3" style={{color:C.muted}}>Tip: si cambiás una fecha o agregás vacunas, volvé a tocar “Activar alertas”.</p>
+      </div>
+    </div>}
+  </div>);
+}
+
+function MisMascotasView({ go, mascotas=[], user, onDelete, avistamientos=[], irQr, irDni=()=>{}, irVacunas=()=>{}, avisosVistos={}, marcarVistos=()=>{} }){
   const esNuevo=(a)=>!avisosVistos[a.mascota_codigo]||new Date(a.created_at)>new Date(avisosVistos[a.mascota_codigo]);
   const [verAvisos,setVerAvisos]=useState(null); // mascota cuyos avisos se muestran
   const fmtFecha=(f)=>{ try{ return new Date(f).toLocaleDateString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}); }catch{ return ""; } };
@@ -1353,6 +1549,7 @@ function MisMascotasView({ go, mascotas=[], user, onDelete, avistamientos=[], ir
         </div>
         {avisos>0 && <button onClick={()=>{setVerAvisos(m);marcarVistos(m.codigo);}} className="mx-3 mb-2 py-2.5 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-1 w-[calc(100%-1.5rem)]" style={{background:C.found}}><Bell size={13}/> Ver {avisos} aviso{avisos>1?"s":""} de dónde la vieron</button>}
         {user&&m.owner_id===user.id&&<div className="px-3 pb-2"><BotonDNI compacto onClick={()=>irDni(m)}/></div>}
+        {user&&m.owner_id===user.id&&(()=>{ const pend=vacPendientes(m); const prox=pend[0]; const e=prox?estadoVac(prox):null; return <button onClick={()=>irVacunas(m)} className="mx-3 mb-2 w-[calc(100%-1.5rem)] rounded-xl p-2.5 flex items-center gap-2.5 text-left" style={{background:e?e.bg:C.brandSoft,border:`1px solid ${e?e.c+"44":C.line}`}}><Syringe size={18} color={e?e.c:C.brand} className="shrink-0"/><span className="flex-1 min-w-0"><span className="block font-extrabold text-[13px]" style={{color:C.ink}}>Calendario de vacunas</span><span className="block text-[11px] truncate" style={{color:e?e.c:C.muted}}>{prox?`${prox.nombre} · ${e.t}`:"Armalo y recibí alertas en tu celular"}</span></span><ChevronRight size={16} color={C.muted}/></button>; })()}
         <div className="flex gap-2 px-3 pb-3">
           <button onClick={()=>irQr(m)} className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white" style={{background:C.brand}}>Ver / imprimir QR</button>
           <button onClick={()=>onDelete(m.id)} className="py-2.5 px-3 rounded-xl text-xs font-bold" style={{background:"#FBE7E7",color:C.lost}}><Trash2 size={14}/></button>
