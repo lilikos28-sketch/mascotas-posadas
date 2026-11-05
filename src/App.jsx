@@ -603,6 +603,7 @@ function HomeView({ posts, go, conn, user, realPosts=[], abrirVacunas=()=>{} }){
   const activas=posts.filter(p=>p.status!=="reunited").length;
   // Mis publicaciones activas (para que el dueño encuentre su anuncio al entrar)
   const misActivas = (user ? realPosts.filter(p=>p.owner_id===user.id && p.status!=="reunited") : []).slice(0,3);
+  const [verMisActivas,setVerMisActivas]=useState(false);
   return (
     <div className="px-4">
       {conn!=="cloud" && (
@@ -611,8 +612,20 @@ function HomeView({ posts, go, conn, user, realPosts=[], abrirVacunas=()=>{} }){
         </div>
       )}
 
-      {misActivas.length>0 && <div className="mt-4 rounded-2xl p-3.5" style={{background:"#FFF0F0",border:`1.5px solid ${C.lost}`}}>
-        <div className="flex items-center gap-1.5 mb-2"><Bell size={15} style={{color:C.lost}}/><span className="font-extrabold text-[13px]" style={{color:C.lost}}>Tus publicaciones activas</span></div>
+      {misActivas.length>0 && <style>{`@keyframes mpActPulso{0%,100%{box-shadow:0 0 0 0 rgba(229,57,53,.45)}50%{box-shadow:0 0 0 9px rgba(229,57,53,0)}}
+@keyframes mpActCampana{0%,70%,100%{transform:rotate(0)}75%{transform:rotate(-16deg)}80%{transform:rotate(14deg)}85%{transform:rotate(-10deg)}90%{transform:rotate(6deg)}}
+@keyframes mpActAbre{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.mp-act-btn{animation:mpActPulso 2s ease-out infinite}
+.mp-act-campana{display:inline-flex;animation:mpActCampana 2.4s ease-in-out infinite;transform-origin:50% 10%}
+.mp-act-lista{animation:mpActAbre .25s ease-out}
+@media (prefers-reduced-motion: reduce){.mp-act-btn,.mp-act-campana,.mp-act-lista{animation:none}}`}</style>}
+      {misActivas.length>0 && <div className="mt-4">
+        <button onClick={()=>setVerMisActivas(v=>!v)} aria-expanded={verMisActivas} className={`${verMisActivas?"":"mp-act-btn"} w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-left text-white`} style={{background:C.lost}}>
+          <span className="mp-act-campana"><Bell size={20}/></span>
+          <span className="flex-1"><span className="block font-extrabold text-[14px]">Tus publicaciones activas ({misActivas.length})</span><span className="block text-[11px] opacity-95">{verMisActivas?"Tocá para ocultarlas":"Tocá para verlas y compartirlas"}</span></span>
+          <ChevronRight size={18} style={{transform:verMisActivas?"rotate(90deg)":"none",transition:"transform .2s"}}/>
+        </button>
+        {verMisActivas && <div className="mp-act-lista mt-2 rounded-2xl p-3.5" style={{background:"#FFF0F0",border:`1.5px solid ${C.lost}`}}>
         <div className="space-y-2">{misActivas.map(p=>(
           <div key={p.id} className="rounded-xl overflow-hidden" style={{background:"#fff",border:`1px solid ${C.line}`}}>
             <button onClick={()=>go("detail",{post:p})} className="w-full flex items-center gap-2.5 p-2 text-left">
@@ -626,6 +639,7 @@ function HomeView({ posts, go, conn, user, realPosts=[], abrirVacunas=()=>{} }){
             </div>
           </div>
         ))}</div>
+      </div>}
       </div>}
 
       {/* Botón PROTAGONISTA: registrar mascota (el fuerte de la app) */}
