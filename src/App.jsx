@@ -4,7 +4,7 @@ import {
   Home, Check, X, Camera, ChevronLeft, ChevronRight, Sparkles, Trash2, EyeOff,
   PartyPopper, Copy, Store, Stethoscope, Settings2, Flag, Info, Navigation, Crosshair,
   Clock, Ruler, Ban, Loader2, Send, MapPinned, ListChecks, AlertTriangle, LogOut,
-  LogIn, Pencil, Wallet, Cloud, CloudOff, Mail, KeyRound, CircleUserRound, QrCode, BookOpen, HelpCircle, Syringe, CalendarDays, Download
+  LogIn, Pencil, Wallet, Cloud, CloudOff, Mail, KeyRound, CircleUserRound, QrCode, BookOpen, HelpCircle, Syringe, CalendarDays, Download, RotateCw, ZoomIn, Star
 } from "lucide-react";
 
 /* =========================================================================
@@ -132,6 +132,14 @@ function compressImage(file,maxDim=1280,quality=0.72){
       const cv=document.createElement("canvas");cv.width=width;cv.height=height;cv.getContext("2d").drawImage(img,0,0,width,height);URL.revokeObjectURL(url);resolve(cv.toDataURL("image/jpeg",quality));};
     img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("No se pudo leer la imagen."));};img.src=url;});
 }
+/* --------------- Fotos: hasta 3 por publicación + encuadre ------------- */
+const MAX_FOTOS=3;
+const FOTO_W=1200, FOTO_H=900; // todas las fotos se guardan en 4:3, ya encuadradas
+const fotosDe=(p)=>{ if(!p)return []; const a=Array.isArray(p.photos)?p.photos.filter(Boolean):[]; if(a.length)return a.slice(0,MAX_FOTOS); return p.photo?[p.photo]:[]; };
+const subirFotos=(c,fotos)=>Promise.all((fotos||[]).map(f=>(f&&f.startsWith("data:"))?uploadPhoto(c,f):f));
+// Si la columna "fotos" todavía no existe en Supabase, se guarda igual (solo la principal)
+const sinFotos=(row)=>{ const { fotos, ...r }=row; return r; };
+const esErrorFotos=(e)=>!!e&&/fotos/i.test(`${e.message||""} ${e.details||""} ${e.hint||""}`);
 
 /* ===================== Backend: NUBE (Supabase) o LOCAL ==================== */
 const KEYS = { posts:"mp:posts:v4", reports:"mp:reports:v4", session:"mp:session:v4", lugares:"mp:lugares:v1", mensajes:"mp:mensajes:v1", mascotas:"mp:mascotas:v1", avist:"mp:avist:v1", blog:"mp:blog:v1" };
@@ -150,8 +158,8 @@ async function getClient(){
   return _client;
 }
 /* Mapeo fila <-> objeto de la app */
-const toRow = (p)=>({ owner_id:p.owner_id??null, type:p.type, status:p.status, pet_name:p.petName, species:p.species, sex:p.sex, age_approx:p.ageApprox, color:p.color, features:p.features, date:p.date, time:p.time, place:p.place, zona:p.zona, barrio:p.barrio, cp:p.cp, description:p.description, photo:p.photo, contact_name:p.contactName, phone:p.phone, whatsapp:p.whatsapp, reward:p.reward, lat:p.lat, lng:p.lng, precise_location:p.preciseLocation, recovered_at:p.recoveredAt, approved:p.approved, reported:p.reported, city:p.city, mascota_codigo:p.mascotaCodigo });
-const fromRow = (r)=>({ id:r.id, legajo:r.legajo, owner_id:r.owner_id, type:r.type, status:r.status, petName:r.pet_name, species:r.species, sex:r.sex, ageApprox:r.age_approx, color:r.color, features:r.features, date:r.date, time:r.time, place:r.place, zona:r.zona, barrio:r.barrio, cp:r.cp, description:r.description, photo:r.photo, contactName:r.contact_name, phone:r.phone, whatsapp:r.whatsapp, reward:r.reward, lat:r.lat, lng:r.lng, preciseLocation:r.precise_location, recoveredAt:r.recovered_at, createdAt:r.created_at, approved:r.approved, reported:r.reported, city:r.city, mascotaCodigo:r.mascota_codigo, demo:false, emoji:EMO[r.species]||"🐾" });
+const toRow = (p)=>({ owner_id:p.owner_id??null, type:p.type, status:p.status, pet_name:p.petName, species:p.species, sex:p.sex, age_approx:p.ageApprox, color:p.color, features:p.features, date:p.date, time:p.time, place:p.place, zona:p.zona, barrio:p.barrio, cp:p.cp, description:p.description, photo:p.photo, fotos:(p.photos&&p.photos.length)?p.photos.slice(0,MAX_FOTOS):(p.photo?[p.photo]:null), contact_name:p.contactName, phone:p.phone, whatsapp:p.whatsapp, reward:p.reward, lat:p.lat, lng:p.lng, precise_location:p.preciseLocation, recovered_at:p.recoveredAt, approved:p.approved, reported:p.reported, city:p.city, mascota_codigo:p.mascotaCodigo });
+const fromRow = (r)=>({ id:r.id, legajo:r.legajo, owner_id:r.owner_id, type:r.type, status:r.status, petName:r.pet_name, species:r.species, sex:r.sex, ageApprox:r.age_approx, color:r.color, features:r.features, date:r.date, time:r.time, place:r.place, zona:r.zona, barrio:r.barrio, cp:r.cp, description:r.description, photo:r.photo, photos:(Array.isArray(r.fotos)&&r.fotos.length)?r.fotos:(r.photo?[r.photo]:[]), contactName:r.contact_name, phone:r.phone, whatsapp:r.whatsapp, reward:r.reward, lat:r.lat, lng:r.lng, preciseLocation:r.precise_location, recoveredAt:r.recovered_at, createdAt:r.created_at, approved:r.approved, reported:r.reported, city:r.city, mascotaCodigo:r.mascota_codigo, demo:false, emoji:EMO[r.species]||"🐾" });
 async function uploadPhoto(client, dataUrl){
   try{ const blob=await(await fetch(dataUrl)).blob(); const name=`pub/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
     const { error }=await client.storage.from("fotos").upload(name,blob,{contentType:"image/jpeg"}); if(error)throw error;
@@ -370,13 +378,13 @@ export default function App(){
     let aprobada=true;
     if(p.photo){ const otras=realPosts.filter(x=>x.photo&&typeof x.photo==="string"&&x.photo.startsWith("http")&&(!user||x.owner_id!==user.id)); const rv=await revisarFoto(p.photo,otras); if(!rv.animal||rv.repetida){ aprobada=false; flash(rv.repetida?"Tu publicación quedó en revisión: la foto ya aparece en otra publicación. La aprobamos a la brevedad.":"Tu publicación quedó en revisión porque no detectamos un animal en la foto. La aprobamos a la brevedad."); } }
     const partial={ ...p, city:"posadas", approved:aprobada, reported:false, recoveredAt:null, status:p.type==="found"?"found":p.type==="lost"?"lost":"searching", emoji:EMO[p.species]||"🐾", owner_id:(user&&user.id)||(conn==="cloud"?null:"local"), contactName:(user&&user.name)||"Vecino/a" };
-    if(conn==="cloud"){ try{ const c=await getClient(); let photo=p.photo; if(photo&&photo.startsWith("data:"))photo=await uploadPhoto(c,photo); const {data,error}=await c.from("publicaciones").insert(toRow({...partial,photo})).select().single(); if(error)throw error; const np=fromRow(data); setRealPosts(prev=>[np,...prev]); setCurrent(np); return np; }catch(e){ flash("No se pudo guardar en la nube."); return null; } }
+    if(conn==="cloud"){ try{ const c=await getClient(); const photos=await subirFotos(c,fotosDe(p)); const photo=photos[0]||null; const row=toRow({...partial,photo,photos}); let {data,error}=await c.from("publicaciones").insert(row).select().single(); if(error&&esErrorFotos(error))({data,error}=await c.from("publicaciones").insert(sinFotos(row)).select().single()); if(error)throw error; const np=fromRow(data); setRealPosts(prev=>[np,...prev]); setCurrent(np); return np; }catch(e){ flash("No se pudo guardar en la nube."); return null; } }
     const id=Math.max(1000,...realPosts.filter(x=>typeof x.id==="number").map(x=>x.id))+1; const np={...partial,id,createdAt:new Date().toISOString()}; const next=[np,...realPosts]; setRealPosts(next); Local.set(KEYS.posts,next); setCurrent(np); return np;
   };
   const updatePost=async(id,fields)=>{
     const existing=realPosts.find(x=>x.id===id); if(!existing){flash("Solo podés editar tus publicaciones.");return null;}
     const merged={...existing,...fields};
-    if(conn==="cloud"){ try{ const c=await getClient(); let photo=merged.photo; if(photo&&photo.startsWith("data:"))photo=await uploadPhoto(c,photo); const {data,error}=await c.from("publicaciones").update(toRow({...merged,photo})).eq("id",id).select().single(); if(error)throw error; const np=fromRow(data); setRealPosts(prev=>prev.map(x=>x.id===id?np:x)); setCurrent(np); return np; }catch{ flash("No se pudo actualizar."); return null; } }
+    if(conn==="cloud"){ try{ const c=await getClient(); const photos=await subirFotos(c,fotosDe(merged)); const photo=photos[0]||null; const row=toRow({...merged,photo,photos}); let {data,error}=await c.from("publicaciones").update(row).eq("id",id).select().single(); if(error&&esErrorFotos(error))({data,error}=await c.from("publicaciones").update(sinFotos(row)).eq("id",id).select().single()); if(error)throw error; const np=fromRow(data); setRealPosts(prev=>prev.map(x=>x.id===id?np:x)); setCurrent(np); return np; }catch{ flash("No se pudo actualizar."); return null; } }
     const next=realPosts.map(x=>x.id===id?merged:x); setRealPosts(next); Local.set(KEYS.posts,next); setCurrent(merged); return merged;
   };
   const submitPost=async(payload)=>{ if(payload.__edit)return await updatePost(payload.id,payload.fields); return await createPost(payload); };
@@ -784,26 +792,119 @@ function AuthView({ onSignIn, onSignUp, onReset, onGoogle, go }){
   );
 }
 
+/* --------------------- Fotos: selector, editor y galería ------------------- */
+function FotosPicker({ photos, busy, onAdd, onEdit, onRemove, onMain }){
+  if(!photos.length) return (
+    <button type="button" onClick={onAdd} className="w-full rounded-2xl mb-3 overflow-hidden flex items-center justify-center" style={{height:170,background:C.surface,border:`1.5px dashed ${C.line}`}}>
+      {busy?<Loader2 className="animate-spin" color={C.brand}/>:<div className="text-center" style={{color:C.muted}}><Camera size={30} className="mx-auto"/><div className="text-sm font-semibold mt-1">Agregar foto</div><div className="text-[11px]">Hasta {MAX_FOTOS} fotos · las podés acomodar</div></div>}
+    </button>);
+  return (
+    <div className="mb-3">
+      <div className="relative rounded-2xl overflow-hidden" style={{aspectRatio:"4/3",background:C.surface}}>
+        <img src={photos[0]} alt="Foto principal" className="w-full h-full object-cover"/>
+        <span className="absolute top-2 left-2 text-[10px] font-extrabold px-2 py-1 rounded-full text-white" style={{background:"rgba(18,33,28,.75)"}}>★ Principal</span>
+        <button type="button" onClick={()=>onEdit(0)} className="absolute bottom-2 right-2 px-3 py-2 rounded-full text-[12px] font-bold flex items-center gap-1.5 shadow" style={{background:"rgba(255,255,255,.95)",color:C.ink}}><Crosshair size={14} color={C.brand}/> Acomodar</button>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mt-2">
+        {photos.map((ph,i)=>(
+          <div key={i} className="relative rounded-xl overflow-hidden" style={{aspectRatio:"4/3",boxShadow:i===0?`0 0 0 2px ${C.brand}`:"none"}}>
+            <button type="button" onClick={()=>onEdit(i)} className="w-full h-full" aria-label={`Acomodar foto ${i+1}`}><img src={ph} alt="" className="w-full h-full object-cover"/></button>
+            <button type="button" onClick={()=>onRemove(i)} aria-label={`Quitar foto ${i+1}`} className="absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center" style={{background:"rgba(18,33,28,.75)"}}><X size={13} color="#fff"/></button>
+            {i>0&&<button type="button" onClick={()=>onMain(i)} aria-label="Usar como principal" className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-0.5" style={{background:"rgba(255,255,255,.95)",color:C.ink}}><Star size={9}/> Principal</button>}
+          </div>))}
+        {photos.length<MAX_FOTOS&&<button type="button" onClick={onAdd} className="rounded-xl flex flex-col items-center justify-center" style={{aspectRatio:"4/3",background:C.surface,border:`1.5px dashed ${C.line}`,color:C.muted}}>{busy?<Loader2 size={18} className="animate-spin" color={C.brand}/>:<><Plus size={18}/><span className="text-[10px] font-semibold">{photos.length}/{MAX_FOTOS}</span></>}</button>}
+      </div>
+      <p className="text-[11px] mt-1.5" style={{color:C.muted}}>Tocá una foto para acomodarla. La principal es la que se ve en las tarjetas.</p>
+    </div>);
+}
+
+/* Editor de encuadre: arrastrar para mover, pellizcar / rueda / barra para acercar, girar. */
+function FotoEditor({ src, onDone, onCancel, flash }){
+  const boxRef=useRef(); const [img,setImg]=useState(null); const [bw,setBw]=useState(320);
+  const [v,setV]=useState({s:1,x:0,y:0}); const ptrs=useRef(new Map()); const ini=useRef(null); const [saving,setSaving]=useState(false);
+  useEffect(()=>{ const im=new Image(); if(/^https?:/.test(src))im.crossOrigin="anonymous"; im.onload=()=>setImg(im); im.onerror=()=>{flash&&flash("No se pudo abrir la foto.");onCancel();}; im.src=src; },[src]);
+  useEffect(()=>{ const m=()=>boxRef.current&&setBw(boxRef.current.clientWidth); m(); window.addEventListener("resize",m); return ()=>window.removeEventListener("resize",m); },[]);
+  useEffect(()=>{ const prev=document.body.style.overflow; document.body.style.overflow="hidden"; return ()=>{document.body.style.overflow=prev;}; },[]);
+  const bh=bw*FOTO_H/FOTO_W;
+  const cover=img?Math.max(bw/img.width,bh/img.height):1;
+  const fix=(n)=>{ if(!img)return n; const s=Math.min(4,Math.max(1,n.s)); const sc=cover*s; const mx=Math.max(0,(img.width*sc-bw)/2), my=Math.max(0,(img.height*sc-bh)/2); return {s,x:Math.min(mx,Math.max(-mx,n.x)),y:Math.min(my,Math.max(-my,n.y))}; };
+  const snap=()=>{ const pts=[...ptrs.current.values()]; ini.current={v,pts}; };
+  const down=(e)=>{ e.currentTarget.setPointerCapture&&e.currentTarget.setPointerCapture(e.pointerId); ptrs.current.set(e.pointerId,{x:e.clientX,y:e.clientY}); snap(); };
+  const up=(e)=>{ ptrs.current.delete(e.pointerId); snap(); };
+  const move=(e)=>{ if(!ptrs.current.has(e.pointerId)||!ini.current)return; ptrs.current.set(e.pointerId,{x:e.clientX,y:e.clientY}); const pts=[...ptrs.current.values()], a=ini.current;
+    if(pts.length===1&&a.pts.length===1){ setV(fix({...a.v,x:a.v.x+pts[0].x-a.pts[0].x,y:a.v.y+pts[0].y-a.pts[0].y})); }
+    else if(pts.length>=2&&a.pts.length>=2){ const d=(p)=>Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)||1; const mid=(p)=>({x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2}); const r=d(pts)/d(a.pts); const m0=mid(a.pts),m1=mid(pts); setV(fix({s:a.v.s*r,x:a.v.x*r+m1.x-m0.x,y:a.v.y*r+m1.y-m0.y})); } };
+  const wheel=(e)=>{ const r=e.deltaY<0?1.08:1/1.08; setV(o=>fix({s:o.s*r,x:o.x*r,y:o.y*r})); };
+  const zoomTo=(s)=>setV(o=>{ const r=s/o.s; return fix({s,x:o.x*r,y:o.y*r}); });
+  const girar=()=>{ if(!img)return; const cv=document.createElement("canvas"); cv.width=img.height; cv.height=img.width; const x=cv.getContext("2d"); x.translate(cv.width/2,cv.height/2); x.rotate(Math.PI/2); x.drawImage(img,-img.width/2,-img.height/2); const im=new Image(); im.onload=()=>{setImg(im);setV({s:1,x:0,y:0});}; try{ im.src=cv.toDataURL("image/jpeg",0.9); }catch{ flash&&flash("No se pudo girar esta foto."); } };
+  const listo=()=>{ if(!img)return; setSaving(true); try{ const k=FOTO_W/bw, sc=cover*v.s*k; const cv=document.createElement("canvas"); cv.width=FOTO_W; cv.height=FOTO_H; const x=cv.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,FOTO_W,FOTO_H); x.imageSmoothingQuality="high"; const w=img.width*sc,h=img.height*sc; x.drawImage(img,FOTO_W/2+v.x*k-w/2,FOTO_H/2+v.y*k-h/2,w,h); onDone(cv.toDataURL("image/jpeg",0.82)); }catch{ setSaving(false); flash&&flash("No se pudo guardar el encuadre."); } };
+  const sc=cover*v.s;
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{background:"rgba(10,18,15,.88)"}} role="dialog" aria-modal="true" aria-label="Acomodar foto">
+      <div className="w-full max-w-md rounded-3xl p-4" style={{background:C.surface}}>
+        <div className="font-extrabold text-[16px]">Acomodá la foto</div>
+        <div className="text-[12px] mb-3" style={{color:C.muted}}>Arrastrá para mover y pellizcá (o usá la barra) para acercar. Que se vea bien la carita y el cuerpo.</div>
+        <div ref={boxRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onWheel={wheel} className="relative w-full overflow-hidden rounded-2xl select-none" style={{aspectRatio:`${FOTO_W}/${FOTO_H}`,background:"#12211C",touchAction:"none",cursor:"grab"}}>
+          {img?<img src={img.src} alt="" draggable={false} style={{position:"absolute",left:"50%",top:"50%",width:img.width*sc,height:img.height*sc,maxWidth:"none",transform:`translate(calc(-50% + ${v.x}px), calc(-50% + ${v.y}px))`,pointerEvents:"none"}}/>:<div className="absolute inset-0 flex items-center justify-center"><Loader2 className="animate-spin" color="#fff"/></div>}
+          <div className="absolute inset-0 pointer-events-none" style={{backgroundImage:"linear-gradient(to right, rgba(255,255,255,.35) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,.35) 1px, transparent 1px)",backgroundSize:"33.333% 33.333%",backgroundPosition:"-1px -1px"}}/>
+        </div>
+        <div className="flex items-center gap-3 mt-3">
+          <ZoomIn size={18} color={C.muted}/>
+          <input type="range" min="1" max="4" step="0.01" value={v.s} onChange={e=>zoomTo(+e.target.value)} className="flex-1" aria-label="Acercar"/>
+          <button type="button" onClick={girar} className="w-10 h-10 rounded-full flex items-center justify-center" style={{background:C.brandSoft,color:C.brand}} aria-label="Girar foto"><RotateCw size={18}/></button>
+        </div>
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          <button type="button" onClick={onCancel} className="py-3 rounded-2xl font-bold" style={{background:C.surface,border:`1px solid ${C.line}`}}>Cancelar</button>
+          <button type="button" onClick={listo} disabled={!img||saving} className="py-3 rounded-2xl font-bold text-white flex items-center justify-center gap-2" style={{background:C.brand,opacity:(!img||saving)?.6:1}}>{saving?<Loader2 size={16} className="animate-spin"/>:<Check size={16}/>} Listo</button>
+        </div>
+      </div>
+    </div>);
+}
+
+/* Galería de la ficha: fotos completas (sin recortar), se pasan deslizando. */
+function Galeria({ post, h=300 }){
+  const fotos=fotosDe(post); const [i,setI]=useState(0); const ref=useRef();
+  if(!fotos.length) return <Thumb post={post} h={h}/>;
+  const onScroll=()=>{ const el=ref.current; if(el)setI(Math.round(el.scrollLeft/Math.max(1,el.clientWidth))); };
+  const ir=(k)=>{ const el=ref.current; if(el)el.scrollTo({left:k*el.clientWidth,behavior:"smooth"}); };
+  const nombre=post.petName||post.species||"mascota";
+  return (
+    <div className="relative">
+      <div ref={ref} onScroll={onScroll} className="flex overflow-x-auto" style={{height:h,scrollSnapType:"x mandatory",scrollbarWidth:"none"}}>
+        {fotos.map((f,k)=>(
+          <div key={k} className="relative shrink-0 w-full h-full overflow-hidden" style={{scrollSnapAlign:"center",background:"#12211C"}}>
+            <img src={f} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" style={{filter:"blur(18px)",transform:"scale(1.2)",opacity:.6}}/>
+            <img src={f} alt={`${TYPE[post.type]?TYPE[post.type].label:"Mascota"}: ${nombre}${fotos.length>1?` (foto ${k+1} de ${fotos.length})`:""}`} loading={k?"lazy":"eager"} className="relative w-full h-full object-contain"/>
+          </div>))}
+      </div>
+      {post.demo&&<span className="absolute top-14 left-3 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md" style={{background:"rgba(18,33,28,.75)",color:"#fff"}}>DEMO</span>}
+      {fotos.length>1&&<div className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2 py-1.5 rounded-full" style={{background:"rgba(18,33,28,.6)"}}>{fotos.map((_,k)=><button key={k} type="button" onClick={()=>ir(k)} aria-label={`Ver foto ${k+1}`} className="rounded-full" style={{width:k===i?16:7,height:7,background:k===i?"#fff":"rgba(255,255,255,.55)",transition:"width .2s"}}/>)}</div>}
+    </div>);
+}
+
 /* ------------------------------ Publicar --------------------------------- */
 function NewView(props){ useEffect(()=>{ const t=setTimeout(()=>{ cargarDetector(); },1500); return ()=>clearTimeout(t); },[]); return <NewViewInner {...props}/>; }
 function NewViewInner({ type, setType, onSubmit, go, flash, editPost, misMascotas=[], esAdmin=false }){
   const [fotoUrl,setFotoUrl]=useState("");
-  const fotoDesdeEnlace=async()=>{ const u=fotoUrl.trim(); if(!u)return; setBusy(true); try{ const r=await fetch(`/api/img?u=${encodeURIComponent(u)}`); if(!r.ok)throw new Error(); const b=await r.blob(); setPhoto(await compressImage(new File([b],"foto.jpg",{type:b.type||"image/jpeg"}))); setFotoUrl(""); flash("Foto cargada ✓"); }catch{ flash("No se pudo traer esa foto. Usá el enlace de la imagen de Facebook."); } setBusy(false); };
+  const fotoDesdeEnlace=async()=>{ const u=fotoUrl.trim(); if(!u)return; setBusy(true); try{ const r=await fetch(`/api/img?u=${encodeURIComponent(u)}`); if(!r.ok)throw new Error(); const b=await r.blob(); const src=await compressImage(new File([b],"foto.jpg",{type:b.type||"image/jpeg"}),1600,0.85); setFotoUrl(""); if(photos.length>=MAX_FOTOS){flash(`Máximo ${MAX_FOTOS} fotos.`);}else setEditor({src,idx:photos.length}); }catch{ flash("No se pudo traer esa foto. Usá el enlace de la imagen de Facebook."); } setBusy(false); };
   const editing=!!editPost; const t=TYPE[editing?editPost.type:type];
   const init = editing ? { petName:editPost.petName||"", species:editPost.species||"perro", sex:editPost.sex||"", ageApprox:editPost.ageApprox||"", color:editPost.color||"", features:editPost.features||"", date:editPost.date||new Date().toISOString().slice(0,10), time:editPost.time||"", place:editPost.place||"", zona:editPost.zona||"Posadas", barrio:editPost.barrio||"", cp:editPost.cp||"", description:editPost.description||"", phone:editPost.phone||editPost.whatsapp||"", whatsapp:editPost.whatsapp||"", reward:editPost.reward||"", mascotaCodigo:editPost.mascotaCodigo||"" }
     : { petName:"", species:"", sex:"", ageApprox:"", color:"", features:"", date:new Date().toISOString().slice(0,10), time:"", place:"", zona:"Posadas", barrio:"", cp:"3300", description:"", phone:"", whatsapp:"", reward:"", mascotaCodigo:"" };
-  const [f,setF]=useState(init);const [photo,setPhoto]=useState(editing?editPost.photo:null);const [coords,setCoords]=useState(editing&&editPost.preciseLocation?{lat:editPost.lat,lng:editPost.lng}:null);const [precise,setPrecise]=useState(editing?!!editPost.preciseLocation:false);const [locMode,setLocMode]=useState("barrio");const [busy,setBusy]=useState(false);const [saving,setSaving]=useState(false);const [done,setDone]=useState(null);const fileRef=useRef();
+  const [f,setF]=useState(init);const [photos,setPhotos]=useState(editing?fotosDe(editPost):[]);const photo=photos[0]||null;const [editor,setEditor]=useState(null);const [coords,setCoords]=useState(editing&&editPost.preciseLocation?{lat:editPost.lat,lng:editPost.lng}:null);const [precise,setPrecise]=useState(editing?!!editPost.preciseLocation:false);const [locMode,setLocMode]=useState("barrio");const [busy,setBusy]=useState(false);const [saving,setSaving]=useState(false);const [done,setDone]=useState(null);const fileRef=useRef();
   const curType=editing?editPost.type:type;const set=(k,v)=>setF(s=>({...s,[k]:v}));
   // Para "Perdí mi mascota": ofrecer elegir una mascota registrada y autocompletar
   const hayRegistradas = curType==="lost" && !editing && misMascotas.length>0;
   const [mostrarSelector,setMostrarSelector]=useState(hayRegistradas);
   const elegirMascota=(m)=>{
     setF(s=>({...s, petName:m.pet_name||m.petName||"", species:m.species||"perro", sex:m.sex||"", color:m.color||"", features:m.features||"", zona:m.zona||"Posadas", cp:zonaCP(m.zona||"Posadas"), phone:digits(m.phone)||"", whatsapp:digits(m.whatsapp||m.phone)||"", mascotaCodigo:m.codigo||"" }));
-    if(m.photo)setPhoto(m.photo);
+    if(m.photo)setPhotos([m.photo]);
     setMostrarSelector(false);
     flash(`Datos de ${m.pet_name||m.petName||"tu mascota"} cargados ✓`);
   };
-  const onFile=async(e)=>{const file=e.target.files&&e.target.files[0];const err=validateImage(file);if(err){flash(err);return;}setBusy(true);try{setPhoto(await compressImage(file));}catch{flash("No se pudo procesar la imagen.");}setBusy(false);};
+  const onFile=async(e)=>{const file=e.target.files&&e.target.files[0];e.target.value="";const err=validateImage(file);if(err){flash(err);return;}if(photos.length>=MAX_FOTOS){flash(`Podés subir hasta ${MAX_FOTOS} fotos.`);return;}setBusy(true);try{const src=await compressImage(file,1600,0.85);setEditor({src,idx:photos.length});}catch{flash("No se pudo procesar la imagen.");}setBusy(false);};
+  const guardarEncuadre=(dataUrl)=>{ const idx=editor.idx; setPhotos(prev=>{ const n=[...prev]; n[idx]=dataUrl; return n.filter(Boolean).slice(0,MAX_FOTOS); }); setEditor(null); flash("Foto lista ✓"); };
+  const quitarFoto=(i)=>setPhotos(prev=>prev.filter((_,k)=>k!==i));
+  const hacerPrincipal=(i)=>setPhotos(prev=>[prev[i],...prev.filter((_,k)=>k!==i)]);
   const useGps=()=>{ if(!navigator.geolocation){flash("El navegador no permite geolocalización.");return;} setLocMode("gps"); navigator.geolocation.getCurrentPosition(p=>{setCoords({lat:+p.coords.latitude.toFixed(6),lng:+p.coords.longitude.toFixed(6)});setPrecise(true);flash("Ubicación tomada ✓");},()=>flash("No pudimos obtener tu ubicación.")); };
   const barrioCoords=()=>{ if(f.zona==="Posadas"&&f.barrio&&BARRIOS[f.barrio]){const b=BARRIOS[f.barrio];return {lat:b[0],lng:b[1]};} const z=coordDe(f.zona);return {lat:z[0],lng:z[1]}; };
   const telOk=telValido(f.phone);
@@ -814,7 +915,7 @@ function NewViewInner({ type, setType, onSubmit, go, flash, editPost, misMascota
   const submit=async()=>{
     if(!canSubmit){flash(`Para publicar falta: ${listaFaltan}.`);return;}
     setSaving(true);const c=coords||barrioCoords();
-    const fields={ petName:clean(f.petName,40), species:f.species, sex:f.sex, ageApprox:clean(f.ageApprox,20), color:clean(f.color,40), features:clean(f.features,120), date:f.date, time:f.time, place:clean(f.place,80), zona:f.zona, barrio:f.barrio, cp:clean(f.cp,10), description:cleanText(f.description,600), phone:telLocal(f.phone), whatsapp:telLocal(f.phone), reward:clean(f.reward,40), lat:c.lat, lng:c.lng, preciseLocation:precise, photo, mascotaCodigo:f.mascotaCodigo||"" };
+    const fields={ petName:clean(f.petName,40), species:f.species, sex:f.sex, ageApprox:clean(f.ageApprox,20), color:clean(f.color,40), features:clean(f.features,120), date:f.date, time:f.time, place:clean(f.place,80), zona:f.zona, barrio:f.barrio, cp:clean(f.cp,10), description:cleanText(f.description,600), phone:telLocal(f.phone), whatsapp:telLocal(f.phone), reward:clean(f.reward,40), lat:c.lat, lng:c.lng, preciseLocation:precise, photo, photos, mascotaCodigo:f.mascotaCodigo||"" };
     const saved = editing ? await onSubmit({__edit:true,id:editPost.id,fields}) : await onSubmit({...fields,type:curType});
     setSaving(false);
     if(!saved){return;}
@@ -843,7 +944,8 @@ function NewViewInner({ type, setType, onSubmit, go, flash, editPost, misMascota
       {!editing&&<div className="grid grid-cols-3 gap-2 mb-4">{Object.entries(TYPE).map(([k,v])=><button key={k} onClick={()=>setType(k)} className="py-2.5 rounded-xl text-xs font-bold" style={{background:type===k?v.dot:C.surface,color:type===k?"#fff":C.muted,border:`1px solid ${type===k?v.dot:C.line}`}}>{v.ico} {v.label}</button>)}</div>}
       {curType==="lost"&&!editing&&misMascotas.length>0&&<button onClick={()=>setMostrarSelector(true)} className="w-full mb-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5" style={{background:C.brandSoft,color:C.brandDeep}}><PawPrint size={14}/> Elegir una de mis mascotas registradas</button>}
       <div className="rounded-2xl p-3 mb-4 text-[12px] flex gap-2" style={{background:t.soft,color:C.ink}}><Sparkles size={16} className="shrink-0 mt-0.5" style={{color:t.dot}}/><span>{curType==="found"?"No publiques datos privados que identifiquen al dueño sin verificar primero su identidad.":"Publicá en menos de 2 minutos. Lo esencial: foto, ubicación y contacto."}</span></div>
-      <button onClick={()=>fileRef.current&&fileRef.current.click()} className="w-full rounded-2xl mb-2 overflow-hidden flex items-center justify-center" style={{height:170,background:C.surface,border:`1.5px dashed ${C.line}`}}>{busy?<Loader2 className="animate-spin" color={C.brand}/>:photo?<img src={photo} alt="" className="w-full h-full object-cover"/>:<div className="text-center" style={{color:C.muted}}><Camera size={30} className="mx-auto"/><div className="text-sm font-semibold mt-1">Agregar foto</div><div className="text-[11px]">Se comprime automáticamente</div></div>}</button>
+      <FotosPicker photos={photos} busy={busy} onAdd={()=>fileRef.current&&fileRef.current.click()} onEdit={(i)=>setEditor({src:photos[i],idx:i})} onRemove={quitarFoto} onMain={hacerPrincipal}/>
+      {editor&&<FotoEditor src={editor.src} onDone={guardarEncuadre} onCancel={()=>setEditor(null)} flash={flash}/>}
       <input ref={fileRef} type="file" accept="image/*" onChange={onFile} className="hidden"/>
       {esAdmin&&<div className="flex gap-2 mb-3"><input value={fotoUrl} onChange={e=>setFotoUrl(e.target.value)} className="inp flex-1" placeholder="Admin: enlace de la imagen de Facebook" aria-label="Enlace de la imagen de Facebook"/><button type="button" onClick={fotoDesdeEnlace} className="px-3 rounded-xl text-[12px] font-bold text-white" style={{background:C.brand}}>Cargar</button></div>}
       <div className="rounded-2xl p-3 mb-4" style={{background:C.surface,border:`1px solid ${C.line}`}}>
@@ -888,7 +990,7 @@ function DetailView({ post, all, go, setStatus, flash, onReport, user, onDelete 
   const wa=()=>{const est=post.type==="lost"?"🔴 PERDIDA":post.type==="found"?"🟢 ENCONTRADA":"🟡 VISTA";const esp=post.species&&post.species!=="otro"?post.species:"mascota";const quien=post.petName?`${post.petName} (${esp})`:esp.charAt(0).toUpperCase()+esp.slice(1);const msg=`Hola 👋 Te escribo por tu publicación en Mascotas Perdidas Misiones:\n${est}: ${quien} en ${ubicTxt(post)}\n${linkPost(post)}\n\nCreo que tengo información que te puede servir.`;window.open(`https://wa.me/${waNum(post.whatsapp)}?text=${encodeURIComponent(msg)}`,"_blank");};
   return (
     <div>
-      <div className="relative"><Thumb post={post} h={260}/><button onClick={()=>go("home")} className="absolute top-3 left-3 w-10 h-10 rounded-full bg-white/95 flex items-center justify-center shadow"><ChevronLeft size={20}/></button><button onClick={()=>go("share",{post})} className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/95 flex items-center justify-center shadow"><Share2 size={18}/></button><div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-full text-white text-xs font-bold" style={{background:t.dot}}><Punto e={t.ico} borde/> {t.label}</div></div>
+      <div className="relative"><Galeria post={post} h={300}/><button onClick={()=>go("home")} className="absolute top-3 left-3 w-10 h-10 rounded-full bg-white/95 flex items-center justify-center shadow"><ChevronLeft size={20}/></button><button onClick={()=>go("share",{post})} className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/95 flex items-center justify-center shadow"><Share2 size={18}/></button><div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-full text-white text-xs font-bold" style={{background:t.dot}}><Punto e={t.ico} borde/> {t.label}</div></div>
       <div className="px-4 -mt-4 relative">
         <div className="rounded-3xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}>
           <div className="flex items-start justify-between"><div>{fmtLegajo(post)&&<div className="text-[11px] font-extrabold mb-0.5" style={{color:C.brand}}>Legajo {fmtLegajo(post)}</div>}<h2 className="text-xl font-extrabold">{post.petName||`${post.species} ${post.color}`}</h2><div className="text-[13px] flex items-center gap-1 mt-0.5" style={{color:C.muted}}><MapPin size={13}/> {ubicTxt(post)}{post.cp?` (CP ${post.cp})`:""} <span className="opacity-70">· aprox.</span></div></div>{st.label!==t.label&&<span className="px-2.5 py-1 rounded-full text-[11px] font-bold text-white" style={{background:st.color}}>{st.label}</span>}</div>
