@@ -4,7 +4,7 @@ import {
   Home, Check, X, Camera, ChevronLeft, ChevronRight, Sparkles, Trash2, EyeOff,
   PartyPopper, Copy, Store, Stethoscope, Settings2, Flag, Info, Navigation, Crosshair,
   Clock, Ruler, Ban, Loader2, Send, MapPinned, ListChecks, AlertTriangle, LogOut,
-  LogIn, Pencil, Wallet, Cloud, CloudOff, Mail, KeyRound, CircleUserRound, QrCode, BookOpen, HelpCircle, Syringe, CalendarDays, Download, RotateCw, ZoomIn, Star
+  LogIn, Pencil, Wallet, Cloud, CloudOff, Mail, KeyRound, CircleUserRound, QrCode, BookOpen, HelpCircle, Syringe, CalendarDays, Download, RotateCw, ZoomIn, Star, BarChart3, ExternalLink
 } from "lucide-react";
 
 /* =========================================================================
@@ -108,7 +108,7 @@ const digits = (s)=>(s||"").replace(/\D/g,"");
 const linkPost = (p)=>`${SITE_URL}/${p&&p.id&&!p.demo?`?post=${p.id}`:""}`;
 const fraseCompartir = (p)=> p.type==="lost" ? "Si viste a esta mascota, ayudanos a encontrarla" : p.type==="found" ? "¿Es tuya esta mascota? Ayudala a volver a casa" : "Si sabés de quién es esta mascota, avisanos";
 const textoPost = (p)=>{ const est=p.type==="lost"?"🔴 PERDIDA":p.type==="found"?"🟢 ENCONTRADA":"🟡 VISTA"; const frase=fraseCompartir(p); const ubic=(p.zona==="Posadas"&&p.barrio)?`${p.barrio}, ${p.zona}`:(p.zona||"Misiones"); return `${est}: ${p.petName||p.species} en ${ubic}. ${frase} 🐾 ${linkPost(p)}`; };
-const compartirPost = (p,net)=>{ const text=textoPost(p); const link=linkPost(p); if(net==="wa")window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank"); else if(net==="fb")window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`,"_blank"); else if(net==="native"){ if(navigator.share)navigator.share({title:"Mascotas Perdidas Misiones",text,url:link}).catch(()=>{}); else if(navigator.clipboard){navigator.clipboard.writeText(text);} } };
+const compartirPost = (p,net)=>{ registrarEvento("compartir",{post_id:p&&!p.demo?p.id:null,barrio:p&&p.barrio}); const text=textoPost(p); const link=linkPost(p); if(net==="wa")window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank"); else if(net==="fb")window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`,"_blank"); else if(net==="native"){ if(navigator.share)navigator.share({title:"Mascotas Perdidas Misiones",text,url:link}).catch(()=>{}); else if(navigator.clipboard){navigator.clipboard.writeText(text);} } };
 const telLocal = (s)=>{ let d=digits(s); if(d.startsWith("549"))d=d.slice(3); else if(d.startsWith("54"))d=d.slice(2); if(d.startsWith("0"))d=d.slice(1); return d; };
 const telValido = (s)=>{ const t=(s||"").toString().trim(); return /^[\d\s()+\-.]+$/.test(t) && telLocal(t).length===10; };
 const waNum = (s)=>{ const d=telLocal(s); return d.length===10 ? "549"+d : digits(s); };
@@ -142,6 +142,18 @@ const sinFotos=(row)=>{ const { fotos, fb_url, ...r }=row; return r; };
 const esErrorFotos=(e)=>!!e&&/fotos|fb_url/i.test(`${e.message||""} ${e.details||""} ${e.hint||""}`);
 /* Publicaciones traídas de Facebook: el contacto es por el posteo original */
 const esLinkFb=(u)=>/^https?:\/\/([a-z0-9-]+\.)?(facebook\.com|fb\.com|fb\.me|fb\.watch)\/\S+$/i.test((u||"").trim());
+/* ---------------- Medición de uso (gratis): Google Analytics + tabla "eventos" ----------------
+   Cuenta visitas y acciones (sin datos personales). La administradora no se cuenta a sí misma. */
+const GA_URL = "https://analytics.google.com/analytics/web/#/p550705043/reports/intelligenthome";
+const EVENTOS = { visita:"Visitas a la página", ver_publicacion:"Publicaciones vistas", contacto_whatsapp:"Contactos por WhatsApp", contacto_facebook:"Contactos por Facebook", compartir:"Veces compartido", publicar:"Publicaciones nuevas", registrar_mascota:"Mascotas registradas" };
+function registrarEvento(tipo, extra={}){
+  try{
+    if(typeof window==="undefined"||window.__mpEsAdmin)return;
+    if(window.gtag)window.gtag("event",tipo,{ ...(extra.post_id?{post_id:String(extra.post_id)}:{}), ...(extra.barrio?{barrio:extra.barrio}:{}) });
+    if(!CLOUD)return;
+    getClient().then(c=>{ if(c)c.from("eventos").insert({ tipo, post_id:extra.post_id?String(extra.post_id).slice(0,40):null, barrio:extra.barrio?String(extra.barrio).slice(0,60):null }).then(()=>{},()=>{}); }).catch(()=>{});
+  }catch{}
+}
 
 /* ===================== Backend: NUBE (Supabase) o LOCAL ==================== */
 const KEYS = { posts:"mp:posts:v4", reports:"mp:reports:v4", session:"mp:session:v4", lugares:"mp:lugares:v1", mensajes:"mp:mensajes:v1", mascotas:"mp:mascotas:v1", avist:"mp:avist:v1", blog:"mp:blog:v1" };
@@ -286,6 +298,8 @@ export default function App(){
   const [mensajes,setMensajes]=useState([]);
   const [lugares,setLugares]=useState([]);
   const [user,setUser]=useState(null);
+  useEffect(()=>{ if(typeof window!=="undefined")window.__mpEsAdmin=CLOUD&&isAdmin(user); },[user]);
+  useEffect(()=>{ const t=setTimeout(()=>{ try{ if(sessionStorage.getItem("mp:visita"))return; sessionStorage.setItem("mp:visita","1"); }catch{} registrarEvento("visita"); },4000); return ()=>clearTimeout(t); },[]);
   const [conn,setConn]=useState("pending"); // cloud | local | error | pending
   const [ready,setReady]=useState(false);
   const [view,setView]=useState("home");
@@ -389,7 +403,7 @@ export default function App(){
     if(conn==="cloud"){ try{ const c=await getClient(); const photos=await subirFotos(c,fotosDe(merged)); const photo=photos[0]||null; const row=toRow({...merged,photo,photos}); let {data,error}=await c.from("publicaciones").update(row).eq("id",id).select().single(); if(error&&esErrorFotos(error))({data,error}=await c.from("publicaciones").update(sinFotos(row)).eq("id",id).select().single()); if(error)throw error; const np=fromRow(data); setRealPosts(prev=>prev.map(x=>x.id===id?np:x)); setCurrent(np); return np; }catch{ flash("No se pudo actualizar."); return null; } }
     const next=realPosts.map(x=>x.id===id?merged:x); setRealPosts(next); Local.set(KEYS.posts,next); setCurrent(merged); return merged;
   };
-  const submitPost=async(payload)=>{ if(payload.__edit)return await updatePost(payload.id,payload.fields); return await createPost(payload); };
+  const submitPost=async(payload)=>{ if(payload.__edit)return await updatePost(payload.id,payload.fields); const np=await createPost(payload); if(np)registrarEvento("publicar",{post_id:np.id,barrio:np.barrio}); return np; };
   const setStatus=async(post,status)=>{
     const recoveredAt=(status==="found"||status==="reunited")?(post.recoveredAt||new Date().toISOString()):null;
     if(routeDemo(post)){ const next=demoPosts.map(p=>p.id===post.id?{...p,status,recoveredAt}:p); setDemoPosts(next); setCurrent(next.find(p=>p.id===post.id)); }
@@ -447,7 +461,7 @@ export default function App(){
   const registrarMascota=async(m)=>{
     const codigo=m.codigo||genCodigo();
     const rec={ owner_id:user?user.id:null, codigo, pet_name:clean(m.petName,40), species:m.species, sex:m.sex||"", color:clean(m.color,40), features:clean(m.features,200), zona:m.zona||"", phone:digits(m.phone), whatsapp:digits(m.whatsapp||m.phone), photo:m.photo, notas:clean(m.notas,200) };
-    if(conn==="cloud"){ try{ const c=await getClient(); let photo=rec.photo; if(photo&&photo.startsWith("data:"))photo=await uploadPhoto(c,photo); const guardado={...rec,photo}; const {error}=await c.from("mascotas").insert(guardado); if(error)throw error; const full={...guardado,id:Date.now(),created_at:new Date().toISOString()}; setMisMascotas(prev=>[full,...prev]); return full; }catch(e){ flash("No se pudo registrar la mascota."); return null; } }
+    if(conn==="cloud"){ try{ const c=await getClient(); let photo=rec.photo; if(photo&&photo.startsWith("data:"))photo=await uploadPhoto(c,photo); const guardado={...rec,photo}; const {error}=await c.from("mascotas").insert(guardado); if(error)throw error; const full={...guardado,id:Date.now(),created_at:new Date().toISOString()}; setMisMascotas(prev=>[full,...prev]); registrarEvento("registrar_mascota"); return full; }catch(e){ flash("No se pudo registrar la mascota."); return null; } }
     const full={...rec,id:Date.now(),created_at:new Date().toISOString()}; const nm=[full,...misMascotas]; setMisMascotas(nm); Local.set(KEYS.mascotas,nm); return full;
   };
   const borrarMascota=async(id)=>{ if(conn==="cloud"){try{const c=await getClient();await c.from("mascotas").delete().eq("id",id);}catch{}} const nm=misMascotas.filter(x=>x.id!==id); setMisMascotas(nm); if(conn!=="cloud")Local.set(KEYS.mascotas,nm); };
@@ -991,7 +1005,8 @@ function DetailView({ post, all, go, setStatus, flash, onReport, user, onDelete 
   const owner = !post.demo && user && post.owner_id && post.owner_id===user.id;
   const canManage = owner || isAdmin(user);
   const matches=useMemo(()=>post.type==="lost"?MatchEngine.rank(post,all):[],[post,all]);
-  const wa=()=>{const est=post.type==="lost"?"🔴 PERDIDA":post.type==="found"?"🟢 ENCONTRADA":"🟡 VISTA";const esp=post.species&&post.species!=="otro"?post.species:"mascota";const quien=post.petName?`${post.petName} (${esp})`:esp.charAt(0).toUpperCase()+esp.slice(1);const msg=`Hola 👋 Te escribo por tu publicación en Mascotas Perdidas Misiones:\n${est}: ${quien} en ${ubicTxt(post)}\n${linkPost(post)}\n\nCreo que tengo información que te puede servir.`;window.open(`https://wa.me/${waNum(post.whatsapp)}?text=${encodeURIComponent(msg)}`,"_blank");};
+  useEffect(()=>{ if(!post.demo)registrarEvento("ver_publicacion",{post_id:post.id,barrio:post.barrio}); },[post.id]);
+  const wa=()=>{registrarEvento("contacto_whatsapp",{post_id:post.id,barrio:post.barrio});const est=post.type==="lost"?"🔴 PERDIDA":post.type==="found"?"🟢 ENCONTRADA":"🟡 VISTA";const esp=post.species&&post.species!=="otro"?post.species:"mascota";const quien=post.petName?`${post.petName} (${esp})`:esp.charAt(0).toUpperCase()+esp.slice(1);const msg=`Hola 👋 Te escribo por tu publicación en Mascotas Perdidas Misiones:\n${est}: ${quien} en ${ubicTxt(post)}\n${linkPost(post)}\n\nCreo que tengo información que te puede servir.`;window.open(`https://wa.me/${waNum(post.whatsapp)}?text=${encodeURIComponent(msg)}`,"_blank");};
   return (
     <div>
       <div className="relative"><Galeria post={post} h={300}/><button onClick={()=>go("home")} className="absolute top-3 left-3 w-10 h-10 rounded-full bg-white/95 flex items-center justify-center shadow"><ChevronLeft size={20}/></button><button onClick={()=>go("share",{post})} className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/95 flex items-center justify-center shadow"><Share2 size={18}/></button><div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-full text-white text-xs font-bold" style={{background:t.dot}}><Punto e={t.ico} borde/> {t.label}</div></div>
@@ -1007,7 +1022,7 @@ function DetailView({ post, all, go, setStatus, flash, onReport, user, onDelete 
         {post.fbUrl
           ? <div className="rounded-2xl p-3.5 mt-3 flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><FbIcon size={18} color="#1877F2"/><div className="flex-1"><div className="text-[12px] font-bold">Publicado originalmente en Facebook</div><div className="text-[11px]" style={{color:C.muted}}>Escribile a la persona en su publicación original.</div></div></div>
           : <div className="rounded-2xl p-3.5 mt-3 flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><Shield size={18} color={C.brand}/><div className="flex-1"><div className="text-[12px] font-bold">Contacto: {post.contactName}</div><div className="text-[11px]" style={{color:C.muted}}>{maskPhone(post.whatsapp)} — protegido</div></div></div>}
-        {post.fbUrl&&<a href={post.fbUrl} target="_blank" rel="noreferrer" className="mt-3 w-full py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2" style={{background:"#1877F2"}}><FbIcon size={18} color="#fff"/> Contactar en Facebook</a>}
+        {post.fbUrl&&<a href={post.fbUrl} target="_blank" rel="noreferrer" onClick={()=>registrarEvento("contacto_facebook",{post_id:post.id,barrio:post.barrio})} className="mt-3 w-full py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2" style={{background:"#1877F2"}}><FbIcon size={18} color="#fff"/> Contactar en Facebook</a>}
         {telValido(post.whatsapp)&&<button onClick={wa} className="mt-3 w-full py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2" style={{background:C.found}}><Phone size={18}/> Contactar por WhatsApp</button>}
 
         {matches.length>0&&(<div className="mt-4"><div className="flex items-center gap-2 font-extrabold text-sm"><Sparkles size={16} color={C.reunited}/> Posibles coincidencias <Tag t="PARCIAL"/></div><p className="text-[11px] mb-2" style={{color:C.muted}}>Sugerencias por características. No es una identificación segura.</p><div className="space-y-2">{matches.map(({post:p,score,distanceKm,ago})=>(<button key={p.id} onClick={()=>go("detail",{post:p})} className="w-full flex items-center gap-3 p-2.5 rounded-2xl text-left" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-14 h-14 rounded-xl overflow-hidden shrink-0"><Thumb post={p} h={56}/></div><div className="flex-1 min-w-0"><div className="text-[10px] font-bold" style={{color:TYPE[p.type].dot}}><Punto e={TYPE[p.type].ico}/> Posible coincidencia · {TYPE[p.type].label}</div><div className="font-bold text-sm truncate">{p.petName||p.species} · {ubicTxt(p)}</div><div className="text-[11px] flex items-center gap-2" style={{color:C.muted}}>{distanceKm!=null&&<span className="flex items-center gap-0.5"><Ruler size={10}/> {distanceKm.toFixed(1)} km</span>}<span className="flex items-center gap-0.5"><Clock size={10}/> {timeAgo(ago)}</span></div></div><div className="text-right shrink-0"><div className="font-extrabold text-sm" style={{color:C.reunited}}>{score}%</div><div className="text-[9px]" style={{color:C.muted}}>similitud</div></div></button>))}</div></div>)}
@@ -2053,9 +2068,11 @@ function AdminView({ posts, reports, approve, removePost, go, clearReport, conn,
   return (
     <div className="px-4">
       <Title back={()=>go("home")} title="Panel administrador" tag="FUNCIONAL"/>
+      <a href={GA_URL} target="_blank" rel="noreferrer" className="mb-3 w-full rounded-2xl p-3 flex items-center gap-3 text-left" style={{background:`linear-gradient(135deg, ${C.brand}, ${C.brandDeep})`,color:"#fff"}}><div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{background:"rgba(255,255,255,.18)"}}><BarChart3 size={20}/></div><div className="flex-1"><div className="font-extrabold text-sm">Ver visitas en Google Analytics</div><div className="text-[11px] opacity-90">Quién entra, desde dónde y en tiempo real</div></div><ExternalLink size={16}/></a>
       {conn!=="cloud"&&<div className="rounded-2xl p-2.5 mb-2 text-[11px] flex items-center gap-1.5" style={{background:"#FFF7E6",border:"1px solid #F3E1B5",color:"#7A5B14"}}><CloudOff size={13}/> Modo local: la moderación afecta solo este dispositivo.</div>}
-      <div className="flex flex-wrap gap-2 mb-3">{[["stats","Estadísticas"],["mod","Moderación"],["reports",`Reportes${reports.length?` (${reports.length})`:""}`],["mensajes",`Mensajes${mensajes.length?` (${mensajes.length})`:""}`],["avistamientos",`Avistamientos${avistamientos.length?` (${avistamientos.length})`:""}`],["blog",`Blog${blog.length?` (${blog.length})`:""}`],["lugares","Lugares"],["estado","Estado"]].map(([k,l])=><button key={k} onClick={()=>setTab(k)} className="shrink-0 px-3 py-2 rounded-xl text-xs font-bold" style={{background:tab===k?C.ink:C.surface,color:tab===k?"#fff":C.muted,border:`1px solid ${tab===k?C.ink:C.line}`}}>{l}</button>)}</div>
+      <div className="flex flex-wrap gap-2 mb-3">{[["stats","Estadísticas"],["visitas","Visitas"],["mod","Moderación"],["reports",`Reportes${reports.length?` (${reports.length})`:""}`],["mensajes",`Mensajes${mensajes.length?` (${mensajes.length})`:""}`],["avistamientos",`Avistamientos${avistamientos.length?` (${avistamientos.length})`:""}`],["blog",`Blog${blog.length?` (${blog.length})`:""}`],["lugares","Lugares"],["estado","Estado"]].map(([k,l])=><button key={k} onClick={()=>setTab(k)} className="shrink-0 px-3 py-2 rounded-xl text-xs font-bold" style={{background:tab===k?C.ink:C.surface,color:tab===k?"#fff":C.muted,border:`1px solid ${tab===k?C.ink:C.line}`}}>{l}</button>)}</div>
 
+      {tab==="visitas"&&<VisitasPanel conn={conn} posts={posts}/>}
       {tab==="stats"&&(<div className="space-y-3 mb-2"><div className="rounded-2xl p-4 text-center" style={{background:`linear-gradient(135deg, ${C.brand}, ${C.brandDeep})`,color:"#fff"}}><div className="text-4xl font-extrabold">{pct}%</div><div className="text-[12px] font-semibold opacity-90">porcentaje de recuperación</div></div><div className="grid grid-cols-2 gap-2.5"><Kpi n={total} l="Total publicaciones" c={C.ink}/><Kpi n={reunited} l="Reunidas con familia" c={C.reunited}/><Kpi n={lost} l="Perdidas" c={C.lost}/><Kpi n={found} l="Encontradas" c={C.found}/><Kpi n={seen} l="Vistas" c={C.seen}/><Kpi n={reports.length} l="Reportes" c={C.muted}/></div><div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Publicaciones por barrio</div><Bars data={byBarrio} max={maxB} color={C.brand}/></div>{repB.length>0&&<div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Barrios con más reportes</div><Bars data={repB} max={Math.max(1,...repB.map(x=>x.n))} color={C.lost}/></div>}</div>)}
 
       {tab==="mod"&&(<div className="mb-2"><div className="flex gap-2 mb-3 overflow-x-auto mp-scroll -mx-4 px-4"><Sel value={fBarrio} onChange={setFBarrio} options={[["all","Barrio / localidad"],...BARRIO_LIST.map(b=>[b,b]),...Object.keys(ZONAS).filter(z=>z!=="Posadas").map(z=>[z,z])]}/><Sel value={fStatus} onChange={setFStatus} options={[["all","Estado"],...Object.entries(STATUS).map(([k,v])=>[k,v.label])]}/><Sel value={fSp} onChange={setFSp} options={[["all","Especie"],["perro","Perro"],["gato","Gato"],["otro","Otro"]]}/></div><div className="text-[12px] font-semibold mb-2" style={{color:C.muted}}>{filtered.length} {filtered.length!==1?"publicaciones":"publicación"}</div><div className="space-y-2.5">{filtered.map(p=>(<div key={p.id} className="rounded-2xl p-2.5 flex items-center gap-2.5" style={{background:C.surface,border:`1px solid ${p.reported?C.lost:C.line}`,opacity:p.approved===false?0.55:1}}><div className="w-11 h-11 rounded-xl overflow-hidden shrink-0"><Thumb post={p} h={44}/></div><button onClick={()=>go("detail",{post:p})} className="flex-1 min-w-0 text-left"><div className="text-[10px] font-bold" style={{color:TYPE[p.type].dot}}>{TYPE[p.type].label}{STATUS[p.status].label!==TYPE[p.type].label?` · ${STATUS[p.status].label}`:""}{p.demo?" · DEMO":""}{p.reported?" · ⚠":""}</div><div className="font-bold text-sm truncate">{p.petName||p.species} · {ubicTxt(p)}</div></button><div className="flex gap-1.5 shrink-0"><button onClick={()=>approve(p.id,p.approved===false)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{background:p.approved===false?C.found:C.bg}}>{p.approved===false?<Check size={15} color="#fff"/>:<EyeOff size={15} color={C.muted}/>}</button><button onClick={()=>removePost(p.id)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{background:"#FBE7E7"}}><Trash2 size={15} color={C.lost}/></button></div></div>))}</div></div>)}
@@ -2138,6 +2155,31 @@ function LugaresAdmin({ lugares=[], guardarLugar, borrarLugar }){
       <div className="space-y-2">{lugares.map(l=>(<div key={l.id} className="rounded-2xl p-3 flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="flex-1 min-w-0"><div className="font-bold text-sm truncate">{l.name} {l.emerg&&<span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{background:C.lost}}>24h</span>}</div><div className="text-[11px]" style={{color:C.muted}}>{l.kind}{l.barrio?" · "+l.barrio:""}{l.phone?" · "+l.phone:""}</div></div><button onClick={()=>editar(l)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{background:C.brandSoft}}><Pencil size={14} color={C.brand}/></button><button onClick={()=>borrarLugar(l.id)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{background:"#FBE7E7"}}><Trash2 size={14} color={C.lost}/></button></div>))}</div>
     </div>
   );
+}
+function VisitasPanel({ conn, posts=[] }){
+  const [rows,setRows]=useState(null); const [err,setErr]=useState(""); const [per,setPer]=useState(7);
+  useEffect(()=>{ (async()=>{ if(conn!=="cloud"){ setRows([]); return; } try{ const c=await getClient(); const desde=new Date(Date.now()-30*864e5).toISOString(); const {data,error}=await c.from("eventos").select("tipo,post_id,barrio,created_at").gte("created_at",desde).order("created_at",{ascending:false}).limit(10000); if(error)throw error; setRows(data||[]); }catch(e){ setErr("Todavía no hay datos de visitas (o falta crear la tabla en Supabase)."); setRows([]); } })(); },[conn]);
+  if(rows===null) return <div className="py-10 flex justify-center"><Loader2 className="animate-spin" color={C.brand}/></div>;
+  const hoy=new Date(); hoy.setHours(0,0,0,0);
+  const desde=per===1?hoy.getTime():Date.now()-per*864e5;
+  const r=rows.filter(x=>new Date(x.created_at).getTime()>=desde);
+  const cnt=(t)=>r.filter(x=>x.tipo===t).length;
+  const dias=[...Array(14)].map((_,k)=>{ const d=new Date(hoy.getTime()-(13-k)*864e5); const n=rows.filter(x=>x.tipo==="visita"&&new Date(x.created_at).toDateString()===d.toDateString()).length; return { b:d.toLocaleDateString("es-AR",{weekday:"short",day:"numeric"}), n }; });
+  const maxD=Math.max(1,...dias.map(x=>x.n));
+  const vistas={}; r.filter(x=>x.tipo==="ver_publicacion"&&x.post_id).forEach(x=>{ vistas[x.post_id]=(vistas[x.post_id]||0)+1; });
+  const top=Object.entries(vistas).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,n])=>{ const p=posts.find(q=>String(q.id)===id); return { b:p?(p.petName||`${p.species||"mascota"} ${p.color||""}`.trim()):`#${id}`, n, p }; });
+  const maxT=Math.max(1,...top.map(x=>x.n));
+  const barrios={}; r.filter(x=>x.barrio).forEach(x=>{ barrios[x.barrio]=(barrios[x.barrio]||0)+1; });
+  const topB=Object.entries(barrios).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([b,n])=>({b,n})); const maxBB=Math.max(1,...topB.map(x=>x.n));
+  return (<div className="space-y-3 mb-2">
+    <div className="flex gap-2">{[[1,"Hoy"],[7,"7 días"],[30,"30 días"]].map(([d,l])=><button key={d} onClick={()=>setPer(d)} className="flex-1 py-2 rounded-xl text-xs font-bold" style={{background:per===d?C.brand:C.surface,color:per===d?"#fff":C.muted,border:`1px solid ${per===d?C.brand:C.line}`}}>{l}</button>)}</div>
+    {err&&<div className="rounded-2xl p-3 text-[12px]" style={{background:"#FFF7E6",border:"1px solid #F3E1B5",color:"#7A5B14"}}>{err}</div>}
+    <div className="grid grid-cols-2 gap-2.5">{Object.entries(EVENTOS).map(([k,l])=><Kpi key={k} n={cnt(k)} l={l} c={k==="visita"?C.brand:k.startsWith("contacto")?C.found:C.ink}/>)}</div>
+    <div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Visitas por día (últimas 2 semanas)</div><Bars data={dias} max={maxD} color={C.brand}/></div>
+    {top.length>0&&<div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Publicaciones más vistas</div><Bars data={top} max={maxT} color={C.lost}/></div>}
+    {topB.length>0&&<div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Barrios con más movimiento</div><Bars data={topB} max={maxBB} color={C.found}/></div>}
+    <p className="text-[11px]" style={{color:C.muted}}>Se cuenta una visita por persona cada vez que abre la página. Tus propias visitas como administradora no se cuentan. Los datos se guardan sin nombres ni teléfonos.</p>
+  </div>);
 }
 function Bars({ data, max, color }){ return <div className="space-y-2">{data.map(x=><div key={x.b} className="flex items-center gap-2"><div className="w-24 text-[11px] truncate" style={{color:C.muted}}>{x.b}</div><div className="flex-1 h-3 rounded-full overflow-hidden" style={{background:C.bg}}><div style={{width:`${x.n/max*100}%`,background:color,height:"100%"}}/></div><div className="w-5 text-right text-[11px] font-bold">{x.n}</div></div>)}</div>; }
 function Kpi({ n, l, c }){ return <div className="rounded-2xl p-3.5" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="text-2xl font-extrabold" style={{color:c}}>{n}</div><div className="text-[11px] font-semibold" style={{color:C.muted}}>{l}</div></div>; }
