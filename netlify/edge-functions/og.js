@@ -17,6 +17,9 @@ export default async (request, context) => {
   const base = await response.text();
   const headers = new Headers(response.headers);
   headers.delete("content-length");
+  // WhatsApp y Facebook piden la página "por partes" (Range): se responde siempre la página completa con 200
+  headers.delete("content-range"); headers.delete("accept-ranges"); headers.delete("etag");
+  const status = response.status === 206 ? 200 : response.status;
   let html = base.replace(/https:\/\/mascotas(posadas|perdidasmisiones)\.netlify\.app/g, SITE);
   // Vista previa especial para las notas del blog y las pantallas que se comparten en redes
   const PAGINAS = {
@@ -58,7 +61,7 @@ export default async (request, context) => {
     setP("property", "og:title", t); setP("property", "og:description", d); setP("property", "og:image", SITE + img); setP("property", "og:url", SITE + url.pathname + url.search);
     setP("name", "twitter:title", t); setP("name", "twitter:description", d); setP("name", "twitter:image", SITE + img);
     html = html.replace(/\s*<meta\s+property="og:image:(width|height)"[^>]*>/gi, "");
-    return new Response(html, { status: response.status, headers });
+    return new Response(html, { status, headers });
   }
   // Notas del blog cargadas desde el panel: se buscan en la base para mostrar su título y su portada
   const nota = url.searchParams.get("nota");
@@ -80,19 +83,19 @@ export default async (request, context) => {
         html = html.replace(/<title>[^<]*<\/title>/i, `<title>${esc(n.titulo)} · Mascotas Perdidas Misiones</title>`);
       }
     } catch {}
-    return new Response(html, { status: response.status, headers });
+    return new Response(html, { status, headers });
   }
-  if (!id || !/^[\w-]{1,64}$/.test(id)) return new Response(html, { status: response.status, headers });
+  if (!id || !/^[\w-]{1,64}$/.test(id)) return new Response(html, { status, headers });
 
   try {
     const r = await fetch(
       `${SUPABASE_URL}/rest/v1/publicaciones?id=eq.${encodeURIComponent(id)}&select=type,pet_name,species,zona,barrio,photo,approved`,
       { headers: { apikey: SUPABASE_KEY } }
     );
-    if (!r.ok) return new Response(html, { status: response.status, headers });
+    if (!r.ok) return new Response(html, { status, headers });
     const rows = await r.json();
     const p = rows && rows[0];
-    if (!p || p.approved === false) return new Response(html, { status: response.status, headers });
+    if (!p || p.approved === false) return new Response(html, { status, headers });
 
     const est = p.type === "lost" ? "🔴 PERDIDA" : p.type === "found" ? "🟢 ENCONTRADA" : "🟡 VISTA";
     const esp = p.species && p.species !== "otro" ? p.species : "mascota";
@@ -130,9 +133,9 @@ export default async (request, context) => {
     }
     html = html.replace(/<title>[^<]*<\/title>/i, `<title>${esc(title)} · Mascotas Perdidas Misiones</title>`);
 
-    return new Response(html, { status: response.status, headers });
+    return new Response(html, { status, headers });
   } catch {
-    return new Response(html, { status: response.status, headers });
+    return new Response(html, { status, headers });
   }
 };
 
