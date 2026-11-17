@@ -4,7 +4,7 @@ import {
   Home, Check, X, Camera, ChevronLeft, ChevronRight, Sparkles, Trash2, EyeOff,
   PartyPopper, Copy, Store, Stethoscope, Settings2, Flag, Info, Navigation, Crosshair,
   Clock, Ruler, Ban, Loader2, Send, MapPinned, ListChecks, AlertTriangle, LogOut,
-  LogIn, Pencil, Wallet, Cloud, CloudOff, Mail, KeyRound, CircleUserRound, QrCode, BookOpen, HelpCircle, Syringe, CalendarDays, Download, RotateCw, ZoomIn, Star, BarChart3, ExternalLink
+  LogIn, Pencil, Wallet, Cloud, CloudOff, Mail, KeyRound, CircleUserRound, QrCode, BookOpen, HelpCircle, Syringe, CalendarDays, Download, RotateCw, ZoomIn, Star, BarChart3, ExternalLink, Heart
 } from "lucide-react";
 
 /* =========================================================================
@@ -21,6 +21,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_vI40ZnrcMQYV3uUhP4mCeA_mKaXmU0H";   //
 const ADMIN_EMAILS = ["lili.kos28@gmail.com"];
 const FACEBOOK_URL = "https://www.facebook.com/mascotasperdidasmisiones";
 const INSTAGRAM_URL = "https://www.instagram.com/macotasperdidasmisiones/";
+const ALIAS_APOYO = "celu.fin";
 const IgIcon = ({size=16,color="currentColor"})=>(<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.1" fill={color} stroke="none"/></svg>);
 const FbIcon = ({size=16,color="currentColor"})=>(<svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true"><path d="M14 8.5V6.8c0-.8.2-1.3 1.4-1.3H17V2.6c-.3 0-1.3-.1-2.5-.1-2.5 0-4.1 1.5-4.1 4.2v1.8H7.6v3.2h2.8V22h3.5v-10.3h2.8l.4-3.2H14z"/></svg>); // ← tu email para ser admin en la nube
 // Dirección del sitio: se toma de donde está abierta la página (sirve con cualquier nombre en Netlify)
@@ -328,6 +329,9 @@ export default function App(){
 
   const posts = useMemo(()=>[...realPosts,...demoPosts],[realPosts,demoPosts]);
   const flash=(m)=>{setToast(m);setTimeout(()=>setToast(null),2600);};
+  const [apoyo,setApoyo]=useState(false);
+  const [aliasCopiado,setAliasCopiado]=useState(false);
+  const copiarAlias=()=>{ try{ navigator.clipboard.writeText(ALIAS_APOYO); }catch{} setAliasCopiado(true); setTimeout(()=>setAliasCopiado(false),2200); };
   const postsRef=useRef(posts); postsRef.current=posts;
   const currentRef=useRef(current); currentRef.current=current;
   const go=(v,extra)=>{ if(extra&&extra.post)setCurrent(extra.post); if(extra&&extra.type)setNewType(extra.type); if(extra&&"edit" in extra)setEditPost(extra.edit); setView(v); if(typeof window!=="undefined"){ window.scrollTo(0,0);
@@ -570,7 +574,7 @@ export default function App(){
         .inp{width:100%;padding:11px 13px;border-radius:14px;border:1px solid ${C.line};background:${C.surface};font-size:14px;outline:none;color:${C.ink}}`}</style>
 
       <div className="mx-auto max-w-[480px] md:max-w-[680px] relative pb-24" style={{background:C.bg}}>
-        <Header abrirGuia={()=>setGuia(true)} go={go} count={avisosNuevos.length} conn={conn} />
+        <Header abrirGuia={()=>setGuia(true)} abrirApoyo={()=>setApoyo(true)} go={go} count={avisosNuevos.length} conn={conn} />
 
         {view==="home" && avisosNuevos.length>0 && (<button onClick={()=>go("mis_mascotas")} className="mx-4 mt-3 w-[calc(100%-2rem)] rounded-2xl p-3.5 flex items-center gap-3 text-left text-white" style={{background:C.lost}}><Bell size={22} className="shrink-0"/><div className="flex-1"><div className="font-extrabold text-[14px]">¡Tenés {avisosNuevos.length} aviso{avisosNuevos.length>1?"s":""} nuevo{avisosNuevos.length>1?"s":""}!</div><div className="text-[12px] opacity-95">Alguien escaneó el QR de tu mascota. Tocá para ver dónde la vieron.</div></div><ChevronRight size={18}/></button>)}
         {view==="home" && user && <BannerVacunas urgentes={vacunasUrgentes(misMascotas.filter(m=>m.owner_id===user.id))} onOpen={(m)=>{setVacMascota(m);go("vacunas");}} />}
@@ -600,6 +604,13 @@ export default function App(){
         {!["new","admin","auth","registrar_mascota","mascota_publica","contacto","dni_mascota"].includes(view) && <AyudaBot go={go} abrirGuia={()=>setGuia(true)} abrirNota={(id)=>{ setNotaInicial(id); go("blog"); }} />}
 
         {toast && <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[999] px-4 py-2.5 rounded-full text-white text-sm font-medium shadow-lg" style={{background:C.ink,animation:"pop .25s ease"}}>{toast}</div>}
+      {apoyo&&<div className="fixed inset-0 z-[900] flex items-end justify-center" style={{background:"rgba(0,0,0,.45)"}} onClick={()=>setApoyo(false)}><div className="w-full max-w-[480px] rounded-t-3xl p-5" style={{background:C.surface}} onClick={e=>e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2 font-extrabold text-[15px]"><Heart size={18} fill="#F5B800" color="#F5B800"/> Ayudá a sostener Mascotas Perdidas Misiones 💛</div><button onClick={()=>setApoyo(false)} aria-label="Cerrar"><X size={20} color={C.muted}/></button></div>
+        <p className="text-[13px] leading-relaxed" style={{color:C.ink||"#222"}}>La app es gratis y la mantiene una sola persona. Tu aporte (voluntario) ayuda a pagar el sistema, la difusión y que sigamos reuniendo mascotas con sus familias.</p>
+        <div className="mt-4 rounded-2xl p-3.5 text-center" style={{background:C.brandSoft}}><div className="text-[11px] font-semibold" style={{color:C.muted}}>Alias</div><div className="text-xl font-extrabold tracking-wide" style={{color:C.brandDeep}}>{ALIAS_APOYO}</div></div>
+        <button onClick={copiarAlias} className="mt-3 w-full py-3 rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2" style={{background:C.brand}}>{aliasCopiado?<><Check size={16}/> ¡Alias copiado!</>:<><Copy size={16}/> Copiar alias</>}</button>
+        <p className="text-[11px] text-center mt-3" style={{color:C.muted}}>¡Gracias por ayudar! 🐾</p>
+      </div></div>}
         {celebrate && (<div className="fixed inset-0 z-[999] flex items-center justify-center pointer-events-none"><div className="bg-white rounded-3xl px-8 py-7 text-center shadow-2xl" style={{animation:"pop .3s ease"}}><PartyPopper size={44} color={C.reunited} className="mx-auto"/><p className="mt-2 font-extrabold text-lg">¡Una mascota volvió a casa! 🎉</p><p className="text-sm" style={{color:C.muted}}>Gracias por ser parte de la comunidad.</p></div></div>)}
         {reportFor && <ReportModal post={reportFor} onClose={()=>setReportFor(null)} onSubmit={submitReport} />}
       </div>
@@ -608,14 +619,14 @@ export default function App(){
 }
 
 /* ------------------------------- Header ---------------------------------- */
-function Header({ go, count, conn, abrirGuia=()=>{} }){
+function Header({ go, count, conn, abrirGuia=()=>{}, abrirApoyo=()=>{} }){
   return (
     <div className="sticky top-0 z-[600] px-4 pt-3 pb-3" style={{background:C.bg,borderBottom:`1px solid ${C.line}`}}>
       <div className="flex items-center justify-between">
         <button onClick={()=>go("home")} className="flex items-center gap-2"><div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{background:C.brand}}><PawPrint size={19} color="#fff"/></div><div className="leading-tight text-left"><div className="font-extrabold text-[15px]">Mascotas Perdidas Misiones</div><div className="text-[10px] font-semibold tracking-wide flex items-center gap-1" style={{color:C.muted}}>MISIONES · AR {conn==="cloud"?<Cloud size={11} color={C.found}/>:<CloudOff size={11} color={C.seen}/>}</div></div></button>
         <div className="flex items-center gap-1">
           <button onClick={abrirGuia} aria-label="Cómo funciona la página" title="Cómo funciona" className="w-9 h-9 rounded-full flex items-center justify-center" style={{background:C.brandSoft}}><PawPrint size={17} color={C.brandDeep}/></button>
-          <a href={FACEBOOK_URL} target="_blank" rel="noreferrer" aria-label="Seguinos en Facebook" className="w-6 h-9 flex items-center justify-center"><FbIcon size={17} color="#1877F2"/></a><a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" aria-label="Seguinos en Instagram" className="w-6 h-9 flex items-center justify-center"><IgIcon size={17} color="#E1306C"/></a>
+          <a href={FACEBOOK_URL} target="_blank" rel="noreferrer" aria-label="Seguinos en Facebook" className="w-6 h-9 flex items-center justify-center"><FbIcon size={17} color="#1877F2"/></a><a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" aria-label="Seguinos en Instagram" className="w-6 h-9 flex items-center justify-center"><IgIcon size={17} color="#E1306C"/></a><button onClick={abrirApoyo} aria-label="Colaborar con Mascotas Perdidas Misiones" className="w-6 h-9 flex items-center justify-center"><Heart size={17} fill="#F5B800" color="#F5B800"/></button>
           <button onClick={()=>go("mis_mascotas")} aria-label="Avisos de mis mascotas" className="relative w-9 h-9 rounded-xl flex items-center justify-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><Bell size={17} color={C.ink}/>{count>0&&<span className="absolute -top-1 -right-1 text-[10px] font-bold text-white rounded-full min-w-[16px] h-[16px] px-1 flex items-center justify-center" style={{background:C.lost}}>{count}</span>}</button>
           <button onClick={()=>go("admin")} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><Settings2 size={17} color={C.ink}/></button>
         </div>
