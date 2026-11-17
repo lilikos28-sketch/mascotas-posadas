@@ -597,7 +597,7 @@ export default function App(){
         {view==="auth"    && <AuthView onSignIn={onSignIn} onSignUp={onSignUp} onReset={onReset} onGoogle={Auth.google} go={go} />}
         {view==="costs"   && <CostsView go={go} conn={conn} />}
         {view==="profile" && <ProfileView posts={posts} go={go} user={user} conn={conn} onSignOut={onSignOut} onUpdateName={onUpdateName} />}
-        {view==="admin"   && (isAdmin(user) ? <AdminView posts={posts} reports={reports} approve={approve} removePost={removePost} go={go} clearReport={clearReport} conn={conn} mensajes={mensajes} borrarMensaje={borrarMensaje} lugares={lugares} guardarLugar={guardarLugar} borrarLugar={borrarLugar} avistamientos={avistamientos} borrarAvistamiento={borrarAvistamiento} blog={blog} guardarBlog={guardarBlog} borrarBlog={borrarBlog} /> : <AdminLocked go={go} />)}
+        {view==="admin"   && (isAdmin(user) ? <AdminView mascotas={misMascotas} posts={posts} reports={reports} approve={approve} removePost={removePost} go={go} clearReport={clearReport} conn={conn} mensajes={mensajes} borrarMensaje={borrarMensaje} lugares={lugares} guardarLugar={guardarLugar} borrarLugar={borrarLugar} avistamientos={avistamientos} borrarAvistamiento={borrarAvistamiento} blog={blog} guardarBlog={guardarBlog} borrarBlog={borrarBlog} /> : <AdminLocked go={go} />)}
 
         <BottomNav view={view} go={go} />
         {guia && <GuiaView onClose={()=>setGuia(false)} />}
@@ -2076,7 +2076,7 @@ function Stat({ n, l }){ return <div className="rounded-2xl py-3 text-center" st
 
 /* ---------------------------- Administración ----------------------------- */
 function AdminLocked({ go }){ return <div className="px-4"><Title back={()=>go("home")} title="Administración" tag="FUNCIONAL"/><div className="rounded-2xl p-6 text-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><Shield size={38} className="mx-auto" color={C.brand}/><p className="font-bold mt-2">Solo administradores</p><p className="text-[13px] mt-1" style={{color:C.muted}}>Ingresá con un email de la lista ADMIN_EMAILS para acceder.</p><button onClick={()=>go("auth")} className="mt-4 w-full py-3 rounded-2xl font-bold text-white" style={{background:C.brand}}>Ingresar</button></div></div>; }
-function AdminView({ posts, reports, approve, removePost, go, clearReport, conn, mensajes=[], borrarMensaje, lugares=[], guardarLugar, borrarLugar, avistamientos=[], borrarAvistamiento, blog=[], guardarBlog, borrarBlog }){
+function AdminView({ mascotas=[], posts, reports, approve, removePost, go, clearReport, conn, mensajes=[], borrarMensaje, lugares=[], guardarLugar, borrarLugar, avistamientos=[], borrarAvistamiento, blog=[], guardarBlog, borrarBlog }){
   const [tab,setTab]=useState("stats");const [fBarrio,setFBarrio]=useState("all"),[fStatus,setFStatus]=useState("all"),[fSp,setFSp]=useState("all");
   const real=posts;const total=real.length;const lost=real.filter(p=>p.type==="lost").length;const found=real.filter(p=>p.type==="found").length;const seen=real.filter(p=>p.type==="seen").length;const reunited=real.filter(p=>p.status==="reunited").length;const recovered=real.filter(p=>p.status==="reunited"||p.status==="found").length;const pct=total?Math.round(recovered/total*100):0;
   const byBarrio=BARRIO_LIST.map(b=>({b,n:real.filter(p=>p.barrio===b).length})).filter(x=>x.n).sort((a,b)=>b.n-a.n).slice(0,8);const maxB=Math.max(1,...byBarrio.map(x=>x.n));
@@ -2087,7 +2087,7 @@ function AdminView({ posts, reports, approve, removePost, go, clearReport, conn,
       <Title back={()=>go("home")} title="Panel administrador" tag="FUNCIONAL"/>
       <a href={GA_URL} target="_blank" rel="noreferrer" className="mb-3 w-full rounded-2xl p-3 flex items-center gap-3 text-left" style={{background:`linear-gradient(135deg, ${C.brand}, ${C.brandDeep})`,color:"#fff"}}><div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{background:"rgba(255,255,255,.18)"}}><BarChart3 size={20}/></div><div className="flex-1"><div className="font-extrabold text-sm">Ver visitas en Google Analytics</div><div className="text-[11px] opacity-90">Quién entra, desde dónde y en tiempo real</div></div><ExternalLink size={16}/></a>
       {conn!=="cloud"&&<div className="rounded-2xl p-2.5 mb-2 text-[11px] flex items-center gap-1.5" style={{background:"#FFF7E6",border:"1px solid #F3E1B5",color:"#7A5B14"}}><CloudOff size={13}/> Modo local: la moderación afecta solo este dispositivo.</div>}
-      <div className="flex flex-wrap gap-2 mb-3">{[["stats","Estadísticas"],["visitas","Visitas"],["mod","Moderación"],["reports",`Reportes${reports.length?` (${reports.length})`:""}`],["mensajes",`Mensajes${mensajes.length?` (${mensajes.length})`:""}`],["avistamientos",`Avistamientos${avistamientos.length?` (${avistamientos.length})`:""}`],["blog",`Blog${blog.length?` (${blog.length})`:""}`],["lugares","Lugares"],["estado","Estado"]].map(([k,l])=><button key={k} onClick={()=>setTab(k)} className="shrink-0 px-3 py-2 rounded-xl text-xs font-bold" style={{background:tab===k?C.ink:C.surface,color:tab===k?"#fff":C.muted,border:`1px solid ${tab===k?C.ink:C.line}`}}>{l}</button>)}</div>
+      <div className="flex flex-wrap gap-2 mb-3">{[["stats","Estadísticas"],["mascotas",`Mascotas${mascotas.length?` (${mascotas.length})`:""}`],["visitas","Visitas"],["mod","Moderación"],["reports",`Reportes${reports.length?` (${reports.length})`:""}`],["mensajes",`Mensajes${mensajes.length?` (${mensajes.length})`:""}`],["avistamientos",`Avistamientos${avistamientos.length?` (${avistamientos.length})`:""}`],["blog",`Blog${blog.length?` (${blog.length})`:""}`],["lugares","Lugares"],["estado","Estado"]].map(([k,l])=><button key={k} onClick={()=>setTab(k)} className="shrink-0 px-3 py-2 rounded-xl text-xs font-bold" style={{background:tab===k?C.ink:C.surface,color:tab===k?"#fff":C.muted,border:`1px solid ${tab===k?C.ink:C.line}`}}>{l}</button>)}</div>
 
       {tab==="visitas"&&<VisitasPanel conn={conn} posts={posts}/>}
       {tab==="stats"&&(<div className="space-y-3 mb-2"><div className="rounded-2xl p-4 text-center" style={{background:`linear-gradient(135deg, ${C.brand}, ${C.brandDeep})`,color:"#fff"}}><div className="text-4xl font-extrabold">{pct}%</div><div className="text-[12px] font-semibold opacity-90">porcentaje de recuperación</div></div><div className="grid grid-cols-2 gap-2.5"><Kpi n={total} l="Total publicaciones" c={C.ink}/><Kpi n={reunited} l="Reunidas con familia" c={C.reunited}/><Kpi n={lost} l="Perdidas" c={C.lost}/><Kpi n={found} l="Encontradas" c={C.found}/><Kpi n={seen} l="Vistas" c={C.seen}/><Kpi n={reports.length} l="Reportes" c={C.muted}/></div><div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Publicaciones por barrio</div><Bars data={byBarrio} max={maxB} color={C.brand}/></div>{repB.length>0&&<div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Barrios con más reportes</div><Bars data={repB} max={Math.max(1,...repB.map(x=>x.n))} color={C.lost}/></div>}</div>)}
@@ -2104,9 +2104,29 @@ function AdminView({ posts, reports, approve, removePost, go, clearReport, conn,
 
       {tab==="lugares"&&<LugaresAdmin lugares={lugares} guardarLugar={guardarLugar} borrarLugar={borrarLugar}/>}
 
+      {tab==="mascotas"&&<MascotasAdmin mascotas={mascotas}/>}
       {tab==="estado"&&<AuditPanel conn={conn}/>}
     </div>
   );
+}
+function MascotasAdmin({ mascotas=[] }){
+  const [q,setQ]=useState("");
+  const lista=mascotas.filter(m=>{ const t=(q||"").toLowerCase().trim(); if(!t)return true; return [m.pet_name,m.petName,m.species,m.zona,m.codigo,m.phone,m.whatsapp,m.owner_id].some(v=>String(v||"").toLowerCase().includes(t)); });
+  const hoy=mascotas.filter(m=>m.created_at&&(Date.now()-new Date(m.created_at).getTime())<86400000).length;
+  const semana=mascotas.filter(m=>m.created_at&&(Date.now()-new Date(m.created_at).getTime())<7*86400000).length;
+  return (<div className="mb-2">
+    <div className="grid grid-cols-3 gap-2.5 mb-3"><Kpi n={mascotas.length} l="Registradas" c={C.brand}/><Kpi n={semana} l="Últimos 7 días" c={C.ink}/><Kpi n={hoy} l="Últimas 24 h" c={C.found}/></div>
+    <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar por nombre, zona, código o teléfono…" className="w-full mb-3 px-3 py-2.5 rounded-xl text-sm outline-none" style={{background:C.surface,border:`1px solid ${C.line}`}}/>
+    {lista.length===0?<Empty text="Todavía no hay mascotas registradas."/>:<div className="space-y-2.5">{lista.map(m=>{ const nom=m.pet_name||m.petName||"Sin nombre"; const tel=m.whatsapp||m.phone; return (<div key={m.id||m.codigo} className="rounded-2xl p-3 flex gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}>
+      {m.photo?<img src={m.photo} alt={nom} className="w-16 h-16 rounded-xl object-cover shrink-0"/>:<div className="w-16 h-16 rounded-xl flex items-center justify-center shrink-0" style={{background:C.brandSoft,color:C.brand}}><PawPrint size={22}/></div>}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2"><div className="font-bold text-sm truncate">{nom}</div><span className="text-[10px] shrink-0" style={{color:C.muted}}>{m.created_at?timeAgo(m.created_at):""}</span></div>
+        <div className="text-[11px]" style={{color:C.muted}}>{[m.species,m.sex,m.color,m.zona].filter(Boolean).join(" · ")}</div>
+        <div className="text-[11px] mt-0.5" style={{color:C.muted}}>Código: <b>{m.codigo}</b>{m.created_at?` · ${new Date(m.created_at).toLocaleDateString("es-AR")}`:""}</div>
+        <div className="text-[10px] mt-0.5 truncate" style={{color:C.muted}}>Cuenta: {m.owner_id?String(m.owner_id).slice(0,8)+"…":"sin cuenta"}</div>
+        <div className="flex items-center gap-2 mt-1.5">{digits(tel)?<a href={`https://wa.me/${waNum(tel)}`} target="_blank" rel="noreferrer" className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-white flex items-center gap-1" style={{background:C.found}}><Phone size={11}/> {tel}</a>:<span className="text-[11px]" style={{color:C.muted}}>Sin teléfono</span>}<a href={`/?m=${m.codigo}`} target="_blank" rel="noreferrer" className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold" style={{background:C.brandSoft,color:C.brandDeep}}>Ver ficha</a></div>
+      </div></div>); })}</div>}
+  </div>);
 }
 function Sel({ value, onChange, options }){ return <select value={value} onChange={e=>onChange(e.target.value)} className="shrink-0 px-3 py-2 rounded-xl text-xs font-semibold" style={{background:C.surface,border:`1px solid ${C.line}`,color:C.ink}}>{options.map(([k,l])=><option key={k} value={k}>{l}</option>)}</select>; }
 
