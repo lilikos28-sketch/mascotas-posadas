@@ -2130,30 +2130,69 @@ function MascotasAdmin({ mascotas=[] }){
       </div></div>); })}</div>}
   </div>);
 }
-/* Publicación rápida desde un enlace de Facebook (solo administradora) */
+/* Publicación rápida desde un enlace de Facebook (solo administradora): pega el enlace, la app lee el posteo y publica sola */
+const adivinarFb=(title,descr)=>{
+  const t=sinTildes(`${title||""} ${descr||""}`);
+  const lost=/perdi|extravi|se escap|se me fue|se nos fue|desapareci|recompensa/.test(t);
+  const found=/encontr(e|amos|ado|ada|aron|o una|o un)\b|hallad|rescat(e|amos)|apareci|(su|sus) due(n|ñ)o|sin due/.test(t);
+  const type=(lost&&!found)?"lost":(found&&!lost)?"found":"";
+  const gato=/\bgat(o|a|os|as|ito|ita|itos|itas)\b/.test(t);
+  const perro=/\bperr(o|a|os|as|ito|ita|itos|itas)\b|cachorr|caniche|labrador|ovejero|pitbull|salchicha|golden|husky|chihuahua|beagle|rottweiler|\bcan\b/.test(t);
+  const species=(gato&&!perro)?"gato":(perro&&!gato)?"perro":"";
+  let zona="Posadas",barrio="";
+  for(const z of ZONA_LIST){ if(z==="Posadas"||z==="Otra localidad")continue; if(new RegExp(`\\b${sinTildes(z)}\\b`).test(t)){zona=z;break;} }
+  if(zona==="Posadas"){ for(const b of BARRIO_LIST){ if(b==="Centro")continue; if(new RegExp(`\\b${sinTildes(b)}\\b`).test(t)){barrio=b;break;} } }
+  const desc=(descr||"").replace(/https?:\/\/\S+/g,"").replace(/\+?\d[\d\s().-]{6,}\d/g,"").replace(/\s+/g," ").trim().slice(0,400);
+  return { type, species, zona, barrio, desc };
+};
 function FbRapidoAdmin({ onPublicar, go }){
-  const [link,setLink]=useState(""),[type,setType]=useState("lost"),[species,setSpecies]=useState("perro"),[zona,setZona]=useState("Posadas"),[barrio,setBarrio]=useState("");
+  const [link,setLink]=useState(""),[type,setType]=useState(""),[species,setSpecies]=useState(""),[zona,setZona]=useState("Posadas"),[barrio,setBarrio]=useState("");
   const [nombre,setNombre]=useState(""),[color,setColor]=useState(""),[desc,setDesc]=useState(""),[foto,setFoto]=useState(""),[imgUrl,setImgUrl]=useState("");
-  const [busy,setBusy]=useState(false),[msg,setMsg]=useState("");
+  const [busy,setBusy]=useState(false),[msg,setMsg]=useState(""),[info,setInfo]=useState(""),[ultimo,setUltimo]=useState(""),[auto,setAuto]=useState(true);
   const ok=esLinkFb(link);
+  const traerFoto=async(u)=>{ const r=await fetch(`/api/img?u=${encodeURIComponent(u)}`); if(!r.ok)throw new Error(); const b=await r.blob(); return await compressImage(new File([b],"foto.jpg",{type:b.type||"image/jpeg"}),1600,0.85); };
   const subirFoto=async(e)=>{ const file=e.target.files&&e.target.files[0]; if(!file)return; setBusy(true); try{ setFoto(await compressImage(file,1600,0.85)); setMsg(""); }catch{ setMsg("No se pudo leer esa foto."); } setBusy(false); };
-  const fotoDesdeLink=async()=>{ const u=imgUrl.trim(); if(!u)return; setBusy(true); try{ const r=await fetch(`/api/img?u=${encodeURIComponent(u)}`); if(!r.ok)throw new Error(); const b=await r.blob(); setFoto(await compressImage(new File([b],"foto.jpg",{type:b.type||"image/jpeg"}),1600,0.85)); setImgUrl(""); setMsg(""); }catch{ setMsg("No se pudo traer esa foto. Probá subiéndola desde el celular."); } setBusy(false); };
-  const publicar=async()=>{
-    if(!ok){ setMsg("Pegá el enlace completo del posteo de Facebook."); return; }
+  const fotoDesdeLink=async()=>{ const u=imgUrl.trim(); if(!u)return; setBusy(true); try{ setFoto(await traerFoto(u)); setImgUrl(""); setMsg(""); }catch{ setMsg("No se pudo traer esa foto. Probá subiéndola desde el celular."); } setBusy(false); };
+  const publicarCon=async(d)=>{
     setBusy(true); setMsg("");
-    const c=(zona==="Posadas"&&barrio&&BARRIOS[barrio])?{lat:BARRIOS[barrio][0],lng:BARRIOS[barrio][1]}:(()=>{const z=coordDe(zona);return {lat:z[0],lng:z[1]};})();
-    const fields={ type, petName:clean(nombre,40), species, sex:"", ageApprox:"", color:clean(color,80)||"Ver en Facebook", features:"", date:new Date().toISOString().slice(0,10), time:"", place:"", zona, barrio:zona==="Posadas"?barrio:"", cp:zonaCP(zona), description:cleanText(desc,600), phone:"", whatsapp:"", reward:"", lat:c.lat, lng:c.lng, preciseLocation:false, photo:foto||null, photos:foto?[foto]:[], mascotaCodigo:"", fbUrl:link.trim() };
+    const c=(d.zona==="Posadas"&&d.barrio&&BARRIOS[d.barrio])?{lat:BARRIOS[d.barrio][0],lng:BARRIOS[d.barrio][1]}:(()=>{const z=coordDe(d.zona);return {lat:z[0],lng:z[1]};})();
+    const fields={ type:d.type, petName:clean(d.nombre,40), species:d.species, sex:"", ageApprox:"", color:clean(d.color,80)||"Ver en Facebook", features:"", date:new Date().toISOString().slice(0,10), time:"", place:"", zona:d.zona, barrio:d.zona==="Posadas"?d.barrio:"", cp:zonaCP(d.zona), description:cleanText(d.desc,600), phone:"", whatsapp:"", reward:"", lat:c.lat, lng:c.lng, preciseLocation:false, photo:d.foto||null, photos:d.foto?[d.foto]:[], mascotaCodigo:"", fbUrl:d.link.trim() };
     const saved=await onPublicar(fields);
     setBusy(false);
-    if(saved){ setLink("");setNombre("");setColor("");setDesc("");setFoto("");setBarrio(""); go("detail",{post:saved}); } else setMsg("No se pudo publicar. Probá de nuevo.");
+    if(saved){ setLink("");setUltimo("");setType("");setSpecies("");setNombre("");setColor("");setDesc("");setFoto("");setBarrio("");setZona("Posadas");setInfo(""); go("detail",{post:saved}); } else setMsg("No se pudo publicar. Probá de nuevo.");
   };
+  const analizar=async(u)=>{
+    setBusy(true); setMsg(""); setInfo("Leyendo el posteo de Facebook…");
+    const d={ link:u, type, species, zona, barrio, nombre, color, desc, foto };
+    let leido=false;
+    try{
+      const ctl=new AbortController(); const to=setTimeout(()=>ctl.abort(),15000);
+      const r=await fetch(`/api/fbinfo?u=${encodeURIComponent(u)}`,{signal:ctl.signal}); clearTimeout(to);
+      const j=await r.json();
+      if(j&&j.ok){
+        leido=true; const g=adivinarFb(j.title,j.description);
+        if(!d.type&&g.type)d.type=g.type; if(!d.species&&g.species)d.species=g.species;
+        d.zona=g.zona; d.barrio=g.barrio; if(!d.desc&&g.desc)d.desc=g.desc;
+        if(!d.foto&&j.image){ try{ d.foto=await traerFoto(j.image); }catch{} }
+      }
+    }catch{}
+    setType(d.type);setSpecies(d.species);setZona(d.zona);setBarrio(d.barrio);setDesc(d.desc);setFoto(d.foto);
+    if(auto&&d.type&&d.species){ setInfo("Listo, publicando…"); await publicarCon(d); return; }
+    setBusy(false);
+    setInfo(leido?"Leí el posteo pero no pude saber con seguridad si está perdida o encontrada, o qué animal es. Elegilo y tocá Publicar.":"No pude leer ese posteo (puede ser de un grupo privado o Facebook no lo dejó). Elegí qué es y la especie, y tocá Publicar.");
+  };
+  useEffect(()=>{ if(!esLinkFb(link))return; const u=link.trim(); if(u===ultimo)return; const t=setTimeout(()=>{ setUltimo(u); analizar(u); },900); return ()=>clearTimeout(t); },[link]);
+  const puede=ok&&type&&species&&!busy;
+  const publicar=()=>{ if(!ok){ setMsg("Pegá el enlace completo del posteo de Facebook."); return; } if(!type||!species){ setMsg("Elegí si está perdida o encontrada, y la especie."); return; } publicarCon({link,type,species,zona,barrio,nombre,color,desc,foto}); };
   return (<div className="mb-2 space-y-3">
-    <div className="rounded-2xl p-3 text-[12px] flex gap-2" style={{background:C.brandSoft,color:C.ink}}><FbIcon size={16} color="#1877F2"/><span>Pegá el enlace de un posteo de Facebook de una mascota perdida o encontrada. Se publica en la página con el posteo original incrustado y el botón "Contactar en Facebook". No se publica ningún teléfono.</span></div>
+    <div className="rounded-2xl p-3 text-[12px] flex gap-2" style={{background:C.brandSoft,color:C.ink}}><FbIcon size={16} color="#1877F2"/><span>Pegá el enlace del posteo de Facebook y la página lo lee y lo publica sola. Si el posteo es público, toma la foto y detecta si está perdida o encontrada, la especie y el barrio. Nunca publica teléfonos. Si no puede leerlo, te pide elegir lo que falta.</span></div>
     <Field label="Enlace del posteo de Facebook *"><input inputMode="url" value={link} onChange={e=>setLink(e.target.value)} className="inp" placeholder="https://www.facebook.com/…"/></Field>
     {link&&!ok&&<div className="text-[11px] font-semibold" style={{color:C.lost}}>Pegá el enlace completo del posteo.</div>}
+    {info&&<div className="rounded-xl p-2.5 text-[12px] font-semibold" style={{background:"#FFF7E6",border:"1px solid #F3E1B5",color:"#7A5B14"}}>{info}</div>}
+    <label className="flex items-center gap-2 text-[12px] font-semibold" style={{color:C.muted}}><input type="checkbox" checked={auto} onChange={e=>setAuto(e.target.checked)}/> Publicar sola apenas lea el posteo</label>
     <div className="grid grid-cols-2 gap-3">
-      <Field label="¿Qué es? *"><select value={type} onChange={e=>setType(e.target.value)} className="inp"><option value="lost">Perdida</option><option value="found">Encontrada</option><option value="seen">Avistada</option></select></Field>
-      <Field label="Especie *"><select value={species} onChange={e=>setSpecies(e.target.value)} className="inp"><option value="perro">🐕 Perro</option><option value="gato">🐈 Gato</option><option value="otro">🐾 Otro</option></select></Field>
+      <Field label="¿Qué es? *"><select value={type} onChange={e=>setType(e.target.value)} className="inp"><option value="" disabled>Elegí…</option><option value="lost">Perdida</option><option value="found">Encontrada</option><option value="seen">Avistada</option></select></Field>
+      <Field label="Especie *"><select value={species} onChange={e=>setSpecies(e.target.value)} className="inp"><option value="" disabled>Elegí…</option><option value="perro">🐕 Perro</option><option value="gato">🐈 Gato</option><option value="otro">🐾 Otro</option></select></Field>
     </div>
     <div className="grid grid-cols-2 gap-3">
       <Field label="Localidad *"><select value={zona} onChange={e=>{setZona(e.target.value); if(e.target.value!=="Posadas")setBarrio("");}} className="inp">{ZONA_LIST.map(z=><option key={z}>{z}</option>)}</select></Field>
@@ -2170,7 +2209,7 @@ function FbRapidoAdmin({ onPublicar, go }){
       :<div className="space-y-2"><input type="file" accept="image/*" onChange={subirFoto} className="text-[12px]"/><div className="flex gap-2"><input value={imgUrl} onChange={e=>setImgUrl(e.target.value)} className="inp flex-1" placeholder="o enlace de la imagen de Facebook"/><button type="button" onClick={fotoDesdeLink} className="px-3 rounded-xl text-[12px] font-bold text-white" style={{background:C.brand}}>Cargar</button></div></div>}
     </div>
     {msg&&<div className="text-[12px] font-semibold" style={{color:C.lost}}>{msg}</div>}
-    <button type="button" disabled={busy||!ok} onClick={publicar} className="w-full py-3.5 rounded-2xl font-bold text-white" style={{background:ok&&!busy?"#1877F2":"#9CA3AF"}}>{busy?"Publicando…":"Publicar desde Facebook"}</button>
+    <button type="button" disabled={busy&&!puede} onClick={publicar} className="w-full py-3.5 rounded-2xl font-bold text-white" style={{background:puede?"#1877F2":"#9CA3AF"}}>{busy?"Trabajando…":"Publicar desde Facebook"}</button>
   </div>);
 }
 function Sel({ value, onChange, options }){ return <select value={value} onChange={e=>onChange(e.target.value)} className="shrink-0 px-3 py-2 rounded-xl text-xs font-semibold" style={{background:C.surface,border:`1px solid ${C.line}`,color:C.ink}}>{options.map(([k,l])=><option key={k} value={k}>{l}</option>)}</select>; }
