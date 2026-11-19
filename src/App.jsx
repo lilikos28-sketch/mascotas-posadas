@@ -363,7 +363,7 @@ export default function App(){
     try{ const params=new URLSearchParams(window.location.search); const code=params.get("m"); if(code){ await abrirMascotaPorCodigo(code); } }catch{}
     // ¿Se abrió el enlace de una publicación compartida? La URL trae ?post=ID
     try{ const params=new URLSearchParams(window.location.search); const pid=params.get("post"); if(pid){ await abrirPublicacionPorId(pid); } }catch{}
-    try{ const params=new URLSearchParams(window.location.search); const nota=params.get("nota"); const v=params.get("v"); const buscar=params.get("buscar"); if(buscar){ setBusquedaInicial(buscar.slice(0,40)); setView("search"); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:"search"},"",`/?buscar=${encodeURIComponent(buscar)}`); }catch{} return; } const dest=nota?"blog":v==="blog"?"blog":v==="registrar"?"registrar_mascota":v==="dni"?"dni_mascota":null; if(dest){ if(nota)setNotaInicial(nota); setView(dest); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:dest},"",nota?`/?nota=${encodeURIComponent(nota)}`:`/?v=${v}`); }catch{} } }catch{}
+    try{ const params=new URLSearchParams(window.location.search); const nota=params.get("nota"); const v=params.get("v"); const buscar=params.get("buscar"); if(buscar){ setBusquedaInicial(buscar.slice(0,40)); setView("search"); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:"search"},"",`/?buscar=${encodeURIComponent(buscar)}`); }catch{} return; } const dest=nota?"blog":v==="blog"?"blog":v==="registrar"?"registrar_mascota":v==="dni"?"dni_mascota":v==="historia"?"historia":null; if(dest){ if(nota)setNotaInicial(nota); setView(dest); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:dest},"",nota?`/?nota=${encodeURIComponent(nota)}`:`/?v=${v}`); }catch{} } }catch{}
   })(); },[]);
 
   // Al volver a la página (por ejemplo, desde WhatsApp), se buscan avisos nuevos
@@ -445,7 +445,7 @@ export default function App(){
 
   /* ---- Mensajes de contacto (buzón privado del admin) ---- */
   const enviarMensaje=async(m)=>{
-    const rec={ nombre:clean(m.nombre,60), contacto:clean(m.contacto,60), tipo:m.tipo, mensaje:cleanText(m.mensaje,800) };
+    const rec={ nombre:clean(m.nombre,60), contacto:clean(m.contacto,60), tipo:m.tipo, mensaje:cleanText(m.mensaje,m.tipo==="Historia para el blog"?3000:800) };
     if(conn==="cloud"){ try{ const c=await getClient(); const {error}=await c.from("mensajes").insert(rec); if(error)throw error; return true; }catch{ flash("No se pudo enviar. Reintentá."); return false; } }
     const full={...rec,id:Date.now(),created_at:new Date().toISOString()}; const nm=[full,...mensajes]; setMensajes(nm); Local.set(KEYS.mensajes,nm); return true;
   };
@@ -587,6 +587,7 @@ export default function App(){
         {view==="help"    && <HelpView go={go} lugares={lugares} />}
         {view==="business"&& <BusinessView go={go} />}
         {view==="contacto"&& <ContactoView go={go} onSend={enviarMensaje} />}
+        {view==="historia"&& <HistoriaView go={go} onSend={enviarMensaje} />}
         {view==="blog"&& <BlogView go={go} flash={flash} notaInicial={notaInicial} entradas={[...blog,...BLOG_FIJO.filter(f=>!blog.some(b=>b.titulo===f.titulo))].filter(e=>!e.created_at||new Date(e.created_at)<=new Date()).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))} />}
         {view==="registrar_mascota"&& (requireAuthToPublish ? <AuthGate go={go} registrar /> : <RegistrarMascotaView go={go} onSave={async(f)=>{ const m=await registrarMascota(f); if(m){ setQrMascota(m); } return m; }} flash={flash} />)}
         {view==="mis_mascotas"&& <MisMascotasView go={go} mascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} user={user} onDelete={borrarMascota} avistamientos={avistamientos} avisosVistos={avisosVistos} marcarVistos={marcarAvisosVistos} setQr={setQrMascota} irQr={(m)=>{setQrMascota(m);go("qr_mascota");}} irDni={(m)=>{setDniMascota(m);go("dni_mascota");}} irVacunas={(m)=>{setVacMascota(m);go("vacunas");}} />}
@@ -601,7 +602,7 @@ export default function App(){
 
         <BottomNav view={view} go={go} />
         {guia && <GuiaView onClose={()=>setGuia(false)} />}
-        {!["new","admin","auth","registrar_mascota","mascota_publica","contacto","dni_mascota"].includes(view) && <AyudaBot go={go} abrirGuia={()=>setGuia(true)} abrirNota={(id)=>{ setNotaInicial(id); go("blog"); }} />}
+        {!["new","admin","auth","registrar_mascota","mascota_publica","contacto","dni_mascota","historia"].includes(view) && <AyudaBot go={go} abrirGuia={()=>setGuia(true)} abrirNota={(id)=>{ setNotaInicial(id); go("blog"); }} />}
 
         {toast && <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[999] px-4 py-2.5 rounded-full text-white text-sm font-medium shadow-lg" style={{background:C.ink,animation:"pop .25s ease"}}>{toast}</div>}
       {apoyo&&<div className="fixed inset-0 z-[900] flex items-end justify-center" style={{background:"rgba(0,0,0,.45)"}} onClick={()=>setApoyo(false)}><div className="w-full max-w-[480px] rounded-t-3xl p-5" style={{background:C.surface}} onClick={e=>e.stopPropagation()}>
@@ -2066,6 +2067,7 @@ function BlogView({ go, entradas=[], notaInicial=null, flash }){
             <ChevronRight size={16} color={C.muted}/>
           </button>))}</div>
       </div>}
+      <button onClick={()=>go("historia")} className="mt-3 w-full py-3 rounded-2xl font-bold" style={{background:C.brandSoft,color:C.brandDeep}}>💛 Contanos tu historia para el blog</button>
       <button onClick={()=>setAbierta(null)} className="mt-3 w-full py-3 rounded-2xl font-bold" style={{background:C.surface,border:`1px solid ${C.line}`}}>← Ver más notas</button>
     </div>);
   }
@@ -2089,7 +2091,12 @@ function BlogView({ go, entradas=[], notaInicial=null, flash }){
         </div>
       </button>
     ))}</div>}
-    <div className="rounded-2xl p-3.5 mt-4" style={{background:C.brandSoft}}>
+    <div className="rounded-2xl p-3.5 mt-4" style={{background:C.brand,color:"#fff"}}>
+      <div className="font-extrabold text-sm">¿Tenés una historia con final feliz? 💛</div>
+      <div className="text-[12px] mt-0.5 opacity-95">Contanos cómo volvió tu mascota y la publicamos para inspirar a otros. Llega en privado y no se publica sin tu permiso.</div>
+      <button onClick={()=>go("historia")} className="mt-2.5 w-full py-2.5 rounded-xl font-extrabold text-sm" style={{background:"#fff",color:C.brandDeep}}>Contanos tu historia</button>
+    </div>
+    <div className="rounded-2xl p-3.5 mt-3" style={{background:C.brandSoft}}>
       <div className="font-extrabold text-sm" style={{color:C.brandDeep}}>Compartí el blog 🐾</div>
       <div className="text-[11px] mt-0.5" style={{color:C.muted}}>Cuantas más personas lo lean, más mascotas vuelven a casa.</div>
       <div className="grid grid-cols-4 gap-2 mt-2.5">
@@ -2102,8 +2109,32 @@ function BlogView({ go, entradas=[], notaInicial=null, flash }){
   </div>);
 }
 
+/* ------------------- Contanos tu historia (llega en privado a la administradora) ------------------- */
+function HistoriaView({ go, onSend }){
+  const [f,setF]=useState({nombre:"",contacto:"",mascota:"",firma:"Con mi nombre de pila",historia:"",ok:false});
+  const [busy,setBusy]=useState(false);const [listo,setListo]=useState(false);
+  const set=(k,v)=>setF(s=>({...s,[k]:v}));
+  const puede=f.nombre.trim()&&f.contacto.trim()&&f.historia.trim().length>=30&&f.ok;
+  const enviar=async()=>{ if(!puede)return; setBusy(true); const r=await onSend({nombre:f.nombre,contacto:f.contacto,tipo:"Historia para el blog",mensaje:`Mascota: ${f.mascota||"—"}\nFirma: ${f.firma}\nAutoriza publicar: Sí (confirmarle antes de publicar)\n\n${f.historia}`}); setBusy(false); if(r)setListo(true); };
+  const wa=`https://wa.me/5493764108100?text=${encodeURIComponent("Hola 👋 Te mandé mi historia para el blog de Mascotas Perdidas Misiones. Te paso las fotos por acá 🐾")}`;
+  if(listo)return (<div className="px-4 pt-10 text-center"><div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center" style={{background:C.brandSoft}}><Check size={32} color={C.brand}/></div><h2 className="text-xl font-extrabold mt-3">¡Gracias por tu historia! 🐾</h2><p className="text-sm mt-1" style={{color:C.muted}}>La leemos con cariño. Antes de publicarla te escribimos para confirmarla. Si querés sumar fotos, mandalas por WhatsApp.</p><a href={wa} target="_blank" rel="noreferrer" className="mt-5 w-full py-3 rounded-2xl font-bold text-white flex items-center justify-center gap-2" style={{background:C.found}}><Phone size={16}/> Mandar fotos por WhatsApp</a><button onClick={()=>go("blog")} className="mt-2 w-full py-3 rounded-2xl font-bold" style={{background:C.surface,border:`1px solid ${C.line}`}}>Volver al blog</button></div>);
+  return (<div className="px-4 pb-6"><Title back={()=>go("blog")} title="Contanos tu historia" tag="FUNCIONAL"/>
+    <div className="rounded-2xl p-3 mb-4 text-[12px] flex gap-2" style={{background:C.brandSoft,color:C.ink}}><Heart size={16} className="shrink-0 mt-0.5" style={{color:C.brand}}/><span>¿Tu mascota se perdió y volvió? ¿Encontraste una y diste con su familia? Contanos y la publicamos en el blog para inspirar a otros. Tu mensaje llega en privado: <b>no se publica nada sin tu permiso</b> y tu teléfono nunca se muestra.</span></div>
+    <div className="space-y-3">
+      <Field label="Tu nombre *"><input value={f.nombre} onChange={e=>set("nombre",e.target.value)} className="inp" placeholder="Tu nombre" maxLength={60}/></Field>
+      <Field label="Tu WhatsApp o email (solo lo vemos nosotros) *"><input value={f.contacto} onChange={e=>set("contacto",e.target.value)} className="inp" placeholder="Para confirmarte antes de publicar" maxLength={60}/></Field>
+      <Field label="Nombre de la mascota"><input value={f.mascota} onChange={e=>set("mascota",e.target.value)} className="inp" placeholder="Ej: Luna" maxLength={40}/></Field>
+      <Field label="Tu historia *"><textarea value={f.historia} onChange={e=>set("historia",e.target.value)} rows={8} className="inp" placeholder="Contanos qué pasó: cómo se perdió, cómo la buscaron, quién la encontró y cómo fue el reencuentro…" maxLength={3000}/></Field>
+      <Field label="¿Cómo querés que figure tu nombre?"><select value={f.firma} onChange={e=>set("firma",e.target.value)} className="inp"><option>Con mi nombre de pila</option><option>Con nombre y apellido</option><option>De forma anónima</option></select></Field>
+      <label className="flex items-start gap-2 text-[12px]" style={{color:C.ink}}><input type="checkbox" checked={f.ok} onChange={e=>set("ok",e.target.checked)} className="mt-0.5"/><span>Autorizo a Mascotas Perdidas Misiones a publicar mi historia en el blog y en sus redes, después de que me la confirmen. Puedo pedir que la saquen cuando quiera.</span></label>
+    </div>
+    <button onClick={enviar} disabled={busy||!puede} className="mt-5 w-full py-3.5 rounded-2xl font-bold text-white text-[15px] flex items-center justify-center gap-2" style={{background:puede?C.brand:C.line}}>{busy&&<Loader2 size={18} className="animate-spin"/>}Enviar mi historia</button>
+    <p className="text-[11px] mt-2 text-center" style={{color:C.muted}}>Podés sumar fotos por WhatsApp después de enviarla.</p>
+  </div>);
+}
+
 /* ------------------------------- Contacto -------------------------------- */
-const TIPOS_CONTACTO=["Consulta","Reportar una publicación","Sumar refugio","Sugerencia","Publicidad","Otro"];
+const TIPOS_CONTACTO=["Consulta","Reportar una publicación","Sumar refugio","Sugerencia","Publicidad","Historia para el blog","Otro"];
 function ContactoView({ go, onSend }){
   const [f,setF]=useState({nombre:"",contacto:"",tipo:TIPOS_CONTACTO[0],mensaje:""});
   const [busy,setBusy]=useState(false);const [ok,setOk]=useState(false);
