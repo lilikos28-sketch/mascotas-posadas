@@ -363,7 +363,7 @@ export default function App(){
     try{ const params=new URLSearchParams(window.location.search); const code=params.get("m"); if(code){ await abrirMascotaPorCodigo(code); } }catch{}
     // ¿Se abrió el enlace de una publicación compartida? La URL trae ?post=ID
     try{ const params=new URLSearchParams(window.location.search); const pid=params.get("post"); if(pid){ await abrirPublicacionPorId(pid); } }catch{}
-    try{ const params=new URLSearchParams(window.location.search); const nota=params.get("nota"); const v=params.get("v"); const buscar=params.get("buscar"); if(buscar){ setBusquedaInicial(buscar.slice(0,40)); setView("search"); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:"search"},"",`/?buscar=${encodeURIComponent(buscar)}`); }catch{} return; } const dest=nota?"blog":v==="blog"?"blog":v==="registrar"?"registrar_mascota":v==="dni"?"dni_mascota":v==="historia"?"historia":null; if(dest){ if(nota)setNotaInicial(nota); setView(dest); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:dest},"",nota?`/?nota=${encodeURIComponent(nota)}`:`/?v=${v}`); }catch{} } }catch{}
+    try{ const params=new URLSearchParams(window.location.search); const nota=params.get("nota"); const v=params.get("v"); const buscar=params.get("buscar"); if(buscar){ setBusquedaInicial(buscar.slice(0,40)); setView("search"); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:"search"},"",`/?buscar=${encodeURIComponent(buscar)}`); }catch{} return; } const dest=nota?"blog":v==="blog"?"blog":v==="registrar"?"registrar_mascota":v==="dni"?"dni_mascota":v==="historia"?"historia":v==="refugios"?"refugios":null; if(dest){ if(nota)setNotaInicial(nota); setView(dest); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:dest},"",nota?`/?nota=${encodeURIComponent(nota)}`:`/?v=${v}`); }catch{} } }catch{}
   })(); },[]);
 
   // Al volver a la página (por ejemplo, desde WhatsApp), se buscan avisos nuevos
@@ -588,6 +588,7 @@ export default function App(){
         {view==="business"&& <BusinessView go={go} />}
         {view==="contacto"&& <ContactoView go={go} onSend={enviarMensaje} />}
         {view==="historia"&& <HistoriaView go={go} onSend={enviarMensaje} />}
+        {view==="refugios"&& <RefugiosView go={go} />}
         {view==="blog"&& <BlogView go={go} flash={flash} notaInicial={notaInicial} entradas={[...blog,...BLOG_FIJO.filter(f=>!blog.some(b=>b.titulo===f.titulo))].filter(e=>!e.created_at||new Date(e.created_at)<=new Date()).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))} />}
         {view==="registrar_mascota"&& (requireAuthToPublish ? <AuthGate go={go} registrar /> : <RegistrarMascotaView go={go} onSave={async(f)=>{ const m=await registrarMascota(f); if(m){ setQrMascota(m); } return m; }} flash={flash} />)}
         {view==="mis_mascotas"&& <MisMascotasView go={go} mascotas={misMascotas.filter(m=>!user||m.owner_id===user.id||m.owner_id==null)} user={user} onDelete={borrarMascota} avistamientos={avistamientos} avisosVistos={avisosVistos} marcarVistos={marcarAvisosVistos} setQr={setQrMascota} irQr={(m)=>{setQrMascota(m);go("qr_mascota");}} irDni={(m)=>{setDniMascota(m);go("dni_mascota");}} irVacunas={(m)=>{setVacMascota(m);go("vacunas");}} />}
@@ -722,13 +723,13 @@ function HomeView({ posts, go, conn, user, realPosts=[], abrirVacunas=()=>{} }){
       {/* Botones "Ayuda" y "Negocios amigos" ocultos temporalmente (a pedido). Para reactivarlos, quitar el comentario de abajo.
       <div className="mt-4 grid grid-cols-2 gap-2.5"><QuickCard ico={<Stethoscope size={18}/>} title="Ayuda" sub="Vets y refugios" onClick={()=>go("help")}/><QuickCard ico={<Store size={18}/>} title="Negocios amigos" sub="Comercios locales" onClick={()=>go("business")}/></div>
       */}
-      <button onClick={()=>go("contacto")} className="mt-4 w-full rounded-2xl p-3.5 text-left flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{background:C.brandSoft,color:C.brand}}><Mail size={18}/></div><div className="flex-1"><div className="font-bold text-sm">Contacto</div><div className="text-[11px]" style={{color:C.muted}}>Publicitá con nosotros, sumá tu refugio o enviá una sugerencia</div></div><ChevronRight size={16} color={C.muted}/></button>
+      <a href={`https://wa.me/5493764108100?text=${encodeURIComponent("Hola, quiero trabajar con Mascotas Perdidas Misiones")}`} target="_blank" rel="noreferrer" className="mt-4 w-full rounded-2xl p-3.5 text-left flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{background:C.brandSoft,color:C.brand}}><Mail size={18}/></div><div className="flex-1"><div className="font-bold text-sm">Trabajá con nosotros</div><div className="text-[11px]" style={{color:C.muted}}>Escribinos por WhatsApp y sumate a Mascotas Perdidas Misiones</div></div><ChevronRight size={16} color={C.muted}/></a>
 
       <button onClick={()=>go("blog")} className="mt-2.5 w-full rounded-2xl p-3.5 text-left flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{background:C.brandSoft,color:C.brand}}><BookOpen size={18}/></div><div className="flex-1"><div className="font-bold text-sm">Blog 📝</div><div className="text-[11px]" style={{color:C.muted}}>Historias, novedades y consejos de Mascotas Perdidas Misiones</div></div><ChevronRight size={16} color={C.muted}/></button>
       <div className="mt-4 mb-2 rounded-2xl p-3.5 flex gap-2.5 text-[12px]" style={{background:"#FFF7E6",border:"1px solid #F3E1B5",color:"#7A5B14"}}><AlertTriangle size={18} className="shrink-0 mt-0.5"/><p>Cuidado con quienes pidan dinero antes de demostrar que tienen a tu mascota. No compartas datos sensibles sin verificar.</p></div>
 
       <a href="https://posadas.gov.ar/imusa" target="_blank" rel="noreferrer" className="mb-2 w-full rounded-2xl p-3 flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{background:C.brandSoft,color:C.brand}}><Stethoscope size={17}/></div><div className="flex-1"><div className="font-bold text-[13px]">IMUSA Posadas · Castraciones y vacunas gratis</div><div className="text-[10px]" style={{color:C.muted}}>Instituto Municipal de Sanidad Animal</div></div><ChevronRight size={15} color={C.muted}/></a>
-      <a href={`https://wa.me/5493764108100?text=${encodeURIComponent("Hola Lili 👋 Quiero publicitar en Mascotas Perdidas Misiones. ¿Me pasás información?")}`} target="_blank" rel="noreferrer" onClick={()=>registrarEvento("contacto_publicidad",{})} className="mb-2 w-full rounded-2xl p-3 flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{background:C.brandSoft,color:C.brand}}><Store size={17}/></div><div className="flex-1"><div className="font-bold text-[13px]">Publicitá con nosotros 📣</div><div className="text-[10px]" style={{color:C.muted}}>Mostrá tu negocio a toda la comunidad · Escribinos por WhatsApp</div></div><ChevronRight size={15} color={C.muted}/></a>
+      <button onClick={()=>go("refugios")} className="mb-2 w-full rounded-2xl p-3 flex items-center gap-3 text-left" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{background:C.brandSoft,color:C.brand}}><PawPrint size={17}/></div><div className="flex-1"><div className="font-bold text-[13px]">Refugios 🐾</div><div className="text-[10px]" style={{color:C.muted}}>Protectoras y refugios de Misiones · Adopción y tránsito</div></div><ChevronRight size={15} color={C.muted}/></button>
 <div className="mt-3 mb-1 flex items-center justify-center gap-4 text-[12px] font-semibold py-2" style={{color:C.muted}}><span>Seguinos en</span><a href={FACEBOOK_URL} target="_blank" rel="noreferrer" className="flex items-center gap-1.5"><FbIcon size={14} color="#1877F2"/> Facebook</a><a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" className="flex items-center gap-1.5"><IgIcon size={14} color="#E1306C"/> Instagram</a></div>
     </div>
   );
@@ -2106,6 +2107,35 @@ function BlogView({ go, entradas=[], notaInicial=null, flash }){
         <ShareBtn onClick={()=>compartirBlog("native",flash)} label="Más" color={C.ink} ico={<Send size={17}/>}/>
       </div>
     </div>
+  </div>);
+}
+
+/* ------------------------- Refugios y protectoras de Misiones ------------------------- */
+const REFUGIOS=[
+  { id:"el-refugio", nombre:'Sociedad Protectora de Animales "El Refugio"', lugar:"Posadas · barrio Las Tacuaritas", desc:"Protectora de animales de Posadas.", aviso:"Datos de un blog viejo: confirmar antes de llamar.", tel:"(03752) 15664629", mail:"el_refugiodeanimales@yahoo.com.ar", web:"https://elrefugiodemisiones.blogspot.com", webLabel:"elrefugiodemisiones.blogspot.com" },
+  { id:"imusa", nombre:"IMUSA Posadas", lugar:"Posadas · Instituto Municipal de Sanidad Animal", desc:"Castraciones, vacunas y adopción de perros.", web:"https://posadas.gov.ar/imusa", webLabel:"Ver en posadas.gov.ar" },
+  { id:"esperanza", nombre:"Esperanza Animal", lugar:"Protectora que trabaja en red · sin lugar físico", desc:"Perros y gatos en adopción o en tránsito.", aviso:"Todavía no tenemos un contacto confirmado." },
+  { id:"adopciones", nombre:"Adopciones Responsables Posadas", lugar:"Grupo de rescatistas en Facebook", desc:"Grupo de rescatistas que difunden animales para adoptar.", web:"https://www.facebook.com/search/groups?q=Adopciones%20Responsables%20Posadas", webLabel:"Buscar el grupo en Facebook" },
+];
+function RefugiosView({ go }){
+  const waRef=`https://wa.me/5493764108100?text=${encodeURIComponent("Hola, quiero sumar mi refugio a Mascotas Perdidas Misiones")}`;
+  return (<div className="px-4 pb-6">
+    <Title back={()=>go("home")} title="Refugios" tag="FUNCIONAL"/>
+    <div className="rounded-2xl p-3 mb-4 text-[12px] flex gap-2" style={{background:C.brandSoft,color:C.ink}}><PawPrint size={16} className="shrink-0 mt-0.5" style={{color:C.brand}}/><span>Protectoras y refugios de Misiones que ayudan a mascotas perdidas, en adopción o en tránsito. Si encontraste una mascota sin dueño, pueden orientarte.</span></div>
+    <div className="space-y-3">{REFUGIOS.map(r=>(
+      <div key={r.id} className="rounded-2xl p-3.5" style={{background:C.surface,border:`1px solid ${C.line}`}}>
+        <div className="font-extrabold text-[15px]">{r.nombre}</div>
+        <div className="text-[11px] font-bold mt-0.5" style={{color:C.brand}}>{r.lugar}</div>
+        <div className="text-[13px] mt-1.5">{r.desc}</div>
+        {r.aviso && <div className="text-[11px] mt-2 rounded-lg px-2.5 py-1.5" style={{background:"#FFF7E6",color:"#7A5B14"}}>{r.aviso}</div>}
+        {(r.tel||r.mail||r.web) && <div className="mt-2.5 space-y-1.5 text-[12px]">
+          {r.tel && <div className="flex items-center gap-1.5"><Phone size={13} color={C.brand}/><span className="font-semibold">{r.tel}</span></div>}
+          {r.mail && <a href={`mailto:${r.mail}`} className="flex items-center gap-1.5 break-all" style={{color:C.brand}}><Mail size={13}/>{r.mail}</a>}
+          {r.web && <a href={r.web} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 font-semibold break-all" style={{color:C.brand}}><ExternalLink size={13}/>{r.webLabel||r.web}</a>}
+        </div>}
+      </div>))}</div>
+    <p className="text-[11px] mt-3 text-center" style={{color:C.muted}}>Información de referencia: confirmá antes de ir o llamar.</p>
+    <a href={waRef} target="_blank" rel="noreferrer" className="mt-4 w-full py-3.5 rounded-2xl font-bold text-white text-[15px] flex items-center justify-center gap-2" style={{background:C.found}}><Phone size={17}/> Sumá tu refugio</a>
   </div>);
 }
 
