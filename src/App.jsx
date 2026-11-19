@@ -1923,19 +1923,104 @@ const BLOG_FIJO = [
 "foto": "/blog/chicos.jpg",
 "created_at": "2026-11-29T22:55:00Z",
 "fija": true
+},
+{
+"id": "errores-busqueda",
+"titulo": "7 errores que conviene evitar al buscar una mascota perdida",
+"texto": "Cuando se pierde una mascota, los nervios juegan en contra. Estos son los errores más comunes y cómo evitarlos.\n\n1. Esperar a ver si vuelve sola. Cada hora cuenta: publicala enseguida, aunque todavía tengas esperanza de que aparezca.\n\n2. Buscar gritando o corriendo. Una mascota asustada puede huir todavía más. Llamala con voz tranquila y caminá despacio.\n\n3. Buscar solo de día. Probá también al amanecer y de noche, cuando hay menos ruido y tu mascota puede animarse a salir.\n\n4. Usar una foto borrosa. Elegí una foto clara, de frente y de cuerpo entero, que muestre sus marcas.\n\n5. Poner la dirección exacta de tu casa. Alcanza con el barrio y tu WhatsApp.\n\n6. Dar plata o datos a quien dice tenerla sin pruebas. Pedí una foto actual y desconfiá de quien exige un pago antes de mostrarla.\n\n7. Dejar de compartir a los pocos días. Volvé a mover el anuncio cada tanto, así llega a gente que no lo vio antes.\n\nPublicá a tu mascota gratis en mascotasperdidasmisiones.netlify.app y compartí el enlace con tus vecinos.",
+"foto": "/blog/errores-busqueda.jpg",
+"created_at": "2026-12-01T12:00:00Z",
+"fija": true
+},
+{
+"id": "compartir-anuncio",
+"titulo": "Cómo compartir el anuncio de tu mascota para que llegue lejos",
+"texto": "Un anuncio que nadie ve no sirve. Compartirlo bien multiplica las chances de que alguien reconozca a tu mascota.\n\n1. Compartí el enlace, no una captura. Desde tu anuncio tocá Compartir: el enlace se ve con la foto y el título cuando lo pegás en WhatsApp o Facebook, y quien lo toca ve los datos y puede escribirte.\n\n2. Elegí los lugares correctos. Grupos de vecinos de tu barrio, grupos de mascotas de tu ciudad y de las zonas cercanas, y los grupos de WhatsApp de tu cuadra, tu club o tu trabajo.\n\n3. Sumá el afiche. En la pantalla de Compartir podés crear el afiche \"SE BUSCA\" con la foto y subirlo a las historias de Instagram y Facebook, o imprimirlo.\n\n4. Pedí que lo reenvíen. Un mensaje corto ayuda: \"Se perdió Luna en mi barrio, por favor compartí\".\n\n5. Avisá cuando aparezca. Marcala como reencontrada y contalo en los grupos donde compartiste, así nadie sigue buscando.\n\nCuidá tus datos: compartí solo el barrio y tu WhatsApp, nunca tu dirección exacta.",
+"foto": "/blog/compartir-anuncio.jpg",
+"created_at": "2026-12-03T12:00:00Z",
+"fija": true
+},
+{
+"id": "afiche-se-busca",
+"titulo": "Creá gratis el afiche \"SE BUSCA\" de tu mascota",
+"texto": "Un buen afiche es de lo más efectivo para encontrar una mascota. En la página lo podés crear gratis, en un minuto y desde el celular.\n\n1. Publicá a tu mascota como perdida, con una foto clara y el barrio.\n\n2. Entrá a tu anuncio y tocá Compartir.\n\n3. Tocá \"Crear afiche SE BUSCA con la foto\". La página arma el afiche con su foto y sus datos.\n\n4. Mandalo por WhatsApp, subilo a historias de Instagram o Facebook, o descargalo como imagen.\n\nPara imprimirlo, usá una hoja A4, tinta oscura y letra grande. Pegalo en veterinarias, almacenes, paradas de colectivo y en las cuadras donde se perdió. Pedí permiso antes de pegarlo en comercios o espacios privados.\n\nY no te olvides de sacarlo cuando tu mascota aparezca. Probá ahora en mascotasperdidasmisiones.netlify.app.",
+"foto": "/blog/afiche-se-busca.jpg",
+"created_at": "2026-12-05T12:00:00Z",
+"fija": true
+},
+{
+"id": "escondites",
+"titulo": "Dónde se esconde una mascota asustada",
+"texto": "Un perro o un gato asustado no siempre viene cuando lo llaman, aunque reconozca tu voz. El miedo lo lleva a esconderse y a quedarse quieto. Estos son los lugares donde más conviene mirar.\n\nDebajo de autos, camionetas y acoplados estacionados.\n\nPatios, terrenos baldíos y lugares con yuyos altos.\n\nGarajes, galpones, obras en construcción y casas deshabitadas.\n\nDebajo de escaleras, galerías, tanques y mesadas.\n\nLos gatos, además, suelen subirse a árboles y techos, o meterse entre medianeras.\n\nCómo buscar: llevá una linterna, porque de noche los ojos reflejan la luz. Hablá bajito, quedate quieto un rato y esperá. No la persigas: si corre, se aleja más. Dejá cerca algo que huela a casa, como su manta o su comida.\n\nPedí permiso a los vecinos para mirar en sus patios, y publicá a tu mascota en mascotasperdidasmisiones.netlify.app para que más ojos te ayuden.",
+"foto": "/blog/escondites.jpg",
+"created_at": "2026-12-07T12:00:00Z",
+"fija": true
+},
+{
+"id": "ficha-mascota",
+"titulo": "Tené lista la ficha de tu mascota antes de que haga falta",
+"texto": "Si tu mascota se pierde, los primeros minutos importan. Tener todo listo de antemano te ahorra tiempo cuando más lo necesitás.\n\nQué conviene tener guardado:\n\nFotos recientes: de frente, de perfil y de cuerpo entero, con buena luz.\n\nSeñas particulares: manchas, cicatrices, color de ojos, orejas, cola. Lo que la distinga de otras parecidas.\n\nNombre y a qué responde: algunas mascotas solo vienen si las llaman de una forma especial.\n\nTamaño aproximado, edad y si tiene collar, chapita o QR.\n\nTus datos de contacto actualizados, sobre todo tu WhatsApp.\n\nLa forma más fácil es registrarla en Mascotas Perdidas Misiones: es gratis, queda guardada con su foto y sus datos, genera su QR y su DNI, y si algún día se pierde la publicás en segundos con todo cargado.\n\nEntrá a mascotasperdidasmisiones.netlify.app y tocá \"Registrá tu mascota\".",
+"foto": "/blog/ficha-mascota.jpg",
+"created_at": "2026-12-09T12:00:00Z",
+"fija": true
+},
+{
+"id": "encontre-gato",
+"titulo": "Encontraste un gato: ¿está perdido o es de la zona?",
+"texto": "Los gatos salen a recorrer el barrio, y muchos tienen casa aunque parezcan abandonados. Antes de llevarte uno, conviene averiguar si tiene familia.\n\nObservalo. Si está limpio, bien alimentado y tranquilo, o tiene collar, lo más probable es que viva cerca y esté paseando.\n\nSacale una foto y anotá dónde lo viste. Si podés, preguntale a los vecinos de la cuadra: muchas veces alguien lo reconoce enseguida.\n\nPublicalo como encontrado en mascotasperdidasmisiones.netlify.app, con la foto y el barrio. Así su familia lo puede ver en el mapa.\n\nConsultá en una veterinaria. Pueden revisar si tiene microchip y orientarte si lo ven flaco o lastimado.\n\nSi parece sano, no lo muevas lejos del lugar donde lo encontraste: es más fácil que su familia lo busque ahí. Si está herido o muy flaco, llevalo a una veterinaria cuanto antes.",
+"foto": "/blog/encontre-gato.jpg",
+"created_at": "2026-12-11T12:00:00Z",
+"fija": true
+},
+{
+"id": "zona-rural",
+"titulo": "Se perdió en la chacra o en zona rural: cómo buscarla",
+"texto": "En Misiones muchas familias viven en chacras o cerca del monte, y ahí buscar tiene sus particularidades.\n\nEmpezá por el último lugar donde la vieron y ampliá en círculos. Las mascotas suelen quedarse cerca, escondidas en matorrales, galpones o debajo de construcciones.\n\nAvisá a los vecinos del paraje, aunque vivan lejos: en el campo todos se conocen y el boca a boca funciona. Pasá por almacenes, escuelas rurales y puestos de ruta.\n\nSalí con luz del día y llevá agua, linterna y algo que huela a casa. No te metas solo en el monte: avisá a alguien adónde vas y no te alejes de los caminos.\n\nDejá un plato con comida y una prenda con tu olor en el último lugar donde estuvo.\n\nPublicá en la página con tu localidad y un teléfono de contacto. Aunque no haya barrio, así te encuentran vecinos de pueblos cercanos que pueden haberla visto.\n\nY si tu mascota tiene chapita o QR, quien la encuentre puede avisarte al instante. Registrala gratis en mascotasperdidasmisiones.netlify.app.",
+"foto": "/blog/zona-rural.jpg",
+"created_at": "2026-12-13T12:00:00Z",
+"fija": true
+},
+{
+"id": "viste-mascota",
+"titulo": "Viste una mascota perdida: 4 cosas que podés hacer en 1 minuto",
+"texto": "La mayoría de las mascotas que vuelven a casa lo hacen porque alguien la vio y avisó. No hace falta mucho para ayudar: alcanza con un minuto.\n\n1. Sacale una foto, de lejos y sin asustarla. No la persigas ni intentes agarrarla si está nerviosa.\n\n2. Fijate dónde está. Anotá la calle, la esquina o el barrio, y a qué hora la viste.\n\n3. Publicala como vista. En mascotasperdidasmisiones.netlify.app tocá \"Vi una mascota\", subí la foto y marcá la zona. Su familia la puede encontrar en el mapa.\n\n4. Compartí. Pasale el enlace a tus vecinos y a los grupos de tu barrio.\n\nSi reconocés a la mascota de un anuncio, escribile directamente a su familia por WhatsApp desde la publicación y contale dónde y cuándo la viste.\n\nUn dato chiquito puede ser el que traiga a una mascota de vuelta a casa.",
+"foto": "/blog/viste-mascota.jpg",
+"created_at": "2026-12-15T12:00:00Z",
+"fija": true
 }
 ];
 // Compartir una nota del blog: enlace directo a la nota (con vista previa de su portada)
 const linkNota = (e)=>`${SITE_URL}/?nota=${encodeURIComponent(e.id)}`;
 const textoNota = (e)=>`📝 ${e.titulo}\n\nLeelo en Mascotas Perdidas Misiones 🐾 ${linkNota(e)}`;
-const compartirNota = (e,net,flash)=>{ const link=linkNota(e); const text=textoNota(e);
+const compartirNota = (e,net,flash)=>{ registrarEvento("compartir",{}); const link=linkNota(e); const text=textoNota(e);
   if(net==="wa") window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
   else if(net==="fb") window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`,"_blank");
   else if(net==="x") window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent("📝 "+e.titulo+" 🐾")}&url=${encodeURIComponent(link)}`,"_blank");
   else if(net==="native"){ if(navigator.share) navigator.share({title:e.titulo,text:`📝 ${e.titulo} 🐾`,url:link}).catch(()=>{}); else { navigator.clipboard&&navigator.clipboard.writeText(link); flash&&flash("Enlace copiado."); } }
   else { navigator.clipboard&&navigator.clipboard.writeText(link); flash&&flash("Enlace copiado. Pegalo en Instagram, TikTok o donde quieras."); } };
+// Categorías del blog (las notas cargadas desde el panel sin categoría quedan en "Novedades")
+const CATS_BLOG=[["todas","Todas"],["perdida","Si se pierde"],["encontre","Si encontrás"],["prevenir","Prevención"],["cuidados","Cuidados"],["novedades","Novedades"]];
+const CAT_NOTA={"24horas":"perdida","encontre":"encontre","qr":"prevenir","pirotecnia":"cuidados","tormentas":"cuidados","foto":"perdida","gatos":"perdida","estafas":"prevenir","cartel":"perdida","mudanza":"prevenir","castracion":"prevenir","sin-reclamo":"encontre","dni":"novedades","vacunas":"novedades","calor":"cuidados","garrapatas":"cuidados","paseos":"prevenir","adopcion":"cuidados","vecinos":"encontre","mayores":"cuidados","vacaciones":"prevenir","reencuentro":"perdida","identificacion":"prevenir","fiestas":"cuidados","chicos":"prevenir","errores-busqueda":"perdida","compartir-anuncio":"perdida","afiche-se-busca":"perdida","escondites":"perdida","ficha-mascota":"prevenir","encontre-gato":"encontre","zona-rural":"perdida","viste-mascota":"encontre"};
+const catDe=(e)=>CAT_NOTA[e.id]||"novedades";
+const catLabel=(k)=>(CATS_BLOG.find(c=>c[0]===k)||[])[1]||"Novedades";
+const minLectura=(e)=>Math.max(1,Math.round(String(e.texto||"").split(/\s+/).length/180));
+// Llamado a la acción al final de cada nota, según su tema
+const CTA_BLOG={
+  perdida:{t:"¿Se perdió tu mascota?",d:"Publicala gratis en 1 minuto, con foto y barrio.",b:"Publicar mascota perdida",v:"new",p:{type:"lost",edit:null}},
+  encontre:{t:"¿Encontraste o viste una mascota?",d:"Publicala para que su familia la encuentre en el mapa.",b:"Publicar mascota encontrada",v:"new",p:{type:"found",edit:null}},
+  prevenir:{t:"Registrá a tu mascota gratis",d:"Generá su QR y su DNI antes de que haga falta.",b:"Registrar mi mascota",v:"registrar_mascota"}
+};
+const ctaDe=(e)=>CTA_BLOG[catDe(e)]||CTA_BLOG.prevenir;
+// Compartir el blog completo (enlace a la lista de notas)
+const compartirBlog=(net,flash)=>{ registrarEvento("compartir",{}); const link=`${SITE_URL}/?v=blog`; const text=`📝 Consejos para cuidar a tu mascota y para encontrarla si se pierde. Blog de Mascotas Perdidas Misiones 🐾 ${link}`;
+  if(net==="wa") window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
+  else if(net==="fb") window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`,"_blank");
+  else if(net==="native"){ if(navigator.share) navigator.share({title:"Blog · Mascotas Perdidas Misiones",text:"📝 Consejos para cuidar a tu mascota 🐾",url:link}).catch(()=>{}); else { navigator.clipboard&&navigator.clipboard.writeText(link); flash&&flash("Enlace copiado."); } }
+  else { navigator.clipboard&&navigator.clipboard.writeText(link); flash&&flash("Enlace copiado. Pegalo en Instagram, TikTok o donde quieras."); } };
 function BlogView({ go, entradas=[], notaInicial=null, flash }){
   const [abierta,setAbiertaRaw]=useState(()=>notaInicial?entradas.find(e=>String(e.id)===String(notaInicial))||null:null);
+  const [cat,setCat]=useState("todas");
+  const [q,setQ]=useState("");
   // Si la nota compartida todavía no había cargado, se abre apenas llega
   const yaAbrio=useRef(!!abierta);
   useEffect(()=>{ if(yaAbrio.current||!notaInicial)return; const e=entradas.find(x=>String(x.id)===String(notaInicial)); if(e){ yaAbrio.current=true; setAbiertaRaw(e); } },[entradas,notaInicial]);
@@ -1943,15 +2028,24 @@ function BlogView({ go, entradas=[], notaInicial=null, flash }){
   const setAbierta=(e)=>{ setAbiertaRaw(e); try{ window.history.replaceState({v:"blog"},"",e?`/?nota=${encodeURIComponent(e.id)}`:"/?v=blog"); }catch{} window.scrollTo(0,0); };
   const fmtFecha=(f)=>{ try{ return new Date(f).toLocaleDateString("es-AR",{day:"numeric",month:"long",year:"numeric"}); }catch{ return ""; } };
   if(abierta){
+    const cta=ctaDe(abierta);
+    const mismas=entradas.filter(x=>x.id!==abierta.id&&catDe(x)===catDe(abierta));
+    const otras=entradas.filter(x=>x.id!==abierta.id&&catDe(x)!==catDe(abierta));
+    const relacionadas=[...mismas,...otras].slice(0,3);
     return (<div className="px-4 pb-6">
       <div className="flex items-center gap-3 mt-4 mb-3"><button onClick={()=>setAbierta(null)} aria-label="Volver" className="w-9 h-9 rounded-xl flex items-center justify-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><ChevronLeft size={19}/></button><h2 className="text-lg font-extrabold flex-1">Blog</h2><button onClick={()=>compartirNota(abierta,"native",flash)} aria-label="Compartir nota" className="h-9 px-3 rounded-xl flex items-center gap-1.5 text-xs font-bold text-white" style={{background:C.brand}}><Share2 size={15}/> Compartir</button></div>
       <div className="rounded-2xl overflow-hidden" style={{background:C.surface,border:`1px solid ${C.line}`}}>
         {abierta.foto && <img src={abierta.foto} alt={abierta.titulo||""} className="w-full h-auto block"/>}
         <div className="p-4">
-          <div className="text-[11px] font-bold" style={{color:C.brand}}>{fmtFecha(abierta.created_at)}</div>
+          <div className="text-[11px] font-bold flex flex-wrap items-center gap-x-2" style={{color:C.brand}}><span>{fmtFecha(abierta.created_at)}</span><span>·</span><span>{minLectura(abierta)} min de lectura</span><span>·</span><span>{catLabel(catDe(abierta))}</span></div>
           <h2 className="text-xl font-extrabold mt-1">{abierta.titulo}</h2>
           <div className="text-[14px] mt-2 leading-relaxed space-y-3" style={{color:C.ink}}>{parrafos(abierta.texto).split(/\n{2,}/).map((par,i)=><p key={i} className="whitespace-pre-wrap">{par}</p>)}</div>
         </div>
+      </div>
+      <div className="rounded-2xl p-3.5 mt-3" style={{background:C.brand,color:"#fff"}}>
+        <div className="font-extrabold text-sm">{cta.t}</div>
+        <div className="text-[12px] mt-0.5 opacity-95">{cta.d}</div>
+        <button onClick={()=>go(cta.v,cta.p)} className="mt-2.5 w-full py-2.5 rounded-xl font-extrabold text-sm" style={{background:"#fff",color:C.brandDeep}}>{cta.b}</button>
       </div>
       <div className="rounded-2xl p-3.5 mt-3" style={{background:C.brandSoft}}>
         <div className="font-extrabold text-sm" style={{color:C.brandDeep}}>¿Te sirvió? Compartila 🐾</div>
@@ -1963,24 +2057,48 @@ function BlogView({ go, entradas=[], notaInicial=null, flash }){
           <ShareBtn onClick={()=>compartirNota(abierta,"native",flash)} label="Más" color={C.ink} ico={<Send size={17}/>}/>
         </div>
       </div>
+      {relacionadas.length>0 && <div className="mt-4">
+        <div className="font-extrabold text-sm mb-2">Seguí leyendo</div>
+        <div className="space-y-2">{relacionadas.map(r=>(
+          <button key={r.id} onClick={()=>setAbierta(r)} className="w-full text-left rounded-2xl p-2.5 flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}>
+            {r.foto && <img src={r.foto} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" loading="lazy"/>}
+            <span className="flex-1 min-w-0"><span className="block text-[10px] font-bold" style={{color:C.brand}}>{catLabel(catDe(r))} · {minLectura(r)} min</span><span className="block font-bold text-[13px] leading-snug">{r.titulo}</span></span>
+            <ChevronRight size={16} color={C.muted}/>
+          </button>))}</div>
+      </div>}
       <button onClick={()=>setAbierta(null)} className="mt-3 w-full py-3 rounded-2xl font-bold" style={{background:C.surface,border:`1px solid ${C.line}`}}>← Ver más notas</button>
     </div>);
   }
+  const buscado=sinTildes(q).trim();
+  const lista=entradas.filter(e=>(cat==="todas"||catDe(e)===cat)&&(!buscado||sinTildes(`${e.titulo} ${e.texto}`).includes(buscado)));
   return (<div className="px-4 pb-6">
     <Title back={()=>go("home")} title="Blog" tag="FUNCIONAL"/>
-    <div className="rounded-2xl p-3 mb-4 text-[12px] flex gap-2" style={{background:C.brandSoft,color:C.ink}}><BookOpen size={16} className="shrink-0 mt-0.5" style={{color:C.brand}}/><span>Historias con final feliz, novedades y consejos para cuidar a tus mascotas. 🐾</span></div>
+    <div className="rounded-2xl p-3 mb-3 text-[12px] flex gap-2" style={{background:C.brandSoft,color:C.ink}}><BookOpen size={16} className="shrink-0 mt-0.5" style={{color:C.brand}}/><span>Historias con final feliz, novedades y consejos para cuidar a tus mascotas. 🐾</span></div>
+    <div className="relative mb-2.5"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" color={C.muted}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar en el blog (ej: gato, calor, QR)" aria-label="Buscar en el blog" className="inp" style={{paddingLeft:34}}/></div>
+    <div className="flex gap-2 overflow-x-auto pb-2 mb-2" style={{scrollbarWidth:"none"}}>{CATS_BLOG.map(([k,l])=><button key={k} onClick={()=>setCat(k)} className="shrink-0 px-3 py-1.5 rounded-full text-xs font-bold" style={{background:cat===k?C.brand:C.surface,color:cat===k?"#fff":C.muted,border:`1px solid ${cat===k?C.brand:C.line}`}}>{l}</button>)}</div>
     {entradas.length===0 ? <Empty text="Todavía no hay entradas en el blog. ¡Pronto vas a encontrar historias y novedades acá!"/> :
-    <div className="space-y-3">{entradas.map(e=>(
+    lista.length===0 ? <Empty text="No encontramos notas con eso. Probá con otra palabra o elegí otra categoría."/> :
+    <div className="space-y-3">{lista.map(e=>(
       <button key={e.id} onClick={()=>setAbierta(e)} className="w-full text-left rounded-2xl overflow-hidden" style={{background:C.surface,border:`1px solid ${C.line}`}}>
-        {e.foto && <div style={{background:C.brandSoft}}><img src={e.foto} alt={e.titulo||""} className="w-full object-contain block mx-auto" style={{maxHeight:220}}/></div>}
+        {e.foto && <div style={{background:C.brandSoft}}><img src={e.foto} alt={e.titulo||""} className="w-full object-contain block mx-auto" style={{maxHeight:220}} loading="lazy"/></div>}
         <div className="p-3.5">
-          <div className="text-[11px] font-bold" style={{color:C.brand}}>{fmtFecha(e.created_at)}</div>
+          <div className="text-[11px] font-bold" style={{color:C.brand}}>{fmtFecha(e.created_at)} · {minLectura(e)} min de lectura · {catLabel(catDe(e))}</div>
           <div className="font-extrabold text-[15px] mt-0.5">{e.titulo}</div>
           {e.texto && <div className="text-[12px] mt-1 line-clamp-2" style={{color:C.muted}}>{parrafos(e.texto).replace(/\s+/g," ").slice(0,120)}{e.texto.length>120?"…":""}</div>}
           <div className="text-[12px] font-bold mt-1.5" style={{color:C.brand}}>Leer más →</div>
         </div>
       </button>
     ))}</div>}
+    <div className="rounded-2xl p-3.5 mt-4" style={{background:C.brandSoft}}>
+      <div className="font-extrabold text-sm" style={{color:C.brandDeep}}>Compartí el blog 🐾</div>
+      <div className="text-[11px] mt-0.5" style={{color:C.muted}}>Cuantas más personas lo lean, más mascotas vuelven a casa.</div>
+      <div className="grid grid-cols-4 gap-2 mt-2.5">
+        <ShareBtn onClick={()=>compartirBlog("wa",flash)} label="WhatsApp" color={C.found} ico={<Phone size={17}/>}/>
+        <ShareBtn onClick={()=>compartirBlog("fb",flash)} label="Facebook" color="#1877F2" ico={<Share2 size={17}/>}/>
+        <ShareBtn onClick={()=>compartirBlog("copy",flash)} label="Copiar link" color={C.brand} ico={<Copy size={17}/>}/>
+        <ShareBtn onClick={()=>compartirBlog("native",flash)} label="Más" color={C.ink} ico={<Send size={17}/>}/>
+      </div>
+    </div>
   </div>);
 }
 
