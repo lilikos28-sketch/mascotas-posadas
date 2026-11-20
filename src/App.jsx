@@ -639,8 +639,8 @@ function Header({ go, count, conn, abrirGuia=()=>{}, abrirApoyo=()=>{} }){
 
 /* -------------------------------- Home ----------------------------------- */
 function HomeView({ posts, go, conn, user, realPosts=[], abrirVacunas=()=>{} }){
-  const lost=posts.filter(p=>p.type==="lost"&&p.status!=="reunited").slice(0,6);
-  const found=posts.filter(p=>p.type==="found").slice(0,6);
+  const lost=posts.filter(p=>p.type==="lost"&&p.status!=="reunited");
+  const found=posts.filter(p=>p.type==="found"&&p.status!=="reunited");
   const reunited=posts.filter(p=>p.status==="reunited").length;
   const activas=posts.filter(p=>p.status!=="reunited").length;
   // Mis publicaciones activas (para que el dueño encuentre su anuncio al entrar)
@@ -718,8 +718,8 @@ function HomeView({ posts, go, conn, user, realPosts=[], abrirVacunas=()=>{} }){
         <ChevronRight size={18} className="opacity-90 relative"/>
       </button>
       <StatStrip reunited={reunited} total={activas}/>
-      <Row title="🔴 Últimas perdidas" posts={lost} go={go}/>
-      <Row title="🟢 Últimas encontradas" posts={found} go={go}/>
+      <Row title={`🔴 Perdidas (${lost.length})`} sub="Deslizá hacia el costado para verlas todas →" posts={lost} go={go}/>
+      <Row title={`🟢 Encontradas (${found.length})`} sub="Deslizá hacia el costado para verlas todas →" posts={found} go={go}/>
       {/* Botones "Ayuda" y "Negocios amigos" ocultos temporalmente (a pedido). Para reactivarlos, quitar el comentario de abajo.
       <div className="mt-4 grid grid-cols-2 gap-2.5"><QuickCard ico={<Stethoscope size={18}/>} title="Ayuda" sub="Vets y refugios" onClick={()=>go("help")}/><QuickCard ico={<Store size={18}/>} title="Negocios amigos" sub="Comercios locales" onClick={()=>go("business")}/></div>
       */}
@@ -737,8 +737,8 @@ function HomeView({ posts, go, conn, user, realPosts=[], abrirVacunas=()=>{} }){
 function BigBtn({ color, label, sub, ico, onClick }){ return <button onClick={onClick} className="rounded-2xl p-3 text-white text-left flex flex-col justify-between h-[104px] active:scale-95 transition" style={{background:color}}><span className="text-lg">{PUNTOS[ico]?<span aria-hidden="true" style={{display:"inline-flex",width:22,height:22,borderRadius:"50%",background:"rgba(255,255,255,.95)",alignItems:"center",justifyContent:"center"}}><span style={{width:10,height:10,borderRadius:"50%",background:PUNTOS[ico]}}/></span>:ico}</span><span><span className="text-[12px] font-bold leading-tight block">{label}</span>{sub&&<span className="text-[9px] opacity-90 leading-tight block mt-0.5">{sub}</span>}</span></button>; }
 function QuickCard({ ico, title, sub, onClick }){ return <button onClick={onClick} className="rounded-2xl p-3.5 text-left flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{background:C.brandSoft,color:C.brand}}>{ico}</div><div><div className="font-bold text-sm">{title}</div><div className="text-[11px]" style={{color:C.muted}}>{sub}</div></div></button>; }
 function StatStrip({ reunited, total }){ return <div className="mt-3 rounded-2xl p-4 flex items-center justify-between" style={{background:C.brandSoft}}><div><div className="text-2xl font-extrabold" style={{color:C.brandDeep}}>{total}</div><div className="text-[11px] font-semibold" style={{color:C.brand}}>publicaciones activas</div></div><div className="text-right text-[11px]" style={{color:C.brand}}>{reunited>0?<><div className="font-bold text-base">{reunited} 🎉</div>volvieron a casa</>:<><div className="font-bold text-sm">¡Compartí!</div>así más mascotas vuelven</>}</div></div>; }
-function Row({ title, posts, go }){ if(!posts.length)return null; return <div className="mt-5"><h3 className="font-extrabold text-[15px] mb-2.5">{conPunto(title)}</h3><div className="flex gap-3 overflow-x-auto mp-scroll pb-1 -mx-4 px-4">{posts.map((p,i)=><MiniCard key={p.id} post={p} go={go} idx={i}/>)}</div></div>; }
-function MiniCard({ post, go, idx=0 }){ const t=TYPE[post.type]; return <button onClick={()=>go("detail",{post})} className="mp-aparece shrink-0 w-[140px] rounded-2xl overflow-hidden text-left" style={{background:C.surface,border:`1px solid ${C.line}`,animationDelay:(idx*0.08)+"s"}}><Thumb post={post} h={100}/><div className="p-2.5"><div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{background:t.dot}}/><span className="text-[10px] font-bold" style={{color:t.dot}}>{t.label}</span></div><div className="font-bold text-sm truncate mt-0.5">{tituloPost(post)}</div><div className="text-[11px] flex items-center gap-1 truncate" style={{color:C.muted}}><MapPin size={11}/> {ubicTxt(post)}</div></div></button>; }
+function Row({ title, sub, posts, go }){ if(!posts.length)return null; return <div className="mt-5"><h3 className="font-extrabold text-[15px]">{conPunto(title)}</h3>{sub&&posts.length>2&&<div className="text-[11px] mb-2.5" style={{color:C.muted}}>{sub}</div>}{!(sub&&posts.length>2)&&<div className="mb-2.5"/>}<div className="flex gap-3 overflow-x-auto mp-scroll pb-1 -mx-4 px-4">{posts.map((p,i)=><MiniCard key={p.id} post={p} go={go} idx={i}/>)}</div></div>; }
+function MiniCard({ post, go, idx=0 }){ const t=TYPE[post.type]; return <button onClick={()=>go("detail",{post})} className="mp-aparece shrink-0 w-[140px] rounded-2xl overflow-hidden text-left" style={{background:C.surface,border:`1px solid ${C.line}`,animationDelay:(Math.min(idx,6)*0.08)+"s"}}><Thumb post={post} h={100}/><div className="p-2.5"><div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{background:t.dot}}/><span className="text-[10px] font-bold" style={{color:t.dot}}>{t.label}</span></div><div className="font-bold text-sm truncate mt-0.5">{tituloPost(post)}</div><div className="text-[11px] flex items-center gap-1 truncate" style={{color:C.muted}}><MapPin size={11}/> {ubicTxt(post)}</div></div></button>; }
 function Thumb({ post, h=110 }){
   return (<div className="relative w-full">
     {post.photo? <img src={post.photo} alt={`${TYPE[post.type]?TYPE[post.type].label:"Mascota"}: ${post.petName||post.species||"mascota"}`} loading="lazy" style={{height:h}} className="w-full object-cover"/> : <div style={{height:h,background:TYPE[post.type].soft}} className="w-full flex items-center justify-center text-4xl">{post.emoji}</div>}
