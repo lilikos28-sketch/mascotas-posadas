@@ -225,6 +225,7 @@ async function calcularHuella(src){
   const n=Math.sqrt(Array.prototype.reduce.call(v,(a,b)=>a+b*b,0))||1;
   return huellaPack(Array.from(v,x=>x/n));
 }
+const huellaSegura=async(src)=>{ try{ if(!src)return null; return await Promise.race([calcularHuella(src),new Promise((_,rej)=>setTimeout(()=>rej(new Error("tiempo")),15000))]); }catch{ return null; } };
 const MatchEngine = {
   visionHook:null,
   attributeScore(a,b){ let s=0,m=0;const add=(w,ok)=>{m+=w;if(ok)s+=w;};
@@ -432,14 +433,14 @@ export default function App(){
     let aprobada=true;
     if(p.photo){ const otras=realPosts.filter(x=>x.photo&&typeof x.photo==="string"&&x.photo.startsWith("http")&&(!user||x.owner_id!==user.id)); const rv=await revisarFoto(p.photo,otras); if(!rv.animal||rv.repetida){ aprobada=false; flash(rv.repetida?"Tu publicación quedó en revisión: la foto ya aparece en otra publicación. La aprobamos a la brevedad.":"Tu publicación quedó en revisión porque no detectamos un animal en la foto. La aprobamos a la brevedad."); } }
     const partial={ ...p, city:"posadas", approved:aprobada, reported:false, recoveredAt:null, status:p.type==="found"?"found":p.type==="lost"?"lost":"searching", emoji:EMO[p.species]||"🐾", owner_id:(user&&user.id)||(conn==="cloud"?null:"local"), contactName:(user&&user.name)||"Vecino/a" };
-    if(conn==="cloud"){ try{ const c=await getClient(); const photos=await subirFotos(c,fotosDe(p)); const photo=photos[0]||null; const row=toRow({...partial,photo,photos}); let {data,error}=await c.from("publicaciones").insert(row).select().single(); if(error&&esErrorFotos(error))({data,error}=await c.from("publicaciones").insert(sinFotos(row)).select().single()); if(error)throw error; const np=fromRow(data); setRealPosts(prev=>[np,...prev]); setCurrent(np); return np; }catch(e){ flash("No se pudo guardar en la nube."); return null; } }
+    if(conn==="cloud"){ try{ const c=await getClient(); const fotosP=fotosDe(p); const huella=await huellaSegura(fotosP[0]); const photos=await subirFotos(c,fotosP); const photo=photos[0]||null; const row=toRow({...partial,photo,photos,huella}); let {data,error}=await c.from("publicaciones").insert(row).select().single(); if(error&&esErrorFotos(error))({data,error}=await c.from("publicaciones").insert(sinFotos(row)).select().single()); if(error)throw error; const np=fromRow(data); setRealPosts(prev=>[np,...prev]); setCurrent(np); return np; }catch(e){ flash("No se pudo guardar en la nube."); return null; } }
     const id=Math.max(1000,...realPosts.filter(x=>typeof x.id==="number").map(x=>x.id))+1; const np={...partial,id,createdAt:new Date().toISOString()}; const next=[np,...realPosts]; setRealPosts(next); Local.set(KEYS.posts,next); setCurrent(np); return np;
   };
   const guardarHuella=async(id,huella)=>{ try{ const c=await getClient(); const {error}=await c.from("publicaciones").update({huella}).eq("id",id); if(error)throw error; setRealPosts(prev=>prev.map(x=>x.id===id?{...x,huella}:x)); return true; }catch{ return false; } };
   const updatePost=async(id,fields)=>{
     const existing=realPosts.find(x=>x.id===id); if(!existing){flash("Solo podés editar tus publicaciones.");return null;}
     const merged={...existing,...fields};
-    if(conn==="cloud"){ try{ const c=await getClient(); const photos=await subirFotos(c,fotosDe(merged)); const photo=photos[0]||null; const row=toRow({...merged,photo,photos,huella:(photo&&photo===existing.photo)?existing.huella:null}); let {data,error}=await c.from("publicaciones").update(row).eq("id",id).select().single(); if(error&&esErrorFotos(error))({data,error}=await c.from("publicaciones").update(sinFotos(row)).eq("id",id).select().single()); if(error)throw error; const np=fromRow(data); setRealPosts(prev=>prev.map(x=>x.id===id?np:x)); setCurrent(np); return np; }catch{ flash("No se pudo actualizar."); return null; } }
+    if(conn==="cloud"){ try{ const c=await getClient(); const fotosM=fotosDe(merged); const cambio=!(fotosM[0]&&fotosM[0]===existing.photo); const huella=cambio?await huellaSegura(fotosM[0]):existing.huella; const photos=await subirFotos(c,fotosM); const photo=photos[0]||null; const row=toRow({...merged,photo,photos,huella}); let {data,error}=await c.from("publicaciones").update(row).eq("id",id).select().single(); if(error&&esErrorFotos(error))({data,error}=await c.from("publicaciones").update(sinFotos(row)).eq("id",id).select().single()); if(error)throw error; const np=fromRow(data); setRealPosts(prev=>prev.map(x=>x.id===id?np:x)); setCurrent(np); return np; }catch{ flash("No se pudo actualizar."); return null; } }
     const next=realPosts.map(x=>x.id===id?merged:x); setRealPosts(next); Local.set(KEYS.posts,next); setCurrent(merged); return merged;
   };
   const submitPost=async(payload)=>{ if(payload.__edit)return await updatePost(payload.id,payload.fields); const np=await createPost(payload); if(np)registrarEvento("publicar",{post_id:np.id,barrio:np.barrio}); return np; };
@@ -2518,9 +2519,11 @@ function HuellasPanel({ posts, guardarHuella }){
   const conFoto=posts.filter(p=>typeof p.photo==="string"&&p.photo.startsWith("http"));
   const pend=conFoto.filter(p=>!p.huella&&p.status!=="reunited"); const con=conFoto.filter(p=>p.huella);
   const pares=useMemo(()=>{ const out=[]; for(let i=0;i<con.length;i++)for(let j=i+1;j<con.length;j++){ const a=con[i],b=con[j]; if(a.species!==b.species)continue; if((a.type==="lost")===(b.type==="lost"))continue; const sim=huellaSim(huellaVec(a.huella),huellaVec(b.huella)); if(sim!=null)out.push({a,b,sim}); } return out.sort((x,y)=>y.sim-x.sim).slice(0,6); },[con.length]);
+  const auto=useRef(false);
   const calcular=async()=>{ if(run)return; setRun(true); let ok=0,mal=0; try{ await cargarEmbedder(); }catch{ setMsg("No se pudo cargar el modelo de Google. Revisá la conexión y probá de nuevo."); setRun(false); return; }
     for(let i=0;i<pend.length;i++){ setMsg(`Calculando ${i+1} de ${pend.length}…`); try{ const h=await calcularHuella(pend[i].photo); const g=await guardarHuella(pend[i].id,h); if(g)ok++; else mal++; }catch{ mal++; } }
     setMsg(mal?`Listo: ${ok} calculadas, ${mal} con error. ${ok===0?"Puede faltar crear la columna huella en Supabase.":""}`:`Listo: ${ok} calculadas.`); setRun(false); };
+  useEffect(()=>{ if(auto.current||run||!pend.length)return; auto.current=true; calcular(); },[pend.length]);
   return (
     <div className="rounded-2xl p-3.5 mb-3" style={{background:C.surface,border:`1px solid ${C.line}`}}>
       <div className="flex items-center gap-2 font-extrabold text-sm"><Sparkles size={16} color={C.reunited}/> Comparar mascotas por foto <Tag t="IA GRATIS"/></div>
