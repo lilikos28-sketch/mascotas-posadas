@@ -350,6 +350,7 @@ export default function App(){
   const [avisosVistos,setAvisosVistos]=useState(()=>{ try{ return JSON.parse(window.localStorage.getItem("mp_avisos_vistos")||"{}"); }catch{ return {}; } });
   const marcarAvisosVistos=(codigo)=>{ setAvisosVistos(prev=>{ const n={...prev,[codigo]:new Date().toISOString()}; try{ window.localStorage.setItem("mp_avisos_vistos",JSON.stringify(n)); }catch{} return n; }); };
   const [blog,setBlog]=useState([]);
+  const [resenas,setResenas]=useState([]);
   const [qrMascota,setQrMascota]=useState(null);
   const [notaInicial,setNotaInicial]=useState(null);
   const [busquedaInicial,setBusquedaInicial]=useState("");
@@ -393,7 +394,7 @@ export default function App(){
     try{ const params=new URLSearchParams(window.location.search); const code=params.get("m"); if(code){ await abrirMascotaPorCodigo(code); } }catch{}
     // ¿Se abrió el enlace de una publicación compartida? La URL trae ?post=ID
     try{ const params=new URLSearchParams(window.location.search); const pid=params.get("post"); if(pid){ await abrirPublicacionPorId(pid); } }catch{}
-    try{ const params=new URLSearchParams(window.location.search); const nota=params.get("nota"); const v=params.get("v"); const buscar=params.get("buscar"); if(buscar){ setBusquedaInicial(buscar.slice(0,40)); setView("search"); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:"search"},"",`/?buscar=${encodeURIComponent(buscar)}`); }catch{} return; } const dest=nota?"blog":v==="blog"?"blog":v==="registrar"?"registrar_mascota":v==="dni"?"dni_mascota":v==="historia"?"historia":v==="refugios"?"refugios":null; if(dest){ if(nota)setNotaInicial(nota); setView(dest); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:dest},"",nota?`/?nota=${encodeURIComponent(nota)}`:`/?v=${v}`); }catch{} } }catch{}
+    try{ const params=new URLSearchParams(window.location.search); const nota=params.get("nota"); const v=params.get("v"); const buscar=params.get("buscar"); if(buscar){ setBusquedaInicial(buscar.slice(0,40)); setView("search"); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:"search"},"",`/?buscar=${encodeURIComponent(buscar)}`); }catch{} return; } const dest=nota?"blog":v==="blog"?"blog":v==="registrar"?"registrar_mascota":v==="dni"?"dni_mascota":v==="historia"?"historia":v==="resenas"?"resenas":v==="refugios"?"refugios":null; if(dest){ if(nota)setNotaInicial(nota); setView(dest); try{ window.history.replaceState({v:"home"},"","/"); window.history.pushState({v:dest},"",nota?`/?nota=${encodeURIComponent(nota)}`:`/?v=${v}`); }catch{} } }catch{}
   })(); },[]);
 
   // Al volver a la página (por ejemplo, desde WhatsApp), se buscan avisos nuevos
@@ -403,6 +404,7 @@ export default function App(){
       try{ const {data}=await c.from("mascotas").select("*").order("created_at",{ascending:false}); setMisMascotas(data||[]); }catch{}
       try{ const {data}=await c.from("avistamientos").select("*").order("created_at",{ascending:false}); setAvistamientos(data||[]); }catch{}
       try{ const {data}=await c.from("blog").select("*").order("created_at",{ascending:false}); setBlog(data||[]); }catch{}
+      try{ const {data}=await c.from("resenas").select("*").order("created_at",{ascending:false}); setResenas(data||[]); }catch{}
     }catch{} }
     else { setMisMascotas(await Local.get(KEYS.mascotas,[])); setAvistamientos(await Local.get(KEYS.avist,[])); setBlog(await Local.get(KEYS.blog,[])); }
   };
@@ -481,6 +483,15 @@ export default function App(){
     const full={...rec,id:Date.now(),created_at:new Date().toISOString()}; const nm=[full,...mensajes]; setMensajes(nm); Local.set(KEYS.mensajes,nm); return true;
   };
   const borrarMensaje=async(id)=>{ if(conn==="cloud"){try{const c=await getClient();await c.from("mensajes").delete().eq("id",id);}catch{}} const nm=mensajes.filter(x=>x.id!==id); setMensajes(nm); if(conn!=="cloud")Local.set(KEYS.mensajes,nm); };
+
+  /* ---- Reseñas: la gente deja su opinión; se publica cuando la administradora la aprueba ---- */
+  const enviarResena=async(r)=>{
+    const rec={ nombre:clean(r.nombre,40), estrellas:Math.max(1,Math.min(5,parseInt(r.estrellas)||5)), texto:cleanText(r.texto,500), aprobada:false };
+    if(conn==="cloud"){ try{ const c=await getClient(); const {error}=await c.from("resenas").insert(rec); if(error)throw error; return true; }catch{ flash("No se pudo enviar. Reintentá."); return false; } }
+    return true;
+  };
+  const moderarResena=async(id,aprobada)=>{ if(conn==="cloud"){ try{ const c=await getClient(); await c.from("resenas").update({aprobada}).eq("id",id); }catch{} } setResenas(prev=>prev.map(x=>x.id===id?{...x,aprobada}:x)); flash(aprobada?"Reseña publicada ✓":"Reseña oculta."); };
+  const borrarResena=async(id)=>{ if(conn==="cloud"){ try{ const c=await getClient(); await c.from("resenas").delete().eq("id",id); }catch{} } setResenas(prev=>prev.filter(x=>x.id!==id)); };
 
   /* ---- Lugares (vets/refugios/negocios) administrados por vos ---- */
   const guardarLugar=async(l)=>{
@@ -619,6 +630,7 @@ export default function App(){
         {view==="business"&& <BusinessView go={go} />}
         {view==="contacto"&& <ContactoView go={go} onSend={enviarMensaje} />}
         {view==="historia"&& <HistoriaView go={go} onSend={enviarMensaje} />}
+        {view==="resenas"&& <ResenasView go={go} resenas={resenas.filter(r=>r.aprobada)} onSend={enviarResena} />}
         {view==="refugios"&& <RefugiosView go={go} />}
         {view==="blog"&& <BlogView go={go} flash={flash} notaInicial={notaInicial} entradas={[...blog,...BLOG_FIJO.filter(f=>!blog.some(b=>b.titulo===f.titulo))].filter(e=>!e.created_at||new Date(e.created_at)<=new Date()).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))} />}
         {view==="registrar_mascota"&& (requireAuthToPublish ? <AuthGate go={go} registrar /> : <RegistrarMascotaView go={go} onSave={async(f)=>{ const m=await registrarMascota(f); if(m){ setQrMascota(m); } return m; }} flash={flash} />)}
@@ -630,11 +642,11 @@ export default function App(){
         {view==="auth"    && <AuthView onSignIn={onSignIn} onSignUp={onSignUp} onReset={onReset} onGoogle={Auth.google} go={go} />}
         {view==="costs"   && <CostsView go={go} conn={conn} />}
         {view==="profile" && <ProfileView posts={posts} go={go} user={user} conn={conn} onSignOut={onSignOut} onUpdateName={onUpdateName} />}
-        {view==="admin"   && (isAdmin(user) ? <AdminView mascotas={misMascotas} posts={posts} reports={reports} approve={approve} removePost={removePost} go={go} clearReport={clearReport} conn={conn} mensajes={mensajes} borrarMensaje={borrarMensaje} lugares={lugares} guardarLugar={guardarLugar} borrarLugar={borrarLugar} avistamientos={avistamientos} borrarAvistamiento={borrarAvistamiento} blog={blog} guardarBlog={guardarBlog} borrarBlog={borrarBlog} onPublicar={submitPost} guardarHuella={guardarHuella} /> : <AdminLocked go={go} />)}
+        {view==="admin"   && (isAdmin(user) ? <AdminView mascotas={misMascotas} posts={posts} reports={reports} approve={approve} removePost={removePost} go={go} clearReport={clearReport} conn={conn} mensajes={mensajes} borrarMensaje={borrarMensaje} lugares={lugares} guardarLugar={guardarLugar} borrarLugar={borrarLugar} avistamientos={avistamientos} borrarAvistamiento={borrarAvistamiento} blog={blog} guardarBlog={guardarBlog} borrarBlog={borrarBlog} onPublicar={submitPost} guardarHuella={guardarHuella} resenas={resenas} moderarResena={moderarResena} borrarResena={borrarResena} /> : <AdminLocked go={go} />)}
 
         <BottomNav view={view} go={go} />
         {guia && <GuiaView onClose={()=>setGuia(false)} />}
-        {!["new","admin","auth","registrar_mascota","mascota_publica","contacto","dni_mascota","historia"].includes(view) && <AyudaBot go={go} abrirGuia={()=>setGuia(true)} abrirNota={(id)=>{ setNotaInicial(id); go("blog"); }} />}
+        {!["new","admin","auth","registrar_mascota","mascota_publica","contacto","dni_mascota","historia","resenas"].includes(view) && <AyudaBot go={go} abrirGuia={()=>setGuia(true)} abrirNota={(id)=>{ setNotaInicial(id); go("blog"); }} />}
 
         {toast && <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[999] px-4 py-2.5 rounded-full text-white text-sm font-medium shadow-lg" style={{background:C.ink,animation:"pop .25s ease"}}>{toast}</div>}
       {apoyo&&<div className="fixed inset-0 z-[900] flex items-end justify-center" style={{background:"rgba(0,0,0,.45)"}} onClick={()=>setApoyo(false)}><div className="w-full max-w-[480px] rounded-t-3xl p-5" style={{background:C.surface}} onClick={e=>e.stopPropagation()}>
@@ -757,6 +769,7 @@ function HomeView({ posts, go, conn, user, realPosts=[], abrirVacunas=()=>{} }){
       <a href={`https://wa.me/5493764108100?text=${encodeURIComponent("Hola, quiero trabajar con Mascotas Perdidas Misiones")}`} target="_blank" rel="noreferrer" className="mt-4 w-full rounded-2xl p-3.5 text-left flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{background:C.brandSoft,color:C.brand}}><Mail size={18}/></div><div className="flex-1"><div className="font-bold text-sm">Trabajá con nosotros</div><div className="text-[11px]" style={{color:C.muted}}>Escribinos por WhatsApp y sumate a Mascotas Perdidas Misiones</div></div><ChevronRight size={16} color={C.muted}/></a>
 
       <button onClick={()=>go("blog")} className="mt-2.5 w-full rounded-2xl p-3.5 text-left flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{background:C.brandSoft,color:C.brand}}><BookOpen size={18}/></div><div className="flex-1"><div className="font-bold text-sm">Blog 📝</div><div className="text-[11px]" style={{color:C.muted}}>Historias, novedades y consejos de Mascotas Perdidas Misiones</div></div><ChevronRight size={16} color={C.muted}/></button>
+      <button onClick={()=>go("resenas")} className="mt-2.5 w-full rounded-2xl p-3.5 text-left flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg" style={{background:C.brandSoft}}>⭐</div><div className="flex-1"><div className="font-bold text-sm">Dejanos tu reseña</div><div className="text-[11px]" style={{color:C.muted}}>Tu opinión ayuda a que más mascotas vuelvan a casa</div></div><ChevronRight size={16} color={C.muted}/></button>
       <div className="mt-4 mb-2 rounded-2xl p-3.5 flex gap-2.5 text-[12px]" style={{background:"#FFF7E6",border:"1px solid #F3E1B5",color:"#7A5B14"}}><AlertTriangle size={18} className="shrink-0 mt-0.5"/><p>Cuidado con quienes pidan dinero antes de demostrar que tienen a tu mascota. No compartas datos sensibles sin verificar.</p></div>
 
       <a href="https://posadas.gov.ar/imusa" target="_blank" rel="noreferrer" className="mb-2 w-full rounded-2xl p-3 flex items-center gap-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{background:C.brandSoft,color:C.brand}}><Stethoscope size={17}/></div><div className="flex-1"><div className="font-bold text-[13px]">IMUSA Posadas · Castraciones y vacunas gratis</div><div className="text-[10px]" style={{color:C.muted}}>Instituto Municipal de Sanidad Animal</div></div><ChevronRight size={15} color={C.muted}/></a>
@@ -2170,6 +2183,34 @@ function RefugiosView({ go }){
   </div>);
 }
 
+/* ------------------- Reseñas de la comunidad ------------------- */
+const Estrellas=({n=0,size=16})=><span style={{color:"#E8A317",fontSize:size,letterSpacing:1}}>{"★".repeat(n)}<span style={{color:"#D9D9D9"}}>{"★".repeat(5-n)}</span></span>;
+function ResenasView({ go, resenas=[], onSend }){
+  const [f,setF]=useState({nombre:"",estrellas:5,texto:"",ok:false});
+  const [busy,setBusy]=useState(false); const [listo,setListo]=useState(false);
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const puede=f.nombre.trim()&&f.texto.trim().length>=10&&f.ok;
+  const fmtFecha=(f)=>{ try{ return new Date(f).toLocaleDateString("es-AR",{day:"numeric",month:"long",year:"numeric"}); }catch{ return ""; } };
+  const prom=resenas.length?(resenas.reduce((a,r)=>a+(r.estrellas||0),0)/resenas.length):0;
+  const enviar=async()=>{ if(!puede)return; setBusy(true); const r=await onSend(f); setBusy(false); if(r)setListo(true); };
+  const compartir=`https://wa.me/?text=${encodeURIComponent("Dejá tu reseña de Mascotas Perdidas Misiones 🐾 https://mascotasperdidasmisiones.netlify.app/?v=resenas")}`;
+  return (<div className="px-4 pb-6"><Title back={()=>go("home")} title="Reseñas" tag="FUNCIONAL"/>
+    <div className="rounded-2xl p-3.5 mb-3 text-center" style={{background:C.brandSoft}}>
+      {resenas.length>0?<><div className="text-3xl font-extrabold" style={{color:C.brandDeep}}>{prom.toFixed(1).replace(".",",")}</div><Estrellas n={Math.round(prom)} size={22}/><div className="text-[12px] mt-0.5" style={{color:C.muted}}>{resenas.length} {resenas.length===1?"opinión":"opiniones"} de la comunidad</div></>:<div className="text-[13px] font-semibold" style={{color:C.brandDeep}}>Sé la primera persona en dejar su reseña 💛</div>}
+    </div>
+    {listo?<div className="rounded-2xl p-5 text-center mb-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center" style={{background:C.brandSoft}}><Check size={28} color={C.brand}/></div><h3 className="font-extrabold mt-2">¡Gracias por tu reseña! 🐾</h3><p className="text-[13px] mt-1" style={{color:C.muted}}>La revisamos y en breve aparece publicada. Si querés, compartí la página con alguien que quiera ayudar.</p><a href={compartir} target="_blank" rel="noreferrer" className="mt-3 w-full py-3 rounded-2xl font-bold text-white flex items-center justify-center gap-2" style={{background:C.found}}><Phone size={16}/> Compartir por WhatsApp</a></div>:
+    <div className="rounded-2xl p-3.5 mb-4 space-y-3" style={{background:C.surface,border:`1px solid ${C.line}`}}>
+      <div className="font-extrabold text-sm">Dejanos tu reseña</div>
+      <div className="flex items-center justify-center gap-1">{[1,2,3,4,5].map(n=><button key={n} type="button" onClick={()=>set("estrellas",n)} aria-label={`${n} estrellas`} style={{fontSize:34,lineHeight:1,color:n<=f.estrellas?"#E8A317":"#D9D9D9"}}>★</button>)}</div>
+      <Field label="Tu nombre (alcanza con el de pila) *"><input value={f.nombre} onChange={e=>set("nombre",e.target.value)} className="inp" maxLength={40} placeholder="Ej: Marta"/></Field>
+      <Field label="Tu opinión *"><textarea value={f.texto} onChange={e=>set("texto",e.target.value)} rows={4} className="inp" maxLength={500} placeholder="Contanos cómo te ayudó la página o qué te gustaría que mejoremos…"/></Field>
+      <label className="flex items-start gap-2 text-[12px]"><input type="checkbox" checked={f.ok} onChange={e=>set("ok",e.target.checked)} className="mt-0.5"/><span>Autorizo a publicar mi reseña con mi nombre en la página.</span></label>
+      <button onClick={enviar} disabled={busy||!puede} className="w-full py-3 rounded-2xl font-bold text-white flex items-center justify-center gap-2" style={{background:puede?C.brand:C.line}}>{busy&&<Loader2 size={18} className="animate-spin"/>}Enviar reseña</button>
+    </div>}
+    {resenas.length>0&&<div className="space-y-2.5">{resenas.map(r=>(<div key={r.id} className="rounded-2xl p-3.5" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="flex items-center justify-between"><span className="font-bold text-sm">{r.nombre}</span><Estrellas n={r.estrellas||0} size={14}/></div><p className="text-[13px] mt-1 whitespace-pre-line">{r.texto}</p><div className="text-[10px] mt-1" style={{color:C.muted}}>{r.created_at?fmtFecha(r.created_at):""}</div></div>))}</div>}
+  </div>);
+}
+
 /* ------------------- Contanos tu historia (llega en privado a la administradora) ------------------- */
 function HistoriaView({ go, onSend }){
   const [f,setF]=useState({nombre:"",contacto:"",mascota:"",firma:"Con mi nombre de pila",historia:"",ok:false});
@@ -2287,7 +2328,7 @@ function Stat({ n, l }){ return <div className="rounded-2xl py-3 text-center" st
 
 /* ---------------------------- Administración ----------------------------- */
 function AdminLocked({ go }){ return <div className="px-4"><Title back={()=>go("home")} title="Administración" tag="FUNCIONAL"/><div className="rounded-2xl p-6 text-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><Shield size={38} className="mx-auto" color={C.brand}/><p className="font-bold mt-2">Solo administradores</p><p className="text-[13px] mt-1" style={{color:C.muted}}>Ingresá con un email de la lista ADMIN_EMAILS para acceder.</p><button onClick={()=>go("auth")} className="mt-4 w-full py-3 rounded-2xl font-bold text-white" style={{background:C.brand}}>Ingresar</button></div></div>; }
-function AdminView({ mascotas=[], posts, reports, approve, removePost, go, clearReport, conn, mensajes=[], borrarMensaje, lugares=[], guardarLugar, borrarLugar, avistamientos=[], borrarAvistamiento, blog=[], guardarBlog, borrarBlog, onPublicar, guardarHuella }){
+function AdminView({ mascotas=[], posts, reports, approve, removePost, go, clearReport, conn, mensajes=[], borrarMensaje, lugares=[], guardarLugar, borrarLugar, avistamientos=[], borrarAvistamiento, blog=[], guardarBlog, borrarBlog, onPublicar, guardarHuella, resenas=[], moderarResena, borrarResena }){
   const [tab,setTab]=useState("stats");const [fBarrio,setFBarrio]=useState("all"),[fStatus,setFStatus]=useState("all"),[fSp,setFSp]=useState("all");
   const real=posts;const total=real.length;const lost=real.filter(p=>p.type==="lost").length;const found=real.filter(p=>p.type==="found").length;const seen=real.filter(p=>p.type==="seen").length;const reunited=real.filter(p=>p.status==="reunited").length;const recovered=real.filter(p=>p.status==="reunited"||p.status==="found").length;const pct=total?Math.round(recovered/total*100):0;
   const byBarrio=BARRIO_LIST.map(b=>({b,n:real.filter(p=>p.barrio===b).length})).filter(x=>x.n).sort((a,b)=>b.n-a.n).slice(0,8);const maxB=Math.max(1,...byBarrio.map(x=>x.n));
@@ -2298,7 +2339,7 @@ function AdminView({ mascotas=[], posts, reports, approve, removePost, go, clear
       <Title back={()=>go("home")} title="Panel administrador" tag="FUNCIONAL"/>
       <a href={GA_URL} target="_blank" rel="noreferrer" className="mb-3 w-full rounded-2xl p-3 flex items-center gap-3 text-left" style={{background:`linear-gradient(135deg, ${C.brand}, ${C.brandDeep})`,color:"#fff"}}><div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{background:"rgba(255,255,255,.18)"}}><BarChart3 size={20}/></div><div className="flex-1"><div className="font-extrabold text-sm">Ver visitas en Google Analytics</div><div className="text-[11px] opacity-90">Quién entra, desde dónde y en tiempo real</div></div><ExternalLink size={16}/></a>
       {conn!=="cloud"&&<div className="rounded-2xl p-2.5 mb-2 text-[11px] flex items-center gap-1.5" style={{background:"#FFF7E6",border:"1px solid #F3E1B5",color:"#7A5B14"}}><CloudOff size={13}/> Modo local: la moderación afecta solo este dispositivo.</div>}
-      <div className="flex flex-wrap gap-2 mb-3">{[["stats","Estadísticas"],["fb","Desde Facebook"],["mascotas",`Mascotas${mascotas.length?` (${mascotas.length})`:""}`],["visitas","Visitas"],["mod","Moderación"],["reports",`Reportes${reports.length?` (${reports.length})`:""}`],["mensajes",`Mensajes${mensajes.length?` (${mensajes.length})`:""}`],["avistamientos",`Avistamientos${avistamientos.length?` (${avistamientos.length})`:""}`],["blog",`Blog${blog.length?` (${blog.length})`:""}`],["lugares","Lugares"],["estado","Estado"]].map(([k,l])=><button key={k} onClick={()=>setTab(k)} className="shrink-0 px-3 py-2 rounded-xl text-xs font-bold" style={{background:tab===k?C.ink:C.surface,color:tab===k?"#fff":C.muted,border:`1px solid ${tab===k?C.ink:C.line}`}}>{l}</button>)}</div>
+      <div className="flex flex-wrap gap-2 mb-3">{[["stats","Estadísticas"],["fb","Desde Facebook"],["mascotas",`Mascotas${mascotas.length?` (${mascotas.length})`:""}`],["visitas","Visitas"],["mod","Moderación"],["reports",`Reportes${reports.length?` (${reports.length})`:""}`],["mensajes",`Mensajes${mensajes.length?` (${mensajes.length})`:""}`],["avistamientos",`Avistamientos${avistamientos.length?` (${avistamientos.length})`:""}`],["blog",`Blog${blog.length?` (${blog.length})`:""}`],["resenas",`Reseñas${resenas.filter(r=>!r.aprobada).length?` (${resenas.filter(r=>!r.aprobada).length} nuevas)`:""}`],["lugares","Lugares"],["estado","Estado"]].map(([k,l])=><button key={k} onClick={()=>setTab(k)} className="shrink-0 px-3 py-2 rounded-xl text-xs font-bold" style={{background:tab===k?C.ink:C.surface,color:tab===k?"#fff":C.muted,border:`1px solid ${tab===k?C.ink:C.line}`}}>{l}</button>)}</div>
 
       {tab==="visitas"&&<VisitasPanel conn={conn} posts={posts}/>}
       {tab==="fb"&&<FbRapidoAdmin onPublicar={onPublicar} go={go}/>}
@@ -2312,6 +2353,11 @@ function AdminView({ mascotas=[], posts, reports, approve, removePost, go, clear
 
       {tab==="avistamientos"&&(<div className="space-y-2.5 mb-2">{avistamientos.length===0?<Empty text="No hay avistamientos todavía. Acá vas a ver los avisos de gente que escaneó un QR."/>:avistamientos.map(a=>(<div key={a.id} className="rounded-2xl p-3" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="flex items-center justify-between"><span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{background:C.brandSoft,color:C.brandDeep}}>🐾 {a.mascota_nombre||a.mascota_codigo}</span><span className="text-[10px]" style={{color:C.muted}}>{timeAgo(a.created_at)}</span></div><div className="text-[13px] mt-1.5"><b>{a.quien}</b> la vio{a.zona?` en ${a.zona}`:""}</div>{a.nota&&<div className="text-[12px] mt-0.5" style={{color:C.muted}}>{a.nota}</div>}<div className="text-[12px] flex items-center gap-1.5 mt-1" style={{color:C.brand}}><Phone size={11}/> {a.contacto}</div><div className="flex gap-2 mt-2">{digits(a.contacto)&&<a href={`https://wa.me/${waNum(a.contacto)}`} target="_blank" rel="noreferrer" className="flex-1 py-2 rounded-xl text-xs font-bold text-white text-center" style={{background:C.found}}>Contactar por WhatsApp</a>}<button onClick={()=>borrarAvistamiento(a.id)} className="py-2 px-3 rounded-xl text-xs font-bold" style={{background:"#FBE7E7",color:C.lost}}><Trash2 size={14}/></button></div></div>))}</div>)}
 
+      {tab==="resenas"&&(<div className="space-y-2.5 mb-2">{resenas.length===0?<Empty text="Todavía no hay reseñas. Cuando alguien deje una, aparece acá para que la apruebes."/>:resenas.map(r=>(<div key={r.id} className="rounded-2xl p-3" style={{background:C.surface,border:`1px solid ${r.aprobada?C.found:C.line}`}}>
+        <div className="flex items-center justify-between gap-2"><div className="font-bold text-sm truncate">{r.nombre||"Anónimo"} · <span style={{color:"#E8A317"}}>{"★".repeat(r.estrellas||0)}{"☆".repeat(5-(r.estrellas||0))}</span></div><span className="text-[10px] shrink-0 font-bold" style={{color:r.aprobada?C.found:C.muted}}>{r.aprobada?"PUBLICADA":"PENDIENTE"}</span></div>
+        <div className="text-[13px] mt-1 whitespace-pre-line">{r.texto}</div>
+        <div className="flex gap-2 mt-2"><button onClick={()=>moderarResena(r.id,!r.aprobada)} className="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white" style={{background:r.aprobada?C.muted:C.found}}>{r.aprobada?"Ocultar":"Aprobar y publicar"}</button><button onClick={()=>borrarResena(r.id)} className="px-3 py-1.5 rounded-lg text-[11px] font-bold" style={{background:C.brandSoft,color:C.brandDeep}}>Borrar</button></div>
+      </div>))}</div>)}
       {tab==="blog"&&<BlogAdmin blog={blog} guardarBlog={guardarBlog} borrarBlog={borrarBlog}/>}
 
       {tab==="lugares"&&<LugaresAdmin lugares={lugares} guardarLugar={guardarLugar} borrarLugar={borrarLugar}/>}
