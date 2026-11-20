@@ -144,8 +144,8 @@ const FOTO_W=1200, FOTO_H=900; // todas las fotos se guardan en 4:3, ya encuadra
 const fotosDe=(p)=>{ if(!p)return []; const a=Array.isArray(p.photos)?p.photos.filter(Boolean):[]; if(a.length)return a.slice(0,MAX_FOTOS); return p.photo?[p.photo]:[]; };
 const subirFotos=(c,fotos)=>Promise.all((fotos||[]).map(f=>(f&&f.startsWith("data:"))?uploadPhoto(c,f):f));
 // Si la columna "fotos" todavía no existe en Supabase, se guarda igual (solo la principal)
-const sinFotos=(row)=>{ const { fotos, fb_url, ...r }=row; return r; };
-const esErrorFotos=(e)=>!!e&&/fotos|fb_url/i.test(`${e.message||""} ${e.details||""} ${e.hint||""}`);
+const sinFotos=(row)=>{ const { fotos, fb_url, huella, ...r }=row; return r; };
+const esErrorFotos=(e)=>!!e&&/fotos|fb_url|huella/i.test(`${e.message||""} ${e.details||""} ${e.hint||""}`);
 /* Publicaciones traídas de Facebook: el contacto es por el posteo original */
 const esLinkFb=(u)=>/^https?:\/\/([a-z0-9-]+\.)?(facebook\.com|fb\.com|fb\.me|fb\.watch)\/\S+$/i.test((u||"").trim());
 /* ---------------- Medición de uso (gratis): Google Analytics + tabla "eventos" ----------------
@@ -178,8 +178,8 @@ async function getClient(){
   return _client;
 }
 /* Mapeo fila <-> objeto de la app */
-const toRow = (p)=>({ owner_id:p.owner_id??null, type:p.type, status:p.status, pet_name:p.petName, species:p.species, sex:p.sex, age_approx:p.ageApprox, color:p.color, features:p.features, date:p.date, time:p.time, place:p.place, zona:p.zona, barrio:p.barrio, cp:p.cp, description:p.description, photo:p.photo, fb_url:esLinkFb(p.fbUrl)?p.fbUrl.trim():null, fotos:(p.photos&&p.photos.length)?p.photos.slice(0,MAX_FOTOS):(p.photo?[p.photo]:null), contact_name:p.contactName, phone:p.phone, whatsapp:p.whatsapp, reward:p.reward, lat:p.lat, lng:p.lng, precise_location:p.preciseLocation, recovered_at:p.recoveredAt, approved:p.approved, reported:p.reported, city:p.city, mascota_codigo:p.mascotaCodigo });
-const fromRow = (r)=>({ id:r.id, legajo:r.legajo, owner_id:r.owner_id, type:r.type, status:r.status, petName:r.pet_name, species:r.species, sex:r.sex, ageApprox:r.age_approx, color:r.color, features:r.features, date:r.date, time:r.time, place:r.place, zona:r.zona, barrio:r.barrio, cp:r.cp, description:r.description, photo:r.photo, fbUrl:r.fb_url||"", photos:(Array.isArray(r.fotos)&&r.fotos.length)?r.fotos:(r.photo?[r.photo]:[]), contactName:r.contact_name, phone:r.phone, whatsapp:r.whatsapp, reward:r.reward, lat:r.lat, lng:r.lng, preciseLocation:r.precise_location, recoveredAt:r.recovered_at, createdAt:r.created_at, approved:r.approved, reported:r.reported, city:r.city, mascotaCodigo:r.mascota_codigo, demo:false, emoji:EMO[r.species]||"🐾" });
+const toRow = (p)=>({ owner_id:p.owner_id??null, type:p.type, status:p.status, pet_name:p.petName, species:p.species, sex:p.sex, age_approx:p.ageApprox, color:p.color, features:p.features, date:p.date, time:p.time, place:p.place, zona:p.zona, barrio:p.barrio, cp:p.cp, description:p.description, photo:p.photo, fb_url:esLinkFb(p.fbUrl)?p.fbUrl.trim():null, huella:p.huella, fotos:(p.photos&&p.photos.length)?p.photos.slice(0,MAX_FOTOS):(p.photo?[p.photo]:null), contact_name:p.contactName, phone:p.phone, whatsapp:p.whatsapp, reward:p.reward, lat:p.lat, lng:p.lng, precise_location:p.preciseLocation, recovered_at:p.recoveredAt, approved:p.approved, reported:p.reported, city:p.city, mascota_codigo:p.mascotaCodigo });
+const fromRow = (r)=>({ id:r.id, legajo:r.legajo, owner_id:r.owner_id, type:r.type, status:r.status, petName:r.pet_name, species:r.species, sex:r.sex, ageApprox:r.age_approx, color:r.color, features:r.features, date:r.date, time:r.time, place:r.place, zona:r.zona, barrio:r.barrio, cp:r.cp, description:r.description, photo:r.photo, fbUrl:r.fb_url||"", huella:r.huella||null, photos:(Array.isArray(r.fotos)&&r.fotos.length)?r.fotos:(r.photo?[r.photo]:[]), contactName:r.contact_name, phone:r.phone, whatsapp:r.whatsapp, reward:r.reward, lat:r.lat, lng:r.lng, preciseLocation:r.precise_location, recoveredAt:r.recovered_at, createdAt:r.created_at, approved:r.approved, reported:r.reported, city:r.city, mascotaCodigo:r.mascota_codigo, demo:false, emoji:EMO[r.species]||"🐾" });
 async function uploadPhoto(client, dataUrl){
   try{ const blob=await(await fetch(dataUrl)).blob(); const name=`pub/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
     const { error }=await client.storage.from("fotos").upload(name,blob,{contentType:"image/jpeg"}); if(error)throw error;
@@ -199,15 +199,44 @@ const Auth = {
 const isAdmin = (user)=> CLOUD ? !!(user&&ADMIN_EMAILS.includes(user.email)) : true;
 
 /* --------------------- Motor de coincidencia (interfaz) ------------------ */
+/* ===== Comparación por foto: "huella visual" de cada mascota =====
+   Un modelo gratuito de Google (MediaPipe) corre SOLO en el panel admin y guarda la huella de cada foto
+   (unos 1000 números). Los visitantes solo comparan esos números: no descargan nada pesado. */
+const huellaPack=(v)=>{ let s=""; for(let i=0;i<v.length;i++){ const q=Math.max(-127,Math.min(127,Math.round(v[i]*127))); s+=String.fromCharCode(q&255); } return btoa(s); };
+const _huellaCache=new Map();
+const huellaVec=(str)=>{ if(!str)return null; if(_huellaCache.has(str))return _huellaCache.get(str); let v=null; try{ const t=atob(str); v=new Float32Array(t.length); for(let i=0;i<t.length;i++){ let c=t.charCodeAt(i); if(c>127)c-=256; v[i]=c/127; } }catch{ v=null; } _huellaCache.set(str,v); return v; };
+const huellaSim=(a,b)=>{ if(!a||!b||a.length!==b.length)return null; let d=0,na=0,nb=0; for(let i=0;i<a.length;i++){ d+=a[i]*b[i]; na+=a[i]*a[i]; nb+=b[i]*b[i]; } return d/Math.sqrt((na*nb)||1); };
+// similitud coseno → 0..100. Umbrales a calibrar con datos reales (ver panel admin → parecidos)
+const HUELLA_MIN=0.55, HUELLA_MAX=0.9;
+const huellaPuntaje=(sim)=>sim==null?null:Math.max(0,Math.min(100,Math.round((sim-HUELLA_MIN)/(HUELLA_MAX-HUELLA_MIN)*100)));
+let _emb=null;
+async function cargarEmbedder(){
+  if(_emb)return _emb;
+  const base="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+  const M=await import(/* @vite-ignore */ base+"/vision_bundle.mjs");
+  const fs=await M.FilesetResolver.forVisionTasks(base+"/wasm");
+  const emb=await M.ImageEmbedder.createFromOptions(fs,{ baseOptions:{ modelAssetPath:"https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite", delegate:"CPU" }, runningMode:"IMAGE", l2Normalize:true });
+  _emb=emb; return emb;
+}
+async function calcularHuella(src){
+  const emb=await cargarEmbedder();
+  const img=await new Promise((res,rej)=>{ const im=new Image(); im.crossOrigin="anonymous"; im.onload=()=>res(im); im.onerror=()=>rej(new Error("img")); im.src=src; });
+  const r=emb.embed(img); const v=r&&r.embeddings&&r.embeddings[0]&&r.embeddings[0].floatEmbedding; if(!v||!v.length)throw new Error("sin embedding");
+  const n=Math.sqrt(Array.prototype.reduce.call(v,(a,b)=>a+b*b,0))||1;
+  return huellaPack(Array.from(v,x=>x/n));
+}
 const MatchEngine = {
-  visionHook:null, // (target,candidate)=>Promise<0..100>|null  ← IA visual (🔴 requiere servicio pago)
+  visionHook:null,
   attributeScore(a,b){ let s=0,m=0;const add=(w,ok)=>{m+=w;if(ok)s+=w;};
     add(35,a.species===b.species);const ac=(a.color||"").toLowerCase(),bc=(b.color||"").toLowerCase();
     add(25,ac.split(/\s|y/).some(t=>t.length>2&&bc.includes(t)));add(15,a.sex&&a.sex===b.sex);add(15,a.barrio===b.barrio);
     const fa=(a.features||"").toLowerCase(),fb=(b.features||"").toLowerCase();add(10,fa&&fb&&fa.split(/\W+/).some(t=>t.length>3&&fb.includes(t)));return Math.round(s/m*100); },
-  rank(target,cands){ return cands.filter(p=>(p.type==="found"||p.type==="seen")&&p.id!==target.id&&p.status!=="reunited")
-    .map(p=>({post:p,score:this.attributeScore(target,p),visualScore:null,distanceKm:target.lat&&p.lat?haversine([target.lat,target.lng],[p.lat,p.lng]):null,ago:p.createdAt}))
-    .filter(m=>m.score>=45).sort((a,b)=>b.score-a.score).slice(0,4); },
+  // Una perdida se compara con encontradas/avistadas, y al revés. Si hay huella de foto en ambas, la foto pesa más.
+  rank(target,cands){ const tv=huellaVec(target.huella); const opp=target.type==="lost"?["found","seen"]:["lost"];
+    return cands.filter(p=>opp.includes(p.type)&&p.id!==target.id&&p.status!=="reunited"&&(!p.species||!target.species||p.species===target.species))
+    .map(p=>{ const a=this.attributeScore(target,p); const sim=tv?huellaSim(tv,huellaVec(p.huella)):null; const vs=huellaPuntaje(sim); const score=vs==null?a:Math.round(a*0.4+vs*0.6);
+      return {post:p,score,visualScore:vs,sim,distanceKm:target.lat&&p.lat?haversine([target.lat,target.lng],[p.lat,p.lng]):null,ago:p.createdAt}; })
+    .filter(m=>m.visualScore!=null?(m.visualScore>=55||m.score>=60):m.score>=45).sort((a,b)=>b.score-a.score).slice(0,4); },
 };
 
 /* ----------------------------- Datos DEMO -------------------------------- */
@@ -406,10 +435,11 @@ export default function App(){
     if(conn==="cloud"){ try{ const c=await getClient(); const photos=await subirFotos(c,fotosDe(p)); const photo=photos[0]||null; const row=toRow({...partial,photo,photos}); let {data,error}=await c.from("publicaciones").insert(row).select().single(); if(error&&esErrorFotos(error))({data,error}=await c.from("publicaciones").insert(sinFotos(row)).select().single()); if(error)throw error; const np=fromRow(data); setRealPosts(prev=>[np,...prev]); setCurrent(np); return np; }catch(e){ flash("No se pudo guardar en la nube."); return null; } }
     const id=Math.max(1000,...realPosts.filter(x=>typeof x.id==="number").map(x=>x.id))+1; const np={...partial,id,createdAt:new Date().toISOString()}; const next=[np,...realPosts]; setRealPosts(next); Local.set(KEYS.posts,next); setCurrent(np); return np;
   };
+  const guardarHuella=async(id,huella)=>{ try{ const c=await getClient(); const {error}=await c.from("publicaciones").update({huella}).eq("id",id); if(error)throw error; setRealPosts(prev=>prev.map(x=>x.id===id?{...x,huella}:x)); return true; }catch{ return false; } };
   const updatePost=async(id,fields)=>{
     const existing=realPosts.find(x=>x.id===id); if(!existing){flash("Solo podés editar tus publicaciones.");return null;}
     const merged={...existing,...fields};
-    if(conn==="cloud"){ try{ const c=await getClient(); const photos=await subirFotos(c,fotosDe(merged)); const photo=photos[0]||null; const row=toRow({...merged,photo,photos}); let {data,error}=await c.from("publicaciones").update(row).eq("id",id).select().single(); if(error&&esErrorFotos(error))({data,error}=await c.from("publicaciones").update(sinFotos(row)).eq("id",id).select().single()); if(error)throw error; const np=fromRow(data); setRealPosts(prev=>prev.map(x=>x.id===id?np:x)); setCurrent(np); return np; }catch{ flash("No se pudo actualizar."); return null; } }
+    if(conn==="cloud"){ try{ const c=await getClient(); const photos=await subirFotos(c,fotosDe(merged)); const photo=photos[0]||null; const row=toRow({...merged,photo,photos,huella:(photo&&photo===existing.photo)?existing.huella:null}); let {data,error}=await c.from("publicaciones").update(row).eq("id",id).select().single(); if(error&&esErrorFotos(error))({data,error}=await c.from("publicaciones").update(sinFotos(row)).eq("id",id).select().single()); if(error)throw error; const np=fromRow(data); setRealPosts(prev=>prev.map(x=>x.id===id?np:x)); setCurrent(np); return np; }catch{ flash("No se pudo actualizar."); return null; } }
     const next=realPosts.map(x=>x.id===id?merged:x); setRealPosts(next); Local.set(KEYS.posts,next); setCurrent(merged); return merged;
   };
   const submitPost=async(payload)=>{ if(payload.__edit)return await updatePost(payload.id,payload.fields); const np=await createPost(payload); if(np)registrarEvento("publicar",{post_id:np.id,barrio:np.barrio}); return np; };
@@ -599,7 +629,7 @@ export default function App(){
         {view==="auth"    && <AuthView onSignIn={onSignIn} onSignUp={onSignUp} onReset={onReset} onGoogle={Auth.google} go={go} />}
         {view==="costs"   && <CostsView go={go} conn={conn} />}
         {view==="profile" && <ProfileView posts={posts} go={go} user={user} conn={conn} onSignOut={onSignOut} onUpdateName={onUpdateName} />}
-        {view==="admin"   && (isAdmin(user) ? <AdminView mascotas={misMascotas} posts={posts} reports={reports} approve={approve} removePost={removePost} go={go} clearReport={clearReport} conn={conn} mensajes={mensajes} borrarMensaje={borrarMensaje} lugares={lugares} guardarLugar={guardarLugar} borrarLugar={borrarLugar} avistamientos={avistamientos} borrarAvistamiento={borrarAvistamiento} blog={blog} guardarBlog={guardarBlog} borrarBlog={borrarBlog} onPublicar={submitPost} /> : <AdminLocked go={go} />)}
+        {view==="admin"   && (isAdmin(user) ? <AdminView mascotas={misMascotas} posts={posts} reports={reports} approve={approve} removePost={removePost} go={go} clearReport={clearReport} conn={conn} mensajes={mensajes} borrarMensaje={borrarMensaje} lugares={lugares} guardarLugar={guardarLugar} borrarLugar={borrarLugar} avistamientos={avistamientos} borrarAvistamiento={borrarAvistamiento} blog={blog} guardarBlog={guardarBlog} borrarBlog={borrarBlog} onPublicar={submitPost} guardarHuella={guardarHuella} /> : <AdminLocked go={go} />)}
 
         <BottomNav view={view} go={go} />
         {guia && <GuiaView onClose={()=>setGuia(false)} />}
@@ -1023,7 +1053,7 @@ function DetailView({ post, all, go, setStatus, flash, onReport, user, onDelete 
   const t=TYPE[post.type],st=STATUS[post.status];
   const owner = !post.demo && user && post.owner_id && post.owner_id===user.id;
   const canManage = owner || isAdmin(user);
-  const matches=useMemo(()=>post.type==="lost"?MatchEngine.rank(post,all):[],[post,all]);
+  const matches=useMemo(()=>post.status!=="reunited"?MatchEngine.rank(post,all):[],[post,all]);
   useEffect(()=>{ if(!post.demo)registrarEvento("ver_publicacion",{post_id:post.id,barrio:post.barrio}); },[post.id]);
   const wa=()=>{registrarEvento("contacto_whatsapp",{post_id:post.id,barrio:post.barrio});const est=post.type==="lost"?"🔴 PERDIDA":post.type==="found"?"🟢 ENCONTRADA":"🟡 VISTA";const esp=post.species&&post.species!=="otro"?post.species:"mascota";const quien=post.petName?`${post.petName} (${esp})`:esp.charAt(0).toUpperCase()+esp.slice(1);const msg=`Hola 👋 Te escribo por tu publicación en Mascotas Perdidas Misiones:\n${est}: ${quien} en ${ubicTxt(post)}\n${linkPost(post)}\n\nCreo que tengo información que te puede servir.`;window.open(`https://wa.me/${waNum(post.whatsapp)}?text=${encodeURIComponent(msg)}`,"_blank");};
   return (
@@ -1045,7 +1075,7 @@ function DetailView({ post, all, go, setStatus, flash, onReport, user, onDelete 
         {post.fbUrl&&<a href={post.fbUrl} target="_blank" rel="noreferrer" onClick={()=>registrarEvento("contacto_facebook",{post_id:post.id,barrio:post.barrio})} className="mt-3 w-full py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2" style={{background:"#1877F2"}}><FbIcon size={18} color="#fff"/> Contactar en Facebook</a>}
         {telValido(post.whatsapp)&&<button onClick={wa} className="mt-3 w-full py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2" style={{background:C.found}}><Phone size={18}/> Contactar por WhatsApp</button>}
 
-        {matches.length>0&&(<div className="mt-4"><div className="flex items-center gap-2 font-extrabold text-sm"><Sparkles size={16} color={C.reunited}/> Posibles coincidencias <Tag t="PARCIAL"/></div><p className="text-[11px] mb-2" style={{color:C.muted}}>Sugerencias por características. No es una identificación segura.</p><div className="space-y-2">{matches.map(({post:p,score,distanceKm,ago})=>(<button key={p.id} onClick={()=>go("detail",{post:p})} className="w-full flex items-center gap-3 p-2.5 rounded-2xl text-left" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-14 h-14 rounded-xl overflow-hidden shrink-0"><Thumb post={p} h={56}/></div><div className="flex-1 min-w-0"><div className="text-[10px] font-bold" style={{color:TYPE[p.type].dot}}><Punto e={TYPE[p.type].ico}/> Posible coincidencia · {TYPE[p.type].label}</div><div className="font-bold text-sm truncate">{p.petName||p.species} · {ubicTxt(p)}</div><div className="text-[11px] flex items-center gap-2" style={{color:C.muted}}>{distanceKm!=null&&<span className="flex items-center gap-0.5"><Ruler size={10}/> {distanceKm<0.2?"misma zona":`${distanceKm.toFixed(1)} km`}</span>}<span className="flex items-center gap-0.5"><Clock size={10}/> {timeAgo(ago)}</span></div></div><div className="text-right shrink-0"><div className="font-extrabold text-[12px]" style={{color:C.reunited}}>{parecido(score)}</div></div></button>))}</div></div>)}
+        {matches.length>0&&(<div className="mt-4"><div className="flex items-center gap-2 font-extrabold text-sm"><Sparkles size={16} color={C.reunited}/> Posibles coincidencias <Tag t="PARCIAL"/></div><p className="text-[11px] mb-2" style={{color:C.muted}}>Sugerencias por foto y características. No es una identificación segura: confirmá con quien publicó.</p><div className="space-y-2">{matches.map(({post:p,score,distanceKm,ago,visualScore})=>(<button key={p.id} onClick={()=>go("detail",{post:p})} className="w-full flex items-center gap-3 p-2.5 rounded-2xl text-left" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="w-14 h-14 rounded-xl overflow-hidden shrink-0"><Thumb post={p} h={56}/></div><div className="flex-1 min-w-0"><div className="text-[10px] font-bold" style={{color:TYPE[p.type].dot}}><Punto e={TYPE[p.type].ico}/> Posible coincidencia · {TYPE[p.type].label}</div><div className="font-bold text-sm truncate">{p.petName||p.species} · {ubicTxt(p)}</div><div className="text-[11px] flex items-center gap-2" style={{color:C.muted}}>{distanceKm!=null&&<span className="flex items-center gap-0.5"><Ruler size={10}/> {distanceKm<0.2?"misma zona":`${distanceKm.toFixed(1)} km`}</span>}<span className="flex items-center gap-0.5"><Clock size={10}/> {timeAgo(ago)}</span></div></div><div className="text-right shrink-0"><div className="font-extrabold text-[12px]" style={{color:C.reunited}}>{parecido(score)}</div>{visualScore!=null&&visualScore>=80&&<div className="text-[10px] font-bold" style={{color:C.reunited}}>📸 foto muy similar</div>}</div></button>))}</div></div>)}
 
         {canManage&&(<div className="mt-4 rounded-2xl p-3.5" style={{background:C.surface,border:`1px solid ${C.line}`}}>
           <div className="text-[12px] font-bold mb-2">Gestionar {owner?"(tu publicación)":"(admin)"}</div>
@@ -2256,7 +2286,7 @@ function Stat({ n, l }){ return <div className="rounded-2xl py-3 text-center" st
 
 /* ---------------------------- Administración ----------------------------- */
 function AdminLocked({ go }){ return <div className="px-4"><Title back={()=>go("home")} title="Administración" tag="FUNCIONAL"/><div className="rounded-2xl p-6 text-center" style={{background:C.surface,border:`1px solid ${C.line}`}}><Shield size={38} className="mx-auto" color={C.brand}/><p className="font-bold mt-2">Solo administradores</p><p className="text-[13px] mt-1" style={{color:C.muted}}>Ingresá con un email de la lista ADMIN_EMAILS para acceder.</p><button onClick={()=>go("auth")} className="mt-4 w-full py-3 rounded-2xl font-bold text-white" style={{background:C.brand}}>Ingresar</button></div></div>; }
-function AdminView({ mascotas=[], posts, reports, approve, removePost, go, clearReport, conn, mensajes=[], borrarMensaje, lugares=[], guardarLugar, borrarLugar, avistamientos=[], borrarAvistamiento, blog=[], guardarBlog, borrarBlog, onPublicar }){
+function AdminView({ mascotas=[], posts, reports, approve, removePost, go, clearReport, conn, mensajes=[], borrarMensaje, lugares=[], guardarLugar, borrarLugar, avistamientos=[], borrarAvistamiento, blog=[], guardarBlog, borrarBlog, onPublicar, guardarHuella }){
   const [tab,setTab]=useState("stats");const [fBarrio,setFBarrio]=useState("all"),[fStatus,setFStatus]=useState("all"),[fSp,setFSp]=useState("all");
   const real=posts;const total=real.length;const lost=real.filter(p=>p.type==="lost").length;const found=real.filter(p=>p.type==="found").length;const seen=real.filter(p=>p.type==="seen").length;const reunited=real.filter(p=>p.status==="reunited").length;const recovered=real.filter(p=>p.status==="reunited"||p.status==="found").length;const pct=total?Math.round(recovered/total*100):0;
   const byBarrio=BARRIO_LIST.map(b=>({b,n:real.filter(p=>p.barrio===b).length})).filter(x=>x.n).sort((a,b)=>b.n-a.n).slice(0,8);const maxB=Math.max(1,...byBarrio.map(x=>x.n));
@@ -2271,7 +2301,7 @@ function AdminView({ mascotas=[], posts, reports, approve, removePost, go, clear
 
       {tab==="visitas"&&<VisitasPanel conn={conn} posts={posts}/>}
       {tab==="fb"&&<FbRapidoAdmin onPublicar={onPublicar} go={go}/>}
-      {tab==="stats"&&(<div className="space-y-3 mb-2"><div className="rounded-2xl p-4 text-center" style={{background:`linear-gradient(135deg, ${C.brand}, ${C.brandDeep})`,color:"#fff"}}><div className="text-4xl font-extrabold">{pct}%</div><div className="text-[12px] font-semibold opacity-90">porcentaje de recuperación</div></div><div className="grid grid-cols-2 gap-2.5"><Kpi n={total} l="Total publicaciones" c={C.ink}/><Kpi n={reunited} l="Reunidas con familia" c={C.reunited}/><Kpi n={lost} l="Perdidas" c={C.lost}/><Kpi n={found} l="Encontradas" c={C.found}/><Kpi n={seen} l="Vistas" c={C.seen}/><Kpi n={reports.length} l="Reportes" c={C.muted}/></div><div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Publicaciones por barrio</div><Bars data={byBarrio} max={maxB} color={C.brand}/></div>{repB.length>0&&<div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Barrios con más reportes</div><Bars data={repB} max={Math.max(1,...repB.map(x=>x.n))} color={C.lost}/></div>}</div>)}
+      {tab==="stats"&&(<div className="space-y-3 mb-2"><HuellasPanel posts={posts} guardarHuella={guardarHuella}/><div className="rounded-2xl p-4 text-center" style={{background:`linear-gradient(135deg, ${C.brand}, ${C.brandDeep})`,color:"#fff"}}><div className="text-4xl font-extrabold">{pct}%</div><div className="text-[12px] font-semibold opacity-90">porcentaje de recuperación</div></div><div className="grid grid-cols-2 gap-2.5"><Kpi n={total} l="Total publicaciones" c={C.ink}/><Kpi n={reunited} l="Reunidas con familia" c={C.reunited}/><Kpi n={lost} l="Perdidas" c={C.lost}/><Kpi n={found} l="Encontradas" c={C.found}/><Kpi n={seen} l="Vistas" c={C.seen}/><Kpi n={reports.length} l="Reportes" c={C.muted}/></div><div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Publicaciones por barrio</div><Bars data={byBarrio} max={maxB} color={C.brand}/></div>{repB.length>0&&<div className="rounded-2xl p-4" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="font-bold text-sm mb-3">Barrios con más reportes</div><Bars data={repB} max={Math.max(1,...repB.map(x=>x.n))} color={C.lost}/></div>}</div>)}
 
       {tab==="mod"&&(<div className="mb-2"><div className="flex gap-2 mb-3 overflow-x-auto mp-scroll -mx-4 px-4"><Sel value={fBarrio} onChange={setFBarrio} options={[["all","Barrio / localidad"],...BARRIO_LIST.map(b=>[b,b]),...Object.keys(ZONAS).filter(z=>z!=="Posadas").map(z=>[z,z])]}/><Sel value={fStatus} onChange={setFStatus} options={[["all","Estado"],...Object.entries(STATUS).map(([k,v])=>[k,v.label])]}/><Sel value={fSp} onChange={setFSp} options={[["all","Especie"],["perro","Perro"],["gato","Gato"],["otro","Otro"]]}/></div><div className="text-[12px] font-semibold mb-2" style={{color:C.muted}}>{filtered.length} {filtered.length!==1?"publicaciones":"publicación"}</div><div className="space-y-2.5">{filtered.map(p=>(<div key={p.id} className="rounded-2xl p-2.5 flex items-center gap-2.5" style={{background:C.surface,border:`1px solid ${p.reported?C.lost:C.line}`,opacity:p.approved===false?0.55:1}}><div className="w-11 h-11 rounded-xl overflow-hidden shrink-0"><Thumb post={p} h={44}/></div><button onClick={()=>go("detail",{post:p})} className="flex-1 min-w-0 text-left"><div className="text-[10px] font-bold" style={{color:TYPE[p.type].dot}}>{TYPE[p.type].label}{STATUS[p.status].label!==TYPE[p.type].label?` · ${STATUS[p.status].label}`:""}{p.demo?" · DEMO":""}{p.reported?" · ⚠":""}</div><div className="font-bold text-sm truncate">{p.petName||p.species} · {ubicTxt(p)}</div></button><div className="flex gap-1.5 shrink-0"><button onClick={()=>approve(p.id,p.approved===false)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{background:p.approved===false?C.found:C.bg}}>{p.approved===false?<Check size={15} color="#fff"/>:<EyeOff size={15} color={C.muted}/>}</button><button onClick={()=>removePost(p.id)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{background:"#FBE7E7"}}><Trash2 size={15} color={C.lost}/></button></div></div>))}</div></div>)}
 
@@ -2483,6 +2513,24 @@ function VisitasPanel({ conn, posts=[] }){
 }
 function Bars({ data, max, color }){ return <div className="space-y-2">{data.map(x=><div key={x.b} className="flex items-center gap-2"><div className="w-24 text-[11px] truncate" style={{color:C.muted}}>{x.b}</div><div className="flex-1 h-3 rounded-full overflow-hidden" style={{background:C.bg}}><div style={{width:`${x.n/max*100}%`,background:color,height:"100%"}}/></div><div className="w-5 text-right text-[11px] font-bold">{x.n}</div></div>)}</div>; }
 function Kpi({ n, l, c }){ return <div className="rounded-2xl p-3.5" style={{background:C.surface,border:`1px solid ${C.line}`}}><div className="text-2xl font-extrabold" style={{color:c}}>{n}</div><div className="text-[11px] font-semibold" style={{color:C.muted}}>{l}</div></div>; }
+function HuellasPanel({ posts, guardarHuella }){
+  const [run,setRun]=useState(false); const [msg,setMsg]=useState("");
+  const conFoto=posts.filter(p=>typeof p.photo==="string"&&p.photo.startsWith("http"));
+  const pend=conFoto.filter(p=>!p.huella&&p.status!=="reunited"); const con=conFoto.filter(p=>p.huella);
+  const pares=useMemo(()=>{ const out=[]; for(let i=0;i<con.length;i++)for(let j=i+1;j<con.length;j++){ const a=con[i],b=con[j]; if(a.species!==b.species)continue; if((a.type==="lost")===(b.type==="lost"))continue; const sim=huellaSim(huellaVec(a.huella),huellaVec(b.huella)); if(sim!=null)out.push({a,b,sim}); } return out.sort((x,y)=>y.sim-x.sim).slice(0,6); },[con.length]);
+  const calcular=async()=>{ if(run)return; setRun(true); let ok=0,mal=0; try{ await cargarEmbedder(); }catch{ setMsg("No se pudo cargar el modelo de Google. Revisá la conexión y probá de nuevo."); setRun(false); return; }
+    for(let i=0;i<pend.length;i++){ setMsg(`Calculando ${i+1} de ${pend.length}…`); try{ const h=await calcularHuella(pend[i].photo); const g=await guardarHuella(pend[i].id,h); if(g)ok++; else mal++; }catch{ mal++; } }
+    setMsg(mal?`Listo: ${ok} calculadas, ${mal} con error. ${ok===0?"Puede faltar crear la columna huella en Supabase.":""}`:`Listo: ${ok} calculadas.`); setRun(false); };
+  return (
+    <div className="rounded-2xl p-3.5 mb-3" style={{background:C.surface,border:`1px solid ${C.line}`}}>
+      <div className="flex items-center gap-2 font-extrabold text-sm"><Sparkles size={16} color={C.reunited}/> Comparar mascotas por foto <Tag t="IA GRATIS"/></div>
+      <p className="text-[11px] mt-1" style={{color:C.muted}}>Con fotos analizadas: {con.length} · pendientes: {pend.length}. Usa el modelo gratuito de Google (MediaPipe) en tu navegador.</p>
+      {pend.length>0&&<button onClick={calcular} disabled={run} className="mt-2 w-full py-2.5 rounded-xl text-sm font-bold text-white" style={{background:run?C.muted:C.brand}}>{run?"Trabajando…":`Analizar ${pend.length} foto${pend.length===1?"":"s"}`}</button>}
+      {msg&&<div className="text-[11px] mt-2 font-semibold" style={{color:C.ink}}>{msg}</div>}
+      {pares.length>0&&<div className="mt-3"><div className="text-[11px] font-bold mb-1" style={{color:C.muted}}>Pares perdida ↔ encontrada/avistada más parecidos</div>{pares.map((x,i)=>(<div key={i} className="text-[12px] flex justify-between py-0.5"><span>#{x.a.legajo} {x.a.petName||x.a.species} ↔ #{x.b.legajo} {x.b.petName||x.b.species}</span><b>{Math.round(x.sim*100)}%</b></div>))}</div>}
+    </div>
+  );
+}
 function AuditPanel({ conn }){
   const green=["Publicar (perdida/encontrada/vista) con foto","Buscador sin tildes y filtros","Mapa con publicaciones reales, agrupadas y en zona aproximada","Coincidencias por características, distancia y tiempo","WhatsApp al dueño con el anuncio y su enlace","Compartir con enlace directo y vista previa con foto","Botón atrás dentro de la página","Multiusuario en la nube (Supabase + Netlify)","Moderación, reportes y ocultado automático con 3 reportes","Revisión automática de fotos: sin animal o repetida queda en revisión (gratis)","Registro de mascotas con QR y avisos al dueño (campanita)","Blog con notas y enlaces directos","Todo sin costo ($0)"];
   const yellow=["Notificaciones en el celular con la página cerrada: se puede sumar gratis, requiere configuración","Avisos al dueño: se ven al abrir la página"];
